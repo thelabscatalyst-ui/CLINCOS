@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
@@ -26,6 +27,11 @@ app.include_router(doctors.router)
 app.include_router(patients.router)
 app.include_router(public.router)
 app.include_router(admin.router)
+
+
+@app.exception_handler(401)
+async def unauthorized_handler(request: Request, exc: HTTPException):
+    return RedirectResponse(url="/login", status_code=303)
 
 
 @app.get("/")
