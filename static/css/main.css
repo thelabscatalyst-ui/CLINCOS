@@ -773,8 +773,10 @@ a:hover { color: var(--text); }
 
 .schedule-row:hover { border-color: var(--border); }
 
-.schedule-row--off {
-  opacity: 0.38;
+.schedule-row--off .schedule-day,
+.schedule-row--off .input-sm {
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 .schedule-day {

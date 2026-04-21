@@ -32,76 +32,149 @@ Target customer: Dr. Mehta in Nashik — a GP with no digital system, using a pa
 
 ---
 
+## Known Compatibility Issues (Important)
+- **bcrypt must stay at 4.0.1** — passlib 1.7.4 is incompatible with bcrypt 5.x (`__about__` removed). Do NOT upgrade bcrypt.
+- **Starlette 1.0.0 TemplateResponse API changed** — `request` is now the FIRST argument: `templates.TemplateResponse(request, "template.html", context)`. Old signature with `{"request": request}` in the context dict causes `TypeError: cannot use 'tuple' as dict key`.
+- **httpx required for TestClient** — install `httpx` separately for FastAPI test client to work.
+- **Python 3.14 in use** — venv is at `/Users/apple/Desktop/ClinicOS/venv/`.
+
+---
+
+## How to Run
+```bash
+cd ~/Desktop/ClinicOS
+source venv/bin/activate
+uvicorn main:app --reload
+```
+Then open `http://127.0.0.1:8000`. If port 8000 is busy: `kill $(lsof -ti:8000)` then restart.
+
+---
+
 ## Folder Structure
 ```
-clinicos/
+ClinicOS/
 ├── main.py                  # Entry point — registers all routers, starts app
-├── config.py                # Settings loaded from .env
+├── config.py                # Settings loaded from .env (pydantic-settings)
 ├── requirements.txt         # All pip packages
 ├── .env                     # Secret keys — NEVER commit this
+├── .gitignore               # Ignores .env, venv/, clinic.db, __pycache__
 ├── CLAUDE.md                # This file
 │
 ├── database/
 │   ├── __init__.py
-│   ├── connection.py        # Creates DB engine + session
-│   └── models.py            # All SQLAlchemy table definitions
+│   ├── connection.py        # Engine, SessionLocal, Base, get_db(), create_tables()
+│   └── models.py            # All 7 SQLAlchemy ORM models + enums
 │
 ├── routers/
 │   ├── __init__.py
-│   ├── auth.py              # /register, /login, /logout
-│   ├── appointments.py      # /appointments — CRUD
-│   ├── doctors.py           # /doctors — profile, settings, schedule
-│   ├── patients.py          # /patients — list, profile
-│   ├── public.py            # /book/{slug} — no auth needed
-│   └── admin.py             # /admin — platform owner only
+│   ├── auth.py              # /register, /login, /logout (DONE)
+│   ├── doctors.py           # /dashboard, /doctors/settings/* (DONE)
+│   ├── appointments.py      # /appointments — CRUD (stub)
+│   ├── patients.py          # /patients — list, profile (stub)
+│   ├── public.py            # /book/{slug} — no auth needed (stub)
+│   └── admin.py             # /admin — platform owner only (stub)
 │
 ├── services/
 │   ├── __init__.py
-│   ├── auth_service.py      # Password hash, JWT create/verify
-│   ├── appointment_service.py # Slot availability, booking rules
-│   ├── notification_service.py # Twilio WhatsApp + SMS sending
-│   ├── payment_service.py   # Razorpay order create + verify
-│   └── scheduler_service.py # APScheduler — reminder jobs
+│   ├── auth_service.py      # hash_password, verify_password, create_access_token,
+│   │                        # decode_token, get_current_doctor (DONE)
+│   ├── appointment_service.py
+│   ├── notification_service.py
+│   ├── payment_service.py
+│   └── scheduler_service.py
 │
 ├── templates/
-│   ├── base.html            # Master layout: navbar, footer
-│   ├── login.html
-│   ├── register.html
-│   ├── dashboard.html
-│   ├── calendar.html
-│   ├── add_appointment.html
-│   ├── patients.html
-│   ├── patient_detail.html
-│   ├── settings.html
-│   ├── reports.html
-│   ├── billing.html
-│   ├── public_booking.html
+│   ├── base.html            # Master layout: navbar (active link aware)
+│   ├── login.html           # Two-column: brand left, card right (DONE)
+│   ├── register.html        # Two-column: brand left, card right (DONE)
+│   ├── dashboard.html       # Stats, today's schedule, quick actions (DONE)
+│   ├── settings.html        # Working hours, clinic profile, blocked dates (DONE)
+│   ├── calendar.html        # (not yet built)
+│   ├── patients.html        # (not yet built)
+│   ├── patient_detail.html  # (not yet built)
+│   ├── reports.html         # (not yet built)
+│   ├── billing.html         # (not yet built)
+│   ├── public_booking.html  # (not yet built)
 │   └── admin/
 │       ├── admin_dashboard.html
 │       └── doctors_list.html
 │
 └── static/
     ├── css/
-    │   ├── main.css
-    │   └── calendar.css
+    │   └── main.css         # All styles — dark theme, glow, pop animations
     ├── js/
-    │   ├── calendar.js
-    │   ├── booking.js
-    │   └── dashboard.js
     └── img/
-        └── logo.png
 ```
 
 ---
 
 ## Database Tables (Summary)
-- **doctors** — id, name, email, phone, password_hash, specialization, clinic_name, clinic_address, city, languages, is_active, plan_type, trial_ends_at, plan_expires_at, created_at
+- **doctors** — id, name, email, phone, password_hash, specialization, clinic_name, clinic_address, city, languages, slug, is_active, plan_type, trial_ends_at, plan_expires_at, created_at
 - **patients** — id, doctor_id, name, phone, language_pref, notes, visit_count, first_visit, last_visit, created_at
 - **appointments** — id, doctor_id, patient_id, appointment_date, appointment_time, duration_mins, appointment_type, status, patient_notes, doctor_notes, reminder_24h_sent, reminder_2h_sent, created_at, booked_by
-- **doctor_schedules** — id, doctor_id, day_of_week, start_time, end_time, slot_duration, max_patients, is_active
+- **doctor_schedules** — id, doctor_id, day_of_week(0=Mon), start_time, end_time, slot_duration, max_patients, is_active
 - **blocked_dates** — id, doctor_id, blocked_date, reason
-- **subscriptions** — id, doctor_id, plan_name, amount, payment_id, start_date, end_date, status
+- **subscriptions** — id, doctor_id, plan_name, amount(paise), payment_id, start_date, end_date, status
 - **notifications_log** — id, appointment_id, type, channel, message_body, status, sent_at
+
+---
+
+## Auth & Session Pattern
+- JWT stored in **HTTP-only cookie** named `access_token` (not localStorage)
+- Cookie max-age: 24 hours, samesite=lax
+- Protected routes use `Depends(get_current_doctor)` from `services/auth_service.py`
+- Unauthenticated requests → 401 → caught by `main.py` exception handler → redirect to `/login`
+- Doctor slug auto-generated on register: `name + city` → lowercase, hyphens (e.g. `dr-rajesh-mehta-nashik`)
+- Trial set to 14 days from `datetime.utcnow()` on register
+
+---
+
+## Design System (main.css)
+All pages use a **pitch-dark theme** with grey/white palette. Key rules:
+- Background: `#080808`, Cards: `#111111`, Inputs: `#1a1a1a`
+- Text: `#f0f0f0`, Muted: `#888`, Dim: `#555`
+- No blue — accent color is white/light grey only
+- **Every card and button has a soft white glow** (`--glow`, `--glow-hover` CSS vars)
+- **Every card and button pops on hover** (`translateY + scale` via `--transition-pop`)
+- Font: `Playfair Display` (headings/logo), `Inter` (body)
+- Border radius: `--radius: 20px` (cards), `--radius-sm: 10px` (inputs/buttons)
+- Auth pages: two-column grid — brand/logo left, form card right
+- All `TemplateResponse` calls use new Starlette 1.0 signature (request as first arg)
+
+### Component Classes
+- `.card`, `.stat-card`, `.quick-card`, `.settings-card` — dark cards with glow + pop
+- `.btn-primary` — white bg, dark text, full-width by default
+- `.btn-sm` — overrides to `width: auto`, `margin-top: 0`, smaller padding
+- `.btn-secondary` — dark bg, border, grey text
+- `.badge--scheduled/completed/cancelled/no_show` — status pill colours
+- `.input-sm` — compact dark input for dense forms (schedule grid, blocked dates)
+- `.toggle` — CSS toggle switch (grey track → white when checked)
+- `.page-title` — Playfair Display, flexbox row with `.page-date` inline
+- `schedule-row--off` — dims `.schedule-day` and `.input-sm` only, NOT the toggle
+
+### Key Design Rules to Maintain
+- Buttons on pages are `btn-sm` (not full-width) unless it's a standalone form submit
+- `<button>` elements that are not form submits MUST have `type="button"`
+- Do NOT use `disabled` on inputs inside forms — use CSS class-based dimming instead
+- Inline `flex:1/2` goes directly on `<input>` elements, not on `.form-group` wrappers
+
+---
+
+## Routes Built So Far
+| Method | Path | Handler | Auth |
+|---|---|---|---|
+| GET | `/` | Redirect → `/login` | No |
+| GET | `/register` | `auth.register_page` | No |
+| POST | `/register` | `auth.register` | No |
+| GET | `/login` | `auth.login_page` | No |
+| POST | `/login` | `auth.login` | No |
+| GET | `/logout` | `auth.logout` | No |
+| GET | `/dashboard` | `doctors.dashboard` | Yes |
+| GET | `/doctors/settings` | `doctors.settings_page` | Yes |
+| POST | `/doctors/settings/schedule` | `doctors.save_schedule` | Yes |
+| POST | `/doctors/settings/profile` | `doctors.save_profile` | Yes |
+| POST | `/doctors/settings/block` | `doctors.add_blocked_date` | Yes |
+| POST | `/doctors/settings/unblock/{id}` | `doctors.remove_blocked_date` | Yes |
 
 ---
 
@@ -113,6 +186,8 @@ clinicos/
 5. **Rate limit public booking** — max 5 bookings per phone per 24h
 6. **Keep routes thin** — business logic belongs in services/, not routers/
 7. **One feature at a time** — build and test before moving to next feature
+8. **TemplateResponse signature** — always `templates.TemplateResponse(request, "file.html", context)`
+9. **bcrypt pinned to 4.0.1** — do not upgrade
 
 ---
 
@@ -124,19 +199,18 @@ clinicos/
 ---
 
 ## Build Order (Current Progress Tracker)
-Update the status column as features are completed.
 
 | # | Feature | Status |
 |---|---|---|
-| 1 | Project setup + virtual environment | ⬜ Not started |
-| 2 | database/models.py — all 7 tables | ⬜ Not started |
-| 3 | database/connection.py | ⬜ Not started |
-| 4 | config.py + .env setup | ⬜ Not started |
-| 5 | main.py — base FastAPI app | ⬜ Not started |
-| 6 | auth — register + login + JWT | ⬜ Not started |
-| 7 | Dashboard page (basic, shows no data yet) | ⬜ Not started |
-| 8 | Schedule settings (working hours, slot duration) | ⬜ Not started |
-| 9 | Appointment creation form (backend + frontend) | ⬜ Not started |
+| 1 | Project setup + virtual environment | ✅ Done |
+| 2 | database/models.py — all 7 tables | ✅ Done |
+| 3 | database/connection.py | ✅ Done |
+| 4 | config.py + .env setup | ✅ Done |
+| 5 | main.py — base FastAPI app | ✅ Done |
+| 6 | auth — register + login + JWT | ✅ Done |
+| 7 | Dashboard page (stats, today's schedule, quick actions) | ✅ Done |
+| 8 | Schedule settings (working hours, slot duration, blocked dates) | ✅ Done |
+| 9 | Appointment creation form (backend + frontend) | ⬜ Next |
 | 10 | Calendar view | ⬜ Not started |
 | 11 | Public booking page | ⬜ Not started |
 | 12 | Slot availability logic (no double-booking) | ⬜ Not started |
@@ -190,9 +264,9 @@ A feature is only done when:
 
 ## Session Startup Checklist
 When starting a new Claude Code session, say:
-> "Read CLAUDE.md. We are continuing ClinicOS. Last completed feature was [X]. Today we are building [Y]. Here is the current state of the relevant files: [paste file contents if needed]."
+> "Read CLAUDE.md. We are continuing ClinicOS. Last completed feature was [8 — Schedule Settings]. Today we are building [Feature 9 — Appointment creation form]."
 
 ---
 
-*Last updated: [update this date each session]*
-*Current phase: Setup*
+*Last updated: 2026-04-22*
+*Current phase: Core features — Features 1–8 complete, Feature 9 next*
