@@ -209,6 +209,17 @@ a:hover { color: var(--text); }
   background: var(--bg-3);
   transition: border-color 0.15s, box-shadow 0.15s;
   outline: none;
+  box-sizing: border-box;
+}
+
+.form-group select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23555555' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  cursor: pointer;
 }
 
 .form-group input::placeholder,
@@ -572,8 +583,8 @@ a:hover { color: var(--text); }
 .appt-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .appt-row {
@@ -935,6 +946,132 @@ a:hover { color: var(--text); }
 }
 
 /* ------------------------------------------------------------------ */
+/*  Form Section Label                                                  */
+/* ------------------------------------------------------------------ */
+.form-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Appointments Page — Date Navigation                                 */
+/* ------------------------------------------------------------------ */
+.date-nav {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.date-nav-input {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  width: 160px;
+  background: var(--bg-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+  cursor: pointer;
+}
+
+.date-nav-input:focus { border-color: #555; }
+
+/* ------------------------------------------------------------------ */
+/*  New Appointment Form                                                */
+/* ------------------------------------------------------------------ */
+.appt-form-card {
+  max-width: 620px;
+}
+
+.appt-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Appointment Detail                                                  */
+/* ------------------------------------------------------------------ */
+.appt-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 32px;
+  margin-top: 4px;
+}
+
+.appt-detail-full { grid-column: 1 / -1; }
+
+.appt-detail-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.appt-detail-value {
+  font-size: 15px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Status Action Buttons                                               */
+/* ------------------------------------------------------------------ */
+.appt-status-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-status {
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: inherit;
+  transition: var(--transition-pop);
+}
+
+.btn-status:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.btn-status--complete {
+  background: rgba(74, 222, 128, 0.1);
+  color: var(--success);
+  border-color: rgba(74, 222, 128, 0.25);
+}
+.btn-status--complete:hover { background: rgba(74, 222, 128, 0.18); }
+
+.btn-status--noshow {
+  background: rgba(251, 191, 36, 0.1);
+  color: var(--warning);
+  border-color: rgba(251, 191, 36, 0.25);
+}
+.btn-status--noshow:hover { background: rgba(251, 191, 36, 0.18); }
+
+.btn-status--cancel {
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.25);
+}
+.btn-status--cancel:hover { background: rgba(248, 113, 113, 0.18); }
+
+/* ------------------------------------------------------------------ */
 /*  Mobile Responsive                                                   */
 /* ------------------------------------------------------------------ */
 @media (max-width: 900px) {
@@ -965,11 +1102,15 @@ a:hover { color: var(--text); }
 }
 
 @media (max-width: 480px) {
-  .brand-title    { font-size: 44px; }
-  .form-row       { grid-template-columns: 1fr; }
-  .stats-row      { grid-template-columns: 1fr 1fr; }
-  .quick-actions  { grid-template-columns: 1fr 1fr; }
-  .appt-row       { grid-template-columns: 70px 1fr auto; }
-  .appt-actions   { display: none; }
-  .page-header    { flex-direction: column; }
+  .brand-title         { font-size: 44px; }
+  .form-row            { grid-template-columns: 1fr; }
+  .stats-row           { grid-template-columns: 1fr 1fr; }
+  .quick-actions       { grid-template-columns: 1fr 1fr; }
+  .appt-row            { grid-template-columns: 70px 1fr auto; }
+  .appt-actions        { display: none; }
+  .page-header         { flex-direction: column; }
+  .appt-detail-grid    { grid-template-columns: 1fr; }
+  .appt-status-actions { flex-direction: column; }
+  .date-nav            { flex-wrap: wrap; gap: 8px; }
+  .date-nav-input      { width: 130px; }
 }

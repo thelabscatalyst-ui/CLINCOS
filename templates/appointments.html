@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Appointments — ClinicOS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <h1 class="page-title">
+    Appointments
+    <span class="page-date">
+      · {{ view_date.strftime("%d %b %Y") }}
+      {% if view_date == today %}
+        <span class="badge badge--scheduled" style="font-size:10px;vertical-align:middle;margin-left:4px;">Today</span>
+      {% endif %}
+    </span>
+  </h1>
+  <a href="/appointments/new?prefill_date={{ view_date.isoformat() }}" class="btn btn-primary btn-sm">+ New</a>
+</div>
+
+<!-- Date Navigation -->
+<div class="date-nav">
+  <a href="/appointments?filter_date={{ prev_date }}" class="btn btn-secondary btn-sm">← Previous</a>
+  <form method="get" action="/appointments" style="display:contents;">
+    <input type="date" name="filter_date" value="{{ view_date.isoformat() }}"
+           class="date-nav-input" onchange="this.form.submit()">
+  </form>
+  {% if view_date != today %}
+  <a href="/appointments" class="btn btn-secondary btn-sm">Today</a>
+  {% endif %}
+  <a href="/appointments?filter_date={{ next_date }}" class="btn btn-secondary btn-sm">Next →</a>
+</div>
+
+<!-- Appointment List -->
+{% if appointments %}
+<div class="appt-list">
+  {% for appt in appointments %}
+  <div class="appt-row {% if appt.status.value == 'completed' %}appt-row--done{% elif appt.status.value == 'no_show' %}appt-row--noshow{% endif %}">
+    <div class="appt-time">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</div>
+    <div class="appt-info">
+      <div class="appt-name">{{ appt.patient.name }}</div>
+      <div class="appt-meta">
+        {{ appt.appointment_type.value.replace("_", " ").title() }}
+        · {{ appt.duration_mins }} min
+        · {{ appt.patient.phone }}
+      </div>
+    </div>
+    <div class="appt-status">
+      <span class="badge badge--{{ appt.status.value }}">
+        {{ appt.status.value.replace("_", " ").title() }}
+      </span>
+    </div>
+    <div class="appt-actions">
+      <a href="/appointments/{{ appt.id }}" class="btn btn-secondary btn-xs">View</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/>
+      <line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+  </div>
+  <div class="empty-title">No appointments on this day</div>
+  <div class="empty-sub">{{ view_date.strftime("%A, %d %B %Y") }} is clear.</div>
+  <div class="empty-actions">
+    <a href="/appointments/new?prefill_date={{ view_date.isoformat() }}" class="btn btn-primary btn-sm">+ Add Appointment</a>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

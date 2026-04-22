@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Appointment #{{ appt.id }} — ClinicOS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">
+      {{ appt.patient.name }}
+      <span class="page-date">· {{ appt.appointment_date.strftime("%d %b %Y") }}</span>
+    </h1>
+    <div class="page-sub">Appointment #{{ appt.id }}</div>
+  </div>
+  <a href="/appointments?filter_date={{ appt.appointment_date.isoformat() }}"
+     class="btn btn-secondary btn-sm">← Back</a>
+</div>
+
+<!-- Appointment Info -->
+<div class="settings-card">
+  <div class="settings-card-header" style="margin-bottom: 0;">
+    <div class="settings-card-title">Appointment Details</div>
+    <span class="badge badge--{{ appt.status.value }}" style="font-size:12px;padding:5px 14px;">
+      {{ appt.status.value.replace("_", " ").title() }}
+    </span>
+  </div>
+
+  <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+
+  <div class="appt-detail-grid">
+    <div class="appt-detail-item">
+      <div class="appt-detail-label">Patient</div>
+      <div class="appt-detail-value">{{ appt.patient.name }}</div>
+    </div>
+    <div class="appt-detail-item">
+      <div class="appt-detail-label">Phone</div>
+      <div class="appt-detail-value">{{ appt.patient.phone }}</div>
+    </div>
+    <div class="appt-detail-item">
+      <div class="appt-detail-label">Date</div>
+      <div class="appt-detail-value">{{ appt.appointment_date.strftime("%A, %d %B %Y") }}</div>
+    </div>
+    <div class="appt-detail-item">
+      <div class="appt-detail-label">Time</div>
+      <div class="appt-detail-value">
+        {{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}
+        · {{ appt.duration_mins }} min
+      </div>
+    </div>
+    <div class="appt-detail-item">
+      <div class="appt-detail-label">Visit Type</div>
+      <div class="appt-detail-value">{{ appt.appointment_type.value.replace("_", " ").title() }}</div>
+    </div>
+    <div class="appt-detail-item">
+      <div class="appt-detail-label">Booked By</div>
+      <div class="appt-detail-value">{{ appt.booked_by.value.title() }}</div>
+    </div>
+    {% if appt.patient_notes %}
+    <div class="appt-detail-item appt-detail-full">
+      <div class="appt-detail-label">Patient Notes</div>
+      <div class="appt-detail-value">{{ appt.patient_notes }}</div>
+    </div>
+    {% endif %}
+    {% if appt.doctor_notes %}
+    <div class="appt-detail-item appt-detail-full">
+      <div class="appt-detail-label">Doctor Notes</div>
+      <div class="appt-detail-value">{{ appt.doctor_notes }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Status Update -->
+{% if appt.status == AppointmentStatus.scheduled %}
+<div class="settings-card">
+  <div class="settings-card-title" style="margin-bottom:18px;">Update Status</div>
+  <form method="post" action="/appointments/{{ appt.id }}/status">
+    <div class="form-group">
+      <label for="doctor_notes">Doctor Notes (optional)</label>
+      <textarea id="doctor_notes" name="doctor_notes" rows="2"
+                placeholder="Diagnosis, prescription summary…">{{ appt.doctor_notes or '' }}</textarea>
+    </div>
+    <div class="appt-status-actions">
+      <button type="submit" name="status" value="completed"
+              class="btn btn-status btn-status--complete">✓ Mark Complete</button>
+      <button type="submit" name="status" value="no_show"
+              class="btn btn-status btn-status--noshow">✗ No Show</button>
+      <button type="submit" name="status" value="cancelled"
+              class="btn btn-status btn-status--cancel">Cancel Appointment</button>
+    </div>
+  </form>
+</div>
+
+{% else %}
+<div class="settings-card">
+  <div class="settings-card-title" style="margin-bottom:18px;">Doctor Notes</div>
+  <form method="post" action="/appointments/{{ appt.id }}/status">
+    <input type="hidden" name="status" value="{{ appt.status.value }}">
+    <div class="form-group">
+      <label for="doctor_notes">Notes</label>
+      <textarea id="doctor_notes" name="doctor_notes" rows="2"
+                placeholder="Diagnosis, prescription summary…">{{ appt.doctor_notes or '' }}</textarea>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+      <button type="submit" class="btn btn-primary btn-sm">Save Notes</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}
