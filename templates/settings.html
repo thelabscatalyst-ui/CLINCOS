@@ -10,6 +10,9 @@
 {% if saved %}
 <div class="alert alert-success" style="margin-bottom:24px;">Changes saved successfully.</div>
 {% endif %}
+{% if pin_error %}
+<div class="alert alert-error" style="margin-bottom:24px;">{{ pin_error }}</div>
+{% endif %}
 
 <!-- ───────────────────────────────────────────────────── -->
 <!--  1. Working Hours                                      -->
@@ -177,6 +180,8 @@
       <div class="settings-card-sub">
         {% if plan_status == 'trial' %}
           Free Trial — {{ plan_days }} day{{ 's' if plan_days != 1 }} remaining
+        {% elif plan_status == 'solo' %}
+          Solo Plan — renews in {{ plan_days }} day{{ 's' if plan_days != 1 }}
         {% elif plan_status == 'basic' %}
           Basic Plan — renews in {{ plan_days }} day{{ 's' if plan_days != 1 }}
         {% elif plan_status == 'pro' %}
@@ -188,38 +193,47 @@
     </div>
     <span class="sub-status-badge sub-status-badge--{{ plan_status }}">
       {% if plan_status == 'trial' %}Free Trial
+      {% elif plan_status == 'solo' %}Solo
       {% elif plan_status == 'basic' %}Basic
       {% elif plan_status == 'pro' %}Pro
       {% else %}Expired{% endif %}
     </span>
   </div>
 
-  {% if plan_status == 'pro' %}
-    <!-- Pro — show renew option -->
+  {% if plan_status == 'solo' %}
+    <!-- Solo — show renew -->
     <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-      You're on the best plan. Your Pro features are fully active.
+      Solo plan is active. PIN protection, walk-ins, and all features included.
     </p>
     {% if razorpay_configured %}
     <button type="button" class="btn btn-secondary btn-sm"
-            onclick="settingsPayment('pro', 49900)">
-      Renew Pro — ₹499/mo
+            onclick="settingsPayment('solo', 39900)">
+      Renew Solo — ₹399/mo
+    </button>
+    {% endif %}
+
+  {% elif plan_status == 'pro' %}
+    <!-- Pro (legacy) — show renew -->
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      You're on the legacy Pro plan. Your features are fully active.
+    </p>
+    {% if razorpay_configured %}
+    <button type="button" class="btn btn-secondary btn-sm"
+            onclick="settingsPayment('solo', 39900)">
+      Renew as Solo — ₹399/mo
     </button>
     {% endif %}
 
   {% elif plan_status == 'basic' %}
-    <!-- Basic — offer upgrade to Pro -->
+    <!-- Basic (legacy) — offer upgrade to Solo -->
     <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-      Upgrade to Pro for unlimited appointments, advanced analytics, and more.
+      Upgrade to Solo for unlimited appointments, PIN protection, and walk-in booking.
     </p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       {% if razorpay_configured %}
-      <button type="button" class="btn btn-secondary btn-sm"
-              onclick="settingsPayment('basic', 29900)">
-        Renew Basic — ₹299/mo
-      </button>
       <button type="button" class="btn btn-primary btn-sm"
-              onclick="settingsPayment('pro', 49900)">
-        Upgrade to Pro — ₹499/mo
+              onclick="settingsPayment('solo', 39900)">
+        Upgrade to Solo — ₹399/mo
       </button>
       {% else %}
       <a href="/billing" class="btn btn-secondary btn-sm">Manage Plan</a>
@@ -227,52 +241,32 @@
     </div>
 
   {% else %}
-    <!-- Trial or Expired — show both plan options -->
+    <!-- Trial or Expired — show Solo plan -->
     {% if plan_status == 'expired' %}
     <p style="font-size:13px;color:#f87171;margin-bottom:16px;">
       Your access is paused. Subscribe to resume.
     </p>
     {% else %}
     <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-      Choose a plan to continue after your trial ends.
+      Subscribe to keep your clinic running after the trial ends.
     </p>
     {% endif %}
 
     <div class="sub-plan-row">
-      <div class="sub-plan-option">
-        <div class="sub-plan-name">Basic</div>
-        <div class="sub-plan-price">₹299 <span>/month</span></div>
-        <ul class="sub-plan-features">
-          <li>30 appointments / day</li>
-          <li>WhatsApp & SMS reminders</li>
-          <li>Public booking + patient records</li>
-          <li>Reports & analytics</li>
-        </ul>
-        {% if razorpay_configured %}
-        <button type="button" class="btn btn-secondary btn-sm"
-                onclick="settingsPayment('basic', 29900)">
-          Subscribe
-        </button>
-        {% else %}
-        <a href="/billing" class="btn btn-secondary btn-sm">Subscribe</a>
-        {% endif %}
-      </div>
-
-      <div class="sub-plan-divider"></div>
-
       <div class="sub-plan-option sub-plan-option--pro">
-        <div class="sub-plan-name">Pro <span class="sub-pro-tag">Best Value</span></div>
-        <div class="sub-plan-price">₹499 <span>/month</span></div>
+        <div class="sub-plan-name">Solo <span class="sub-pro-tag">Recommended</span></div>
+        <div class="sub-plan-price">₹399 <span>/month</span></div>
         <ul class="sub-plan-features">
           <li>Unlimited appointments</li>
-          <li>WhatsApp & SMS reminders</li>
+          <li>WhatsApp &amp; SMS reminders</li>
           <li>Public booking + patient records</li>
-          <li>Advanced analytics & reports</li>
-          <li style="color:var(--dim);">Two-way WhatsApp (soon)</li>
+          <li>Reports &amp; analytics</li>
+          <li>PIN protection for sensitive sections</li>
+          <li>Walk-in quick booking</li>
         </ul>
         {% if razorpay_configured %}
         <button type="button" class="btn btn-primary btn-sm"
-                onclick="settingsPayment('pro', 49900)">
+                onclick="settingsPayment('solo', 39900)">
           Subscribe
         </button>
         {% else %}
@@ -310,6 +304,69 @@
   </div>
 </div>
 {% endif %}
+
+<!-- ───────────────────────────────────────────────────── -->
+<!--  6. PIN Protection                                     -->
+<!-- ───────────────────────────────────────────────────── -->
+<div class="settings-card">
+  <div class="settings-card-header" style="margin-bottom:20px;">
+    <div>
+      <div class="settings-card-title">PIN Protection</div>
+      <div class="settings-card-sub">
+        Set a 4–6 digit PIN to protect billing, reports, and settings — so a shared-login receptionist
+        can book appointments without seeing sensitive data.
+      </div>
+    </div>
+    {% if doctor.pin_hash %}
+    <span class="badge badge--scheduled" style="font-size:12px;padding:4px 10px;">Enabled</span>
+    {% else %}
+    <span class="badge badge--cancelled" style="font-size:12px;padding:4px 10px;">Not set</span>
+    {% endif %}
+  </div>
+
+  {% if not doctor.pin_hash %}
+  <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">
+    No PIN set. Anyone with your login can access all sections including billing and reports.
+  </p>
+  {% endif %}
+
+  <form method="POST" action="/doctors/settings/pin">
+    <input type="hidden" name="action" value="set" />
+    <div class="settings-form-grid">
+      {% if doctor.pin_hash %}
+      <div class="form-group">
+        <label for="current_pin">Current PIN</label>
+        <input type="password" id="current_pin" name="current_pin"
+               maxlength="6" placeholder="••••" inputmode="numeric"
+               autocomplete="off" />
+      </div>
+      {% endif %}
+      <div class="form-group">
+        <label for="new_pin">{% if doctor.pin_hash %}New PIN{% else %}Set PIN{% endif %}</label>
+        <input type="password" id="new_pin" name="new_pin"
+               maxlength="6" placeholder="4–6 digits" inputmode="numeric"
+               autocomplete="new-password" />
+      </div>
+      <div class="form-group">
+        <label for="confirm_pin">Confirm PIN</label>
+        <input type="password" id="confirm_pin" name="confirm_pin"
+               maxlength="6" placeholder="Repeat PIN" inputmode="numeric"
+               autocomplete="new-password" />
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+      <button type="submit" class="btn btn-primary btn-sm">
+        {% if doctor.pin_hash %}Update PIN{% else %}Set PIN{% endif %}
+      </button>
+      {% if doctor.pin_hash %}
+      <button type="submit" name="action" value="remove" class="btn btn-secondary btn-sm"
+              onclick="return confirm('Remove PIN protection? Anyone with your login can access billing and reports.')">
+        Remove PIN
+      </button>
+      {% endif %}
+    </div>
+  </form>
+</div>
 
 {% endblock %}
 

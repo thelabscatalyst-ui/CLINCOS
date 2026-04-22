@@ -72,46 +72,23 @@
 <!-- Plan Cards -->
 <div class="billing-plans">
 
-  <!-- Basic -->
-  <div class="billing-plan-card">
-    <div class="plan-badge">Most Popular</div>
-    <div class="plan-name">Basic</div>
-    <div class="plan-price">₹299<span>/month</span></div>
-    <ul class="plan-features">
-      <li>30 appointments / day</li>
-      <li>WhatsApp & SMS reminders</li>
-      <li>Public booking page</li>
-      <li>Patient records & history</li>
-      <li>Reports & analytics</li>
-    </ul>
-    {% if razorpay_configured %}
-    <button type="button" class="btn btn-primary" onclick="startPayment('basic', 29900)">
-      Subscribe — ₹299/mo
-    </button>
-    {% else %}
-    <button type="button" class="btn btn-secondary" disabled>
-      Payment not configured
-    </button>
-    {% endif %}
-  </div>
-
-  <!-- Pro -->
+  <!-- Solo -->
   <div class="billing-plan-card billing-plan-card--pro">
-    <div class="plan-badge plan-badge--pro">Best Value</div>
-    <div class="plan-name">Pro</div>
-    <div class="plan-price">₹499<span>/month</span></div>
+    <div class="plan-badge plan-badge--pro">Recommended</div>
+    <div class="plan-name">Solo</div>
+    <div class="plan-price">₹399<span>/month</span></div>
     <ul class="plan-features">
       <li>Unlimited appointments</li>
-      <li>WhatsApp & SMS reminders</li>
+      <li>WhatsApp &amp; SMS reminders</li>
       <li>Public booking page</li>
-      <li>Full patient records & history</li>
-      <li>Advanced analytics & reports</li>
-      <li style="color:var(--muted);">Two-way WhatsApp <span style="font-size:11px;">(coming soon)</span></li>
-      <li style="color:var(--muted);">Data export <span style="font-size:11px;">(coming soon)</span></li>
+      <li>Patient records &amp; history</li>
+      <li>Reports &amp; analytics</li>
+      <li>PIN protection for billing &amp; reports</li>
+      <li>Walk-in quick booking</li>
     </ul>
     {% if razorpay_configured %}
-    <button type="button" class="btn btn-primary" onclick="startPayment('pro', 49900)">
-      Subscribe — ₹499/mo
+    <button type="button" class="btn btn-primary" onclick="startPayment('solo', 39900)">
+      Subscribe — ₹399/mo
     </button>
     {% else %}
     <button type="button" class="btn btn-secondary" disabled>

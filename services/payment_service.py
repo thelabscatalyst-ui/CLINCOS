@@ -18,8 +18,9 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 PLAN_AMOUNTS = {
-    "basic": 29900,   # ₹299 in paise
-    "pro":   49900,   # ₹499 in paise
+    "solo":  39900,   # ₹399 in paise — Tier 1 Solo plan
+    "basic": 29900,   # ₹299 in paise — legacy (existing subscribers)
+    "pro":   49900,   # ₹499 in paise — legacy (existing subscribers)
 }
 
 

@@ -1,4 +1,4 @@
-from datetime import date, time, timedelta
+from datetime import date, time, timedelta, datetime
 from fastapi import APIRouter, Request, Depends, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -121,6 +121,7 @@ async def create_appointment(
     appointment_type: str = Form("follow_up"),
     duration: int = Form(15),
     patient_notes: str = Form(""),
+    booked_by_field: str = Form("doctor"),
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
@@ -181,6 +182,10 @@ async def create_appointment(
     except ValueError:
         appt_type = AppointmentType.follow_up
 
+    # Map booked_by field — only accept valid logged-in booking channels
+    booked_by_map = {"doctor": BookedBy.doctor, "staff_shared": BookedBy.staff_shared}
+    booked_by_val = booked_by_map.get(booked_by_field, BookedBy.doctor)
+
     # Create the appointment
     appt = Appointment(
         doctor_id=doctor.id,
@@ -190,7 +195,7 @@ async def create_appointment(
         duration_mins=duration,
         appointment_type=appt_type,
         patient_notes=patient_notes.strip() or None,
-        booked_by=BookedBy.doctor,
+        booked_by=booked_by_val,
         status=AppointmentStatus.scheduled,
     )
     db.add(appt)
@@ -210,6 +215,61 @@ async def create_appointment(
     except Exception:
         pass
 
+    return RedirectResponse(url=f"/appointments/{appt.id}", status_code=303)
+
+
+# ------------------------------------------------------------------ #
+#  Walk-in Quick Create — POST                                         #
+# ------------------------------------------------------------------ #
+
+@router.post("/walkin", response_class=HTMLResponse)
+async def create_walkin(
+    request: Request,
+    patient_name: str = Form(...),
+    patient_phone: str = Form(...),
+    patient_notes: str = Form(""),
+    doctor: Doctor = Depends(get_paying_doctor),
+    db: Session = Depends(get_db),
+):
+    name  = patient_name.strip()
+    phone = patient_phone.strip()
+
+    # Validate inputs
+    if not name or not phone or len(phone) < 10:
+        today = date.today()
+        return RedirectResponse(
+            url=f"/appointments?filter_date={today.isoformat()}&walkin_error=1",
+            status_code=303,
+        )
+
+    patient = get_or_create_patient(doctor.id, name, phone, db)
+
+    now = datetime.now()
+    appt_date = now.date()
+    appt_time = now.time().replace(second=0, microsecond=0)
+
+    appt = Appointment(
+        doctor_id=doctor.id,
+        patient_id=patient.id,
+        appointment_date=appt_date,
+        appointment_time=appt_time,
+        duration_mins=15,
+        appointment_type=AppointmentType.new_patient,
+        patient_notes=patient_notes.strip() or None,
+        booked_by=BookedBy.walk_in,
+        status=AppointmentStatus.scheduled,
+    )
+    db.add(appt)
+
+    if patient.first_visit is None:
+        patient.first_visit = appt_date
+    patient.last_visit  = appt_date
+    patient.visit_count = (patient.visit_count or 0) + 1
+
+    db.commit()
+    db.refresh(appt)
+
+    # Walk-ins skip WhatsApp — patient is on-site
     return RedirectResponse(url=f"/appointments/{appt.id}", status_code=303)
 
 

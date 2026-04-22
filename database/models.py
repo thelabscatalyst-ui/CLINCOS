@@ -28,8 +28,9 @@ class AppointmentType(str, enum.Enum):
 
 class PlanType(str, enum.Enum):
     trial = "trial"
-    basic = "basic"
-    pro = "pro"
+    solo  = "solo"    # ₹399 — Tier 1 Solo plan
+    basic = "basic"   # legacy ₹299 (existing subscribers)
+    pro   = "pro"     # legacy ₹499 (existing subscribers)
 
 
 class NotificationChannel(str, enum.Enum):
@@ -46,8 +47,10 @@ class NotificationType(str, enum.Enum):
 
 
 class BookedBy(str, enum.Enum):
-    doctor = "doctor"
-    patient = "patient"
+    doctor       = "doctor"
+    patient      = "patient"
+    staff_shared = "staff_shared"  # receptionist on shared login
+    walk_in      = "walk_in"       # on-site patient, booked for now()
 
 
 # --------------------------------------------------------------------------- #
@@ -68,6 +71,7 @@ class Doctor(Base):
     city = Column(String(100), nullable=True)
     languages = Column(String(200), nullable=True)  # comma-separated
     slug = Column(String(100), unique=True, index=True, nullable=True)  # for public booking URL
+    pin_hash = Column(String(255), nullable=True)  # bcrypt PIN — protects billing/reports/settings
     is_active = Column(Boolean, default=True)
     plan_type = Column(SAEnum(PlanType), default=PlanType.trial)
     trial_ends_at = Column(DateTime, nullable=True)

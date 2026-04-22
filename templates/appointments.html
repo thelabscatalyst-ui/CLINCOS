@@ -13,8 +13,29 @@
       {% endif %}
     </span>
   </h1>
-  <a href="/appointments/new?prefill_date={{ view_date.isoformat() }}" class="btn btn-primary btn-sm">+ New</a>
+  <div style="display:flex;gap:8px;">
+    {% if view_date == today %}
+    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleWalkin()">Walk-in</button>
+    {% endif %}
+    <a href="/appointments/new?prefill_date={{ view_date.isoformat() }}" class="btn btn-primary btn-sm">+ New</a>
+  </div>
 </div>
+
+<!-- Walk-in quick form (today only) -->
+{% if view_date == today %}
+<div id="walkinPanel" class="walkin-panel" style="display:none;">
+  <div class="walkin-panel-inner">
+    <div class="walkin-panel-title">Walk-in Patient</div>
+    <form method="POST" action="/appointments/walkin" class="walkin-form">
+      <input type="text" name="patient_name" placeholder="Patient name" required class="input-sm" />
+      <input type="tel" name="patient_phone" placeholder="Phone number" required
+             minlength="10" maxlength="15" class="input-sm" />
+      <input type="text" name="patient_notes" placeholder="Notes (optional)" class="input-sm" />
+      <button type="submit" class="btn btn-primary btn-sm">Add Walk-in</button>
+    </form>
+  </div>
+</div>
+{% endif %}
 
 <!-- Date Navigation -->
 <div class="date-nav">
@@ -41,6 +62,11 @@
         {{ appt.appointment_type.value.replace("_", " ").title() }}
         · {{ appt.duration_mins }} min
         · {{ appt.patient.phone }}
+        {% if appt.booked_by.value == 'walk_in' %}
+        · <span class="badge-channel badge-channel--walkin">Walk-in</span>
+        {% elif appt.booked_by.value == 'staff_shared' %}
+        · <span class="badge-channel badge-channel--staff">Reception</span>
+        {% endif %}
       </div>
     </div>
     <div class="appt-status">
@@ -74,4 +100,16 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleWalkin() {
+  const panel = document.getElementById('walkinPanel');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) panel.querySelector('input[name="patient_name"]').focus();
+}
+</script>
 {% endblock %}

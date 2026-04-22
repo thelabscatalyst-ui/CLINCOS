@@ -86,10 +86,19 @@
       </div>
     </div>
 
-    <div class="form-group">
-      <label for="patient_notes">Notes (optional)</label>
-      <textarea id="patient_notes" name="patient_notes" rows="3"
-                placeholder="Chief complaint, reason for visit...">{{ form_data.get('patient_notes', '') }}</textarea>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="patient_notes">Notes (optional)</label>
+        <textarea id="patient_notes" name="patient_notes" rows="3"
+                  placeholder="Chief complaint, reason for visit...">{{ form_data.get('patient_notes', '') }}</textarea>
+      </div>
+      <div class="form-group">
+        <label for="booked_by_field">Booking Channel</label>
+        <select id="booked_by_field" name="booked_by_field">
+          <option value="doctor" selected>Doctor</option>
+          <option value="staff_shared">Receptionist (phone call)</option>
+        </select>
+      </div>
     </div>
 
     <div class="appt-form-actions">

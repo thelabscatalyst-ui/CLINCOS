@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from database.connection import create_tables
 from routers import auth, appointments, doctors, patients, public, admin
 from services.scheduler_service import start_scheduler, stop_scheduler
-from services.auth_service import PlanExpired
+from services.auth_service import PlanExpired, PinRequired
 
 
 @asynccontextmanager
@@ -46,6 +46,13 @@ async def forbidden_handler(request: Request, exc: HTTPException):
 @app.exception_handler(PlanExpired)
 async def plan_expired_handler(request: Request, exc: PlanExpired):
     return RedirectResponse(url="/billing", status_code=303)
+
+
+@app.exception_handler(PinRequired)
+async def pin_required_handler(request: Request, exc: PinRequired):
+    # Redirect non-GET (form POSTs) directly to the parent GET page.
+    # That page will render with pin_required=True and show the blur overlay.
+    return RedirectResponse(url=exc.return_url, status_code=303)
 
 
 @app.get("/")

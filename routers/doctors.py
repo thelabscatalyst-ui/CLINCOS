@@ -12,7 +12,12 @@ from database.models import (
     Doctor, Appointment, Patient, AppointmentStatus,
     DoctorSchedule, BlockedDate,
 )
-from services.auth_service import get_current_doctor, get_paying_doctor
+from services.auth_service import (
+    get_current_doctor, get_paying_doctor,
+    require_pin, require_pin_auth,
+    create_pin_token, decode_pin_token,
+    hash_password, verify_password,
+)
 
 router = APIRouter(tags=["doctors"])
 templates = Jinja2Templates(directory="templates")
@@ -87,9 +92,10 @@ def dashboard(
 @router.get("/doctors/settings", response_class=HTMLResponse)
 def settings_page(
     request: Request,
-    doctor: Doctor = Depends(get_paying_doctor),
+    doctor: Doctor = Depends(require_pin),
     db: Session = Depends(get_db),
     saved: str = "",
+    pin_error: str = "",
 ):
     schedules_db = db.query(DoctorSchedule).filter(DoctorSchedule.doctor_id == doctor.id).all()
     schedule_map = {s.day_of_week: s for s in schedules_db}
@@ -126,7 +132,7 @@ def settings_page(
         return max(0, (d - now).days)
 
     if plan_ok:
-        plan_status = doctor.plan_type.value   # "basic" or "pro"
+        plan_status = doctor.plan_type.value   # "solo", "basic", or "pro"
         plan_days   = days_left(doctor.plan_expires_at)
     elif trial_ok:
         plan_status = "trial"
@@ -134,6 +140,12 @@ def settings_page(
     else:
         plan_status = "expired"
         plan_days   = 0
+
+    pin_error_msg = {
+        "wrong":    "Incorrect current PIN.",
+        "mismatch": "PINs do not match.",
+        "invalid":  "PIN must be 4–6 digits.",
+    }.get(pin_error, "")
 
     return templates.TemplateResponse(request, "settings.html", {
         "doctor":               doctor,
@@ -144,6 +156,8 @@ def settings_page(
         "plan_status":          plan_status,
         "plan_days":            plan_days,
         "razorpay_configured":  bool(cfg.RAZORPAY_KEY_ID),
+        "pin_error":            pin_error_msg,
+        "pin_required":         getattr(request.state, "pin_required", False),
     })
 
 
@@ -154,7 +168,7 @@ def settings_page(
 @router.post("/doctors/settings/schedule", response_class=HTMLResponse)
 async def save_schedule(
     request: Request,
-    doctor: Doctor = Depends(get_paying_doctor),
+    doctor: Doctor = Depends(require_pin),
     db: Session = Depends(get_db),
 ):
     form = await request.form()
@@ -210,7 +224,7 @@ def save_profile(
     specialization: str = Form(""),
     clinic_address: str = Form(""),
     languages: str = Form(""),
-    doctor: Doctor = Depends(get_paying_doctor),
+    doctor: Doctor = Depends(require_pin),
     db: Session = Depends(get_db),
 ):
     doctor.clinic_name = clinic_name.strip() or None
@@ -231,7 +245,7 @@ def add_blocked_date(
     request: Request,
     blocked_date: str = Form(...),
     reason: str = Form(""),
-    doctor: Doctor = Depends(get_paying_doctor),
+    doctor: Doctor = Depends(require_pin),
     db: Session = Depends(get_db),
 ):
     try:
@@ -258,7 +272,7 @@ def add_blocked_date(
 @router.post("/doctors/settings/unblock/{block_id}", response_class=HTMLResponse)
 def remove_blocked_date(
     block_id: int,
-    doctor: Doctor = Depends(get_paying_doctor),
+    doctor: Doctor = Depends(require_pin),
     db: Session = Depends(get_db),
 ):
     record = db.query(BlockedDate).filter(
@@ -380,7 +394,7 @@ def calendar_view(
 @router.get("/reports", response_class=HTMLResponse)
 def reports_page(
     request: Request,
-    doctor: Doctor = Depends(get_paying_doctor),
+    doctor: Doctor = Depends(require_pin),
     db: Session = Depends(get_db),
 ):
     import json
@@ -512,6 +526,7 @@ def reports_page(
         "patients_this_month": patients_this_month,
         "patients_last_month": patients_last_month,
         "active":              "reports",
+        "pin_required":        getattr(request.state, "pin_required", False),
     })
 
 
@@ -523,7 +538,7 @@ def reports_page(
 def billing_page(
     request: Request,
     success: str = Query(default=""),
-    doctor: Doctor = Depends(get_current_doctor),   # no plan check — billing must always be accessible
+    doctor: Doctor = Depends(require_pin_auth),   # PIN-gated but not plan-gated — must stay accessible
     db: Session = Depends(get_db),
 ):
     from datetime import datetime as dt
@@ -550,13 +565,14 @@ def billing_page(
         "razorpay_configured": bool(cfg.RAZORPAY_KEY_ID),
         "success":         success,
         "active":          "billing",
+        "pin_required":    getattr(request.state, "pin_required", False),
     })
 
 
 @router.post("/billing/create-order")
 def billing_create_order(
     plan: str = Query(...),
-    doctor: Doctor = Depends(get_current_doctor),
+    doctor: Doctor = Depends(require_pin_auth),
 ):
     from fastapi.responses import JSONResponse
     from services.payment_service import create_order
@@ -570,7 +586,7 @@ def billing_verify(
     razorpay_order_id:   str = Form(...),
     razorpay_signature:  str = Form(...),
     plan:                str = Form(...),
-    doctor: Doctor = Depends(get_current_doctor),
+    doctor: Doctor = Depends(require_pin_auth),
     db: Session    = Depends(get_db),
 ):
     from datetime import datetime as dt, timedelta
@@ -596,8 +612,93 @@ def billing_verify(
     db.add(sub)
 
     # Update doctor plan
+    plan_map = {"solo": PlanType.solo, "basic": PlanType.basic, "pro": PlanType.pro}
     doctor.plan_expires_at = end_date
-    doctor.plan_type = PlanType.basic if plan == "basic" else PlanType.pro
+    doctor.plan_type = plan_map.get(plan, PlanType.solo)
     db.commit()
 
     return RedirectResponse(url="/billing?success=1", status_code=303)
+
+
+# ------------------------------------------------------------------ #
+#  PIN Prompt — GET (show entry form)                                  #
+# ------------------------------------------------------------------ #
+
+@router.get("/pin-prompt", response_class=HTMLResponse)
+def pin_prompt_page(
+    next: str = Query(default="/dashboard"),
+):
+    # Overlay is now inline on each protected page.
+    # This route just redirects to the destination (which will show the overlay).
+    return RedirectResponse(url=next, status_code=303)
+
+
+# ------------------------------------------------------------------ #
+#  PIN Prompt — POST (verify and set cookie)                           #
+# ------------------------------------------------------------------ #
+
+@router.post("/pin-prompt", response_class=HTMLResponse)
+async def verify_pin_post(
+    request: Request,
+    pin: str = Form(...),
+    next: str = Form(default="/dashboard"),
+    doctor: Doctor = Depends(get_current_doctor),
+):
+    if not doctor.pin_hash:
+        return RedirectResponse(url=next, status_code=303)
+
+    if not verify_password(pin.strip(), doctor.pin_hash):
+        from urllib.parse import quote
+        # Redirect back to the same page — the overlay will show with error
+        sep = "&" if "?" in next else "?"
+        return RedirectResponse(url=f"{next}{sep}pin_error=1", status_code=303)
+
+    resp = RedirectResponse(url=next, status_code=303)
+    token = create_pin_token(doctor.id)
+    resp.set_cookie("pin_session", token, httponly=True, samesite="lax", max_age=1800)
+    return resp
+
+
+# ------------------------------------------------------------------ #
+#  Settings — PIN Setup / Change / Remove                              #
+# ------------------------------------------------------------------ #
+
+@router.post("/doctors/settings/pin", response_class=HTMLResponse)
+async def update_pin(
+    request: Request,
+    current_pin: str = Form(""),
+    new_pin: str = Form(""),
+    confirm_pin: str = Form(""),
+    action: str = Form("set"),
+    doctor: Doctor = Depends(get_paying_doctor),   # not require_pin — PIN setup is the entry point
+    db: Session = Depends(get_db),
+):
+    if action == "remove":
+        if not doctor.pin_hash:
+            return RedirectResponse("/doctors/settings?saved=1", 303)
+        if not verify_password(current_pin.strip(), doctor.pin_hash):
+            return RedirectResponse("/doctors/settings?pin_error=wrong", 303)
+        doctor.pin_hash = None
+        db.commit()
+        resp = RedirectResponse("/doctors/settings?saved=1", 303)
+        resp.delete_cookie("pin_session")
+        return resp
+
+    # Validate new PIN
+    pin = new_pin.strip()
+    confirm = confirm_pin.strip()
+    if not pin.isdigit() or not (4 <= len(pin) <= 6):
+        return RedirectResponse("/doctors/settings?pin_error=invalid", 303)
+    if pin != confirm:
+        return RedirectResponse("/doctors/settings?pin_error=mismatch", 303)
+    if doctor.pin_hash and not verify_password(current_pin.strip(), doctor.pin_hash):
+        return RedirectResponse("/doctors/settings?pin_error=wrong", 303)
+
+    doctor.pin_hash = hash_password(pin)
+    db.commit()
+
+    # Issue pin_session so the doctor stays verified after setting PIN
+    resp = RedirectResponse("/doctors/settings?saved=1", 303)
+    token = create_pin_token(doctor.id)
+    resp.set_cookie("pin_session", token, httponly=True, samesite="lax", max_age=1800)
+    return resp

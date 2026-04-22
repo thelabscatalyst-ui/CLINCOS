@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/static/css/main.css" />
   {% block head %}{% endblock %}
 </head>
-<body>
+<body{% if pin_required is defined and pin_required %} class="pin-active"{% endif %}>
 
 {% block navbar %}
 <nav class="navbar">
@@ -27,6 +27,51 @@
 <div class="main-content">
   {% block content %}{% endblock %}
 </div>
+
+{% if pin_required is defined and pin_required %}
+<div class="pin-overlay" id="pinOverlay">
+
+  <!-- Back arrow — top-left corner of overlay -->
+  <a href="javascript:history.back()" class="pin-back-btn" title="Go back">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+  </a>
+
+  <div class="pin-dialog">
+
+    <svg class="pin-dialog-icon" width="22" height="22" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+
+    <p class="pin-dialog-label">PIN required</p>
+
+    {% if request.query_params.get('pin_error') %}
+    <p class="pin-dialog-error">Incorrect PIN — try again</p>
+    {% endif %}
+
+    <form method="POST" action="/pin-prompt" class="pin-dialog-form">
+      <input type="hidden" name="next" value="{{ request.url.path }}" />
+      <input
+        type="password"
+        name="pin"
+        class="pin-dialog-input"
+        placeholder="••••••"
+        inputmode="numeric"
+        maxlength="6"
+        autocomplete="off"
+        autofocus
+      />
+      <button type="submit" class="pin-dialog-btn">Unlock</button>
+    </form>
+
+  </div>
+</div>
+{% endif %}
 
 {% block scripts %}{% endblock %}
 </body>
