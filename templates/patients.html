@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Patients — ClinicOS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <h1 class="page-title">
+    Patients
+    <span class="page-date">· {{ total }} total</span>
+  </h1>
+</div>
+
+<!-- Search -->
+<form method="get" action="/patients" class="patient-search-form">
+  <div class="patient-search-wrap">
+    <svg class="patient-search-icon" width="16" height="16" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="text" name="q" value="{{ q }}" placeholder="Search by name or phone…"
+           class="patient-search-input" autofocus>
+    {% if q %}
+    <a href="/patients" class="patient-search-clear">✕</a>
+    {% endif %}
+  </div>
+</form>
+
+<!-- Patient List -->
+{% if patients %}
+
+<div class="patient-list-header">
+  <span>Name</span>
+  <span>Phone</span>
+  <span>Visits</span>
+  <span>Last seen</span>
+  <span></span>
+</div>
+
+<div class="patient-list">
+  {% for p in patients %}
+  <a href="/patients/{{ p.id }}" class="patient-row">
+    <div class="patient-name">{{ p.name }}</div>
+    <div class="patient-phone">{{ p.phone }}</div>
+    <div class="patient-visits">
+      <span class="badge badge--scheduled">{{ p.visit_count or 0 }}</span>
+    </div>
+    <div class="patient-last">
+      {% if p.last_visit %}
+        {{ p.last_visit.strftime("%d %b %Y") }}
+      {% else %}
+        <span style="color:var(--text-dim);">—</span>
+      {% endif %}
+    </div>
+    <div class="patient-arrow">→</div>
+  </a>
+  {% endfor %}
+</div>
+
+{% elif q %}
+<div class="empty-state">
+  <div class="empty-icon">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  </div>
+  <div class="empty-title">No patients found</div>
+  <div class="empty-sub">No results for "{{ q }}". Try a different name or phone number.</div>
+  <div class="empty-actions">
+    <a href="/patients" class="btn btn-secondary btn-sm">Clear search</a>
+  </div>
+</div>
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+  </div>
+  <div class="empty-title">No patients yet</div>
+  <div class="empty-sub">Patients are added automatically when you book an appointment.</div>
+  <div class="empty-actions">
+    <a href="/appointments/new" class="btn btn-primary btn-sm">+ Book First Appointment</a>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Live search on keystroke
+const searchInput = document.querySelector('.patient-search-input');
+if (searchInput) {
+  let timer;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => searchInput.closest('form').submit(), 350);
+  });
+}
+</script>
+{% endblock %}

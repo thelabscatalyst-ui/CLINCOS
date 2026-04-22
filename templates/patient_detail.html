@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ patient.name }} — ClinicOS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ patient.name }}</h1>
+    <div class="page-sub">{{ patient.phone }}{% if patient.language_pref and patient.language_pref != 'english' %} · {{ patient.language_pref | title }}{% endif %}</div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <a href="/patients" class="btn btn-secondary btn-sm">← Patients</a>
+    <a href="/appointments/new" class="btn btn-primary btn-sm">+ Book Appointment</a>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-row" style="grid-template-columns: repeat(3, 1fr);">
+  <div class="stat-card">
+    <div class="stat-label">Total Visits</div>
+    <div class="stat-value">{{ patient.visit_count or 0 }}</div>
+    <div class="stat-sub">All time</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">First Visit</div>
+    <div class="stat-value stat-value--sm">
+      {{ patient.first_visit.strftime("%d %b %Y") if patient.first_visit else "—" }}
+    </div>
+    <div class="stat-sub">&nbsp;</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Last Visit</div>
+    <div class="stat-value stat-value--sm">
+      {{ patient.last_visit.strftime("%d %b %Y") if patient.last_visit else "—" }}
+    </div>
+    <div class="stat-sub">
+      {% if upcoming > 0 %}{{ upcoming }} upcoming{% else %}&nbsp;{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Notes Card -->
+<div class="settings-card">
+  <div class="settings-card-header">
+    <div>
+      <div class="settings-card-title">Doctor's Notes</div>
+      <div class="settings-card-sub">Private notes visible only to you</div>
+    </div>
+  </div>
+  <form method="post" action="/patients/{{ patient.id }}/notes">
+    <div class="form-group" style="margin-bottom:12px;">
+      <textarea name="notes" rows="3"
+                placeholder="Allergies, chronic conditions, medication, personal notes…">{{ patient.notes or '' }}</textarea>
+    </div>
+    <div style="display:flex;justify-content:flex-end;">
+      <button type="submit" class="btn btn-secondary btn-sm">Save Notes</button>
+    </div>
+  </form>
+</div>
+
+<!-- Appointment History -->
+<div class="section-header" style="margin-top:8px;">
+  <h2 class="section-title">Appointment History</h2>
+  <span class="section-link">{{ appointments | length }} total</span>
+</div>
+
+{% if appointments %}
+<div class="appt-list">
+  {% for appt in appointments %}
+  <div class="appt-row {% if appt.status.value == 'completed' %}appt-row--done{% elif appt.status.value == 'no_show' %}appt-row--noshow{% endif %}">
+    <div class="appt-time">
+      {{ appt.appointment_date.strftime("%d %b") }}<br>
+      <span style="font-weight:400;font-size:11px;">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</span>
+    </div>
+    <div class="appt-info">
+      <div class="appt-name">{{ appt.appointment_type.value.replace("_", " ").title() }}</div>
+      <div class="appt-meta">
+        {{ appt.duration_mins }} min
+        {% if appt.doctor_notes %} · {{ appt.doctor_notes | truncate(60, true, '…') }}{% endif %}
+      </div>
+    </div>
+    <div class="appt-status">
+      <span class="badge badge--{{ appt.status.value }}">
+        {{ appt.status.value.replace("_", " ").title() }}
+      </span>
+    </div>
+    <div class="appt-actions">
+      <a href="/appointments/{{ appt.id }}" class="btn btn-secondary btn-xs">View</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state" style="padding:40px 24px;">
+  <div class="empty-title">No appointments yet</div>
+  <div class="empty-sub">Book the first appointment for this patient.</div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1251,6 +1251,99 @@ a:hover { color: var(--text); }
 .btn-status--cancel:hover { background: rgba(248, 113, 113, 0.18); }
 
 /* ------------------------------------------------------------------ */
+/*  Patients Page                                                       */
+/* ------------------------------------------------------------------ */
+.patient-search-form { margin-bottom: 20px; }
+
+.patient-search-wrap {
+  position: relative;
+  max-width: 400px;
+}
+
+.patient-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.patient-search-input {
+  width: 100%;
+  padding: 10px 36px 10px 38px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.patient-search-input:focus { border-color: #444; }
+.patient-search-input::placeholder { color: var(--text-dim); }
+
+.patient-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 4px;
+  line-height: 1;
+}
+.patient-search-clear:hover { color: var(--text); }
+
+/* List layout */
+.patient-list-header {
+  display: grid;
+  grid-template-columns: 1fr 140px 70px 120px 32px;
+  gap: 16px;
+  padding: 0 16px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.patient-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.patient-row {
+  display: grid;
+  grid-template-columns: 1fr 140px 70px 120px 32px;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--glow);
+  text-decoration: none;
+  transition: var(--transition-pop);
+}
+
+.patient-row:hover {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow: var(--glow-hover);
+  border-color: var(--border-light);
+  text-decoration: none;
+}
+
+.patient-name  { font-size: 14px; font-weight: 500; color: var(--text); }
+.patient-phone { font-size: 13px; color: var(--text-muted); }
+.patient-visits { }
+.patient-last  { font-size: 13px; color: var(--text-muted); }
+.patient-arrow { font-size: 14px; color: var(--text-dim); text-align: right; }
+
+/* ------------------------------------------------------------------ */
 /*  Public Booking Page                                                 */
 /* ------------------------------------------------------------------ */
 .pub-page {
@@ -1482,4 +1575,8 @@ a:hover { color: var(--text); }
   .cal-header-cell     { font-size: 10px; padding: 8px 4px; }
   .pub-card            { padding: 24px 20px; }
   .pub-confirm-actions { flex-direction: column; align-items: stretch; }
+  .patient-list-header { display: none; }
+  .patient-row         { grid-template-columns: 1fr auto 32px; }
+  .patient-phone       { display: none; }
+  .patient-last        { display: none; }
 }
