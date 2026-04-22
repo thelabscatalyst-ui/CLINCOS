@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Edit Appointment #{{ appt.id }} — ClinicOS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Edit Appointment</h1>
+    <div class="page-sub">{{ appt.patient.name }} · #{{ appt.id }}</div>
+  </div>
+  <a href="/appointments/{{ appt.id }}" class="btn btn-secondary btn-sm">← Cancel</a>
+</div>
+
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+<div class="settings-card appt-form-card">
+  <form method="post" action="/appointments/{{ appt.id }}/edit">
+
+    <!-- Patient (read-only) -->
+    <p class="form-section-label">Patient</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" value="{{ appt.patient.name }}" disabled>
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="text" value="{{ appt.patient.phone }}" disabled>
+      </div>
+    </div>
+
+    <!-- Appointment Details -->
+    <p class="form-section-label" style="margin-top: 8px;">Reschedule</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="appt_date">Date</label>
+        <input type="date" id="appt_date" name="appt_date"
+               value="{{ initial_date }}" min="{{ today }}" required>
+      </div>
+      <div class="form-group">
+        <label for="appt_time">Time Slot</label>
+        <select id="appt_time" name="appt_time" required>
+          {% for slot in slots %}
+          <option value="{{ slot }}"
+            {% if slot == appt.appointment_time.strftime('%H:%M') %}selected{% endif %}>
+            {{ slot }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="appointment_type">Visit Type</label>
+        <select id="appointment_type" name="appointment_type">
+          {% for t in appointment_types %}
+          <option value="{{ t }}"
+            {% if appt.appointment_type.value == t %}selected{% endif %}>
+            {{ t.replace('_', ' ').title() }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="duration">Duration</label>
+        <select id="duration" name="duration">
+          {% for d in [15, 20, 30, 45, 60] %}
+          <option value="{{ d }}" {% if appt.duration_mins == d %}selected{% endif %}>
+            {{ d }} min
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="patient_notes">Patient Notes</label>
+      <textarea id="patient_notes" name="patient_notes" rows="3"
+                placeholder="Chief complaint, reason for visit...">{{ appt.patient_notes or '' }}</textarea>
+    </div>
+
+    <div class="appt-form-actions">
+      <a href="/appointments/{{ appt.id }}" class="btn btn-secondary btn-sm">Cancel</a>
+      <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+    </div>
+
+  </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dateInput  = document.getElementById('appt_date');
+const timeSelect = document.getElementById('appt_time');
+const savedTime  = "{{ appt.appointment_time.strftime('%H:%M') }}";
+
+function fmt(t) {
+  const [h, m] = t.split(':').map(Number);
+  const p = h >= 12 ? 'PM' : 'AM';
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${p}`;
+}
+
+async function loadSlots(d) {
+  timeSelect.innerHTML = '<option value="">Loading…</option>';
+  try {
+    const res  = await fetch(`/appointments/slots?date=${d}`);
+    const data = await res.json();
+    let slots = data.slots || [];
+    // Always include the current booked time so it can be kept
+    if (!slots.includes(savedTime)) slots = [savedTime, ...slots];
+    timeSelect.innerHTML = slots.map(s =>
+      `<option value="${s}"${s === savedTime ? ' selected' : ''}>${fmt(s)}</option>`
+    ).join('');
+  } catch {
+    timeSelect.innerHTML = '<option value="">Error loading slots</option>';
+  }
+}
+
+dateInput.addEventListener('change', () => {
+  if (dateInput.value) loadSlots(dateInput.value);
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (dateInput.value) loadSlots(dateInput.value);
+});
+</script>
+{% endblock %}

@@ -7,12 +7,16 @@ from contextlib import asynccontextmanager
 
 from database.connection import create_tables
 from routers import auth, appointments, doctors, patients, public, admin
+from services.scheduler_service import start_scheduler, stop_scheduler
+from services.auth_service import PlanExpired
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()
+    start_scheduler()
     yield
+    stop_scheduler()
 
 
 app = FastAPI(title="ClinicOS", version="1.0.0", lifespan=lifespan)
@@ -32,6 +36,16 @@ app.include_router(admin.router)
 @app.exception_handler(401)
 async def unauthorized_handler(request: Request, exc: HTTPException):
     return RedirectResponse(url="/login", status_code=303)
+
+
+@app.exception_handler(403)
+async def forbidden_handler(request: Request, exc: HTTPException):
+    return RedirectResponse(url="/dashboard", status_code=303)
+
+
+@app.exception_handler(PlanExpired)
+async def plan_expired_handler(request: Request, exc: PlanExpired):
+    return RedirectResponse(url="/billing", status_code=303)
 
 
 @app.get("/")

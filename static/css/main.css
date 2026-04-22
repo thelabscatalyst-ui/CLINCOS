@@ -1579,4 +1579,445 @@ a:hover { color: var(--text); }
   .patient-row         { grid-template-columns: 1fr auto 32px; }
   .patient-phone       { display: none; }
   .patient-last        { display: none; }
+  .reports-grid        { grid-template-columns: 1fr; }
+  .reports-new-patients{ flex-direction: column; gap: 16px; }
+  .report-np-divider   { width: 100%; height: 1px; }
+}
+
+/* ─── Reports ───────────────────────────────────────── */
+
+.reports-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* Top Patients list */
+.report-patient-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.report-patient-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--text);
+  transition: background 0.15s;
+}
+.report-patient-row:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.report-patient-rank {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: rgba(255,255,255,0.06);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.report-patient-info {
+  flex: 1;
+  min-width: 0;
+}
+.report-patient-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.report-patient-phone {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+.report-patient-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* Visit type breakdown */
+.report-type-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.report-type-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.report-type-label {
+  font-size: 13px;
+  color: var(--muted);
+  width: 110px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-type-bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.report-type-bar {
+  height: 100%;
+  background: rgba(255,255,255,0.35);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.report-type-pct {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* New patients comparison */
+.reports-new-patients {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.report-np-item {
+  flex: 1;
+  text-align: center;
+}
+
+.report-np-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.report-np-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.report-np-divider {
+  width: 1px;
+  height: 48px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* ─── Billing ────────────────────────────────────────── */
+
+.billing-expired-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+.billing-expired-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+.billing-expired-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f87171;
+  margin-bottom: 2px;
+}
+.billing-expired-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.billing-status-row {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+.billing-status-item {}
+.billing-status-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.billing-status-value {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.billing-plans {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.billing-plan-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  box-shadow: var(--glow);
+  transition: var(--transition-pop);
+  position: relative;
+}
+.billing-plan-card:hover {
+  box-shadow: var(--glow-hover);
+  transform: translateY(-2px) scale(1.01);
+}
+.billing-plan-card--pro {
+  border-color: rgba(255,255,255,0.2);
+  background: #161616;
+}
+
+.plan-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+.plan-badge--pro {
+  color: var(--text);
+}
+
+.plan-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.plan-price {
+  font-size: 42px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 24px;
+}
+.plan-price span {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 28px 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.plan-features li {
+  font-size: 13px;
+  color: var(--muted);
+  padding-left: 20px;
+  position: relative;
+}
+.plan-features li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* ─── Alert success ─── */
+.alert-success {
+  background: rgba(34,197,94,0.08);
+  border: 1px solid rgba(34,197,94,0.25);
+  color: #4ade80;
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+/* ─── Admin ──────────────────────────────────────────── */
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.admin-table th {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+  padding: 14px 20px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+}
+.admin-table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  vertical-align: middle;
+}
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.admin-table tbody tr:hover td {
+  background: rgba(255,255,255,0.02);
+}
+.admin-doctor-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+.admin-doctor-email {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+@media (max-width: 768px) {
+  .billing-plans       { grid-template-columns: 1fr; }
+  .billing-status-row  { gap: 20px; }
+  .admin-table th:nth-child(n+5),
+  .admin-table td:nth-child(n+5) { display: none; }
+}
+
+/* ─── Settings — Subscription card ──────────────────── */
+
+.sub-status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+.sub-status-badge--trial   { color: #60a5fa; border-color: rgba(96,165,250,0.3); background: rgba(96,165,250,0.08); }
+.sub-status-badge--basic   { color: #a3a3a3; border-color: rgba(163,163,163,0.3); background: rgba(163,163,163,0.08); }
+.sub-status-badge--pro     { color: #f0f0f0; border-color: rgba(240,240,240,0.3); background: rgba(240,240,240,0.08); }
+.sub-status-badge--expired { color: #f87171; border-color: rgba(248,113,113,0.3); background: rgba(248,113,113,0.08); }
+
+.sub-plan-row {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+}
+
+.sub-plan-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 4px 0;
+}
+.sub-plan-option--pro {}
+
+.sub-plan-divider {
+  width: 1px;
+  background: var(--border);
+  margin: 0 28px;
+  flex-shrink: 0;
+}
+
+.sub-plan-name {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sub-pro-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  padding: 2px 8px;
+  letter-spacing: 0.04em;
+}
+
+.sub-plan-price {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 16px;
+}
+.sub-plan-price span {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.sub-plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+}
+.sub-plan-features li {
+  font-size: 12px;
+  color: var(--muted);
+  padding-left: 16px;
+  position: relative;
+}
+.sub-plan-features li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  .sub-plan-row      { flex-direction: column; gap: 24px; }
+  .sub-plan-divider  { width: 100%; height: 1px; margin: 0; }
 }

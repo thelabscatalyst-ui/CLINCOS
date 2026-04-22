@@ -11,6 +11,7 @@ from database.models import (
 from services.appointment_service import (
     get_available_slots, is_slot_available, get_or_create_patient,
 )
+from services.notification_service import notify_appointment_confirmed
 
 router = APIRouter(prefix="/book", tags=["public"])
 templates = Jinja2Templates(directory="templates")
@@ -195,6 +196,12 @@ async def book_appointment(
 
     db.commit()
     db.refresh(appt)
+
+    # Send WhatsApp confirmation to patient (non-blocking)
+    try:
+        notify_appointment_confirmed(appt, doctor, db)
+    except Exception:
+        pass
 
     return RedirectResponse(url=f"/book/{slug}/confirm/{appt.id}", status_code=303)
 

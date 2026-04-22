@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Reports — ClinicOS{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <h1 class="page-title">
+    Reports
+    <span class="page-date">· {{ today.strftime("%B %Y") }}</span>
+  </h1>
+</div>
+
+<!-- Top Stats Row -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">This Week</div>
+    <div class="stat-value">{{ this_week }}</div>
+    <div class="stat-sub">
+      {% if last_week > 0 %}
+        {% set diff = this_week - last_week %}
+        {% if diff > 0 %}↑ {{ diff }} from last week
+        {% elif diff < 0 %}↓ {{ diff|abs }} from last week
+        {% else %}Same as last week{% endif %}
+      {% else %}Last week: {{ last_week }}{% endif %}
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Last Week</div>
+    <div class="stat-value">{{ last_week }}</div>
+    <div class="stat-sub">Completed appointments</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Completion Rate</div>
+    <div class="stat-value">{{ completion_rate }}<span style="font-size:22px;font-weight:500;">%</span></div>
+    <div class="stat-sub">Of past appointments</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">No-show Rate</div>
+    <div class="stat-value">{{ no_show_rate }}<span style="font-size:22px;font-weight:500;">%</span></div>
+    <div class="stat-sub">Of past appointments</div>
+  </div>
+</div>
+
+<!-- Monthly Trend Chart -->
+<div class="settings-card" style="margin-bottom:16px;">
+  <div class="settings-card-header" style="margin-bottom:20px;">
+    <div>
+      <div class="settings-card-title">Appointments — Last 6 Months</div>
+      <div class="settings-card-sub">Non-cancelled appointments per month</div>
+    </div>
+  </div>
+  <div style="position:relative;height:220px;">
+    <canvas id="monthlyChart"></canvas>
+  </div>
+</div>
+
+<!-- Two-column row: Top Patients + Visit Type -->
+<div class="reports-grid">
+
+  <!-- Top 5 Patients -->
+  <div class="settings-card">
+    <div class="settings-card-header" style="margin-bottom:16px;">
+      <div>
+        <div class="settings-card-title">Top Patients</div>
+        <div class="settings-card-sub">By appointment count</div>
+      </div>
+    </div>
+    {% if top_patients %}
+    <div class="report-patient-list">
+      {% for patient, cnt in top_patients %}
+      <a href="/patients/{{ patient.id }}" class="report-patient-row">
+        <div class="report-patient-rank">{{ loop.index }}</div>
+        <div class="report-patient-info">
+          <div class="report-patient-name">{{ patient.name }}</div>
+          <div class="report-patient-phone">{{ patient.phone }}</div>
+        </div>
+        <div class="report-patient-count">{{ cnt }} visits</div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="settings-empty">No data yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Visit Type Breakdown -->
+  <div class="settings-card">
+    <div class="settings-card-header" style="margin-bottom:16px;">
+      <div>
+        <div class="settings-card-title">Visit Type Breakdown</div>
+        <div class="settings-card-sub">All time, non-cancelled</div>
+      </div>
+    </div>
+    {% if type_breakdown %}
+    <div class="report-type-list">
+      {% for row in type_breakdown %}
+      <div class="report-type-row">
+        <div class="report-type-label">{{ row.label }}</div>
+        <div class="report-type-bar-wrap">
+          <div class="report-type-bar" style="width:{{ row.pct }}%;"></div>
+        </div>
+        <div class="report-type-pct">{{ row.pct }}%</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="settings-empty">No data yet.</p>
+    {% endif %}
+
+    <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+
+    <div class="settings-card-title" style="margin-bottom:12px;">New Patients</div>
+    <div class="reports-new-patients">
+      <div class="report-np-item">
+        <div class="report-np-value">{{ patients_this_month }}</div>
+        <div class="report-np-label">This month</div>
+      </div>
+      <div class="report-np-divider"></div>
+      <div class="report-np-item">
+        <div class="report-np-value">{{ patients_last_month }}</div>
+        <div class="report-np-label">Last month</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ctx = document.getElementById('monthlyChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: {{ monthly_labels | safe }},
+    datasets: [{
+      data: {{ monthly_counts | safe }},
+      backgroundColor: 'rgba(255,255,255,0.08)',
+      borderColor:     'rgba(255,255,255,0.25)',
+      borderWidth: 1,
+      borderRadius: 6,
+      hoverBackgroundColor: 'rgba(255,255,255,0.14)',
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1a1a1a',
+        borderColor: '#2e2e2e',
+        borderWidth: 1,
+        titleColor: '#f0f0f0',
+        bodyColor: '#888',
+        callbacks: {
+          label: ctx => ` ${ctx.parsed.y} appointments`,
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid:  { color: 'rgba(255,255,255,0.04)' },
+        ticks: { color: '#555', font: { size: 12 } },
+        border:{ color: 'transparent' },
+      },
+      y: {
+        grid:  { color: 'rgba(255,255,255,0.04)' },
+        ticks: { color: '#555', font: { size: 12 }, stepSize: 1 },
+        border:{ color: 'transparent' },
+        beginAtZero: true,
+      }
+    }
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — ClinicOS{% endblock %}
+
+{% block navbar %}
+<nav class="navbar">
+  <a href="/admin/dashboard" class="navbar-brand">🏥 ClinicOS <span style="font-size:12px;color:var(--muted);font-family:Inter,sans-serif;">Admin</span></a>
+  <ul class="navbar-nav">
+    <li><a href="/admin/dashboard" class="{% if active == 'admin_dashboard' %}active{% endif %}">Dashboard</a></li>
+    <li><a href="/admin/doctors" class="{% if active == 'admin_doctors' %}active{% endif %}">Doctors</a></li>
+    <li><a href="/dashboard">My Clinic</a></li>
+    <li><a href="/logout">Logout</a></li>
+  </ul>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <h1 class="page-title">Admin Dashboard</h1>
+</div>
+
+<!-- Stat Cards -->
+<div class="stats-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+  <div class="stat-card">
+    <div class="stat-label">Total Doctors</div>
+    <div class="stat-value">{{ total_doctors }}</div>
+    <div class="stat-sub">{{ new_doctors_month }} new this month</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Active Trials</div>
+    <div class="stat-value">{{ active_trials }}</div>
+    <div class="stat-sub">Free trial users</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Paid Plans</div>
+    <div class="stat-value">{{ active_plans }}</div>
+    <div class="stat-sub">Active subscriptions</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Revenue (MTD)</div>
+    <div class="stat-value">₹{{ revenue_inr }}</div>
+    <div class="stat-sub">This month</div>
+  </div>
+</div>
+
+<!-- Second row -->
+<div class="stats-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
+  <div class="stat-card">
+    <div class="stat-label">Expired</div>
+    <div class="stat-value">{{ expired }}</div>
+    <div class="stat-sub">Trial + plan both lapsed</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Appts Today</div>
+    <div class="stat-value">{{ appts_today }}</div>
+    <div class="stat-sub">Across all doctors</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Conversion</div>
+    <div class="stat-value">
+      {% if total_doctors > 0 %}
+        {{ ((active_plans / total_doctors) * 100) | round | int }}%
+      {% else %}—{% endif %}
+    </div>
+    <div class="stat-sub">Trial → paid</div>
+  </div>
+</div>
+
+<!-- Quick links -->
+<div class="settings-card">
+  <div class="settings-card-title" style="margin-bottom:16px;">Quick Actions</div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;">
+    <a href="/admin/doctors" class="btn btn-secondary btn-sm">View All Doctors</a>
+    <a href="/admin/doctors?filter=expired" class="btn btn-secondary btn-sm">Expired Accounts</a>
+    <a href="/admin/doctors?filter=trial" class="btn btn-secondary btn-sm">Trial Users</a>
+  </div>
+</div>
+
+{% endblock %}

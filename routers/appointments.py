@@ -8,10 +8,11 @@ from database.connection import get_db
 from database.models import (
     Doctor, Appointment, AppointmentStatus, AppointmentType, BookedBy,
 )
-from services.auth_service import get_current_doctor
+from services.auth_service import get_paying_doctor
 from services.appointment_service import (
-    get_available_slots, is_slot_available, get_or_create_patient,
+    get_available_slots, is_slot_available, is_slot_available_for_edit, get_or_create_patient,
 )
+from services.notification_service import notify_appointment_confirmed
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 templates = Jinja2Templates(directory="templates")
@@ -25,7 +26,7 @@ templates = Jinja2Templates(directory="templates")
 def appointments_list(
     request: Request,
     filter_date: str = Query(default=""),
-    doctor: Doctor = Depends(get_current_doctor),
+    doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
     today = date.today()
@@ -64,7 +65,7 @@ def appointments_list(
 @router.get("/slots")
 def available_slots(
     date_str: str = Query(..., alias="date"),
-    doctor: Doctor = Depends(get_current_doctor),
+    doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
     try:
@@ -83,7 +84,7 @@ def available_slots(
 def new_appointment_page(
     request: Request,
     prefill_date: str = Query(default=""),
-    doctor: Doctor = Depends(get_current_doctor),
+    doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
     today = date.today()
@@ -120,7 +121,7 @@ async def create_appointment(
     appointment_type: str = Form("follow_up"),
     duration: int = Form(15),
     patient_notes: str = Form(""),
-    doctor: Doctor = Depends(get_current_doctor),
+    doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
     today = date.today()
@@ -203,6 +204,12 @@ async def create_appointment(
     db.commit()
     db.refresh(appt)
 
+    # Send WhatsApp confirmation (non-blocking — failure won't break booking)
+    try:
+        notify_appointment_confirmed(appt, doctor, db)
+    except Exception:
+        pass
+
     return RedirectResponse(url=f"/appointments/{appt.id}", status_code=303)
 
 
@@ -214,7 +221,7 @@ async def create_appointment(
 def appointment_detail(
     appt_id: int,
     request: Request,
-    doctor: Doctor = Depends(get_current_doctor),
+    doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
     appt = db.query(Appointment).filter(
@@ -243,7 +250,7 @@ def update_status(
     appt_id: int,
     status: str = Form(...),
     doctor_notes: str = Form(""),
-    doctor: Doctor = Depends(get_current_doctor),
+    doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
     appt = db.query(Appointment).filter(
@@ -260,6 +267,122 @@ def update_status(
 
     if doctor_notes.strip():
         appt.doctor_notes = doctor_notes.strip()
+
+    db.commit()
+    return RedirectResponse(url=f"/appointments/{appt_id}", status_code=303)
+
+
+# ------------------------------------------------------------------ #
+#  Edit Appointment — GET                                              #
+# ------------------------------------------------------------------ #
+
+@router.get("/{appt_id}/edit", response_class=HTMLResponse)
+def edit_appointment_page(
+    appt_id: int,
+    request: Request,
+    doctor: Doctor = Depends(get_paying_doctor),
+    db: Session = Depends(get_db),
+):
+    appt = db.query(Appointment).filter(
+        Appointment.id == appt_id,
+        Appointment.doctor_id == doctor.id,
+    ).first()
+    if not appt:
+        return RedirectResponse(url="/appointments", status_code=303)
+
+    appt.patient  # lazy-load
+    slots = get_available_slots(doctor.id, appt.appointment_date, db)
+
+    # Always include the current time in the slots list so it shows as selected
+    current_time_str = appt.appointment_time.strftime("%H:%M")
+    if current_time_str not in slots:
+        slots = [current_time_str] + slots
+
+    return templates.TemplateResponse(request, "appointment_edit.html", {
+        "doctor": doctor,
+        "appt": appt,
+        "today": date.today().isoformat(),
+        "initial_date": appt.appointment_date.isoformat(),
+        "slots": slots,
+        "appointment_types": [e.value for e in AppointmentType],
+        "active": "appointments",
+        "error": None,
+    })
+
+
+# ------------------------------------------------------------------ #
+#  Edit Appointment — POST                                             #
+# ------------------------------------------------------------------ #
+
+@router.post("/{appt_id}/edit", response_class=HTMLResponse)
+async def edit_appointment(
+    appt_id: int,
+    request: Request,
+    appt_date: str = Form(...),
+    appt_time: str = Form(...),
+    appointment_type: str = Form("follow_up"),
+    duration: int = Form(15),
+    patient_notes: str = Form(""),
+    doctor: Doctor = Depends(get_paying_doctor),
+    db: Session = Depends(get_db),
+):
+    appt = db.query(Appointment).filter(
+        Appointment.id == appt_id,
+        Appointment.doctor_id == doctor.id,
+    ).first()
+    if not appt:
+        return RedirectResponse(url="/appointments", status_code=303)
+
+    appt.patient  # lazy-load
+    today = date.today()
+
+    def render_error(msg: str):
+        try:
+            d = date.fromisoformat(appt_date)
+        except (ValueError, TypeError):
+            d = appt.appointment_date
+        slots = get_available_slots(doctor.id, d, db)
+        current_str = appt.appointment_time.strftime("%H:%M")
+        if current_str not in slots:
+            slots = [current_str] + slots
+        return templates.TemplateResponse(request, "appointment_edit.html", {
+            "doctor": doctor,
+            "appt": appt,
+            "today": today.isoformat(),
+            "initial_date": appt_date,
+            "slots": slots,
+            "appointment_types": [e.value for e in AppointmentType],
+            "active": "appointments",
+            "error": msg,
+        })
+
+    try:
+        appt_date_obj = date.fromisoformat(appt_date)
+        appt_time_obj = time.fromisoformat(appt_time)
+    except ValueError:
+        return render_error("Invalid date or time. Please select a valid slot.")
+
+    # Only validate slot if date or time actually changed
+    date_changed = appt_date_obj != appt.appointment_date
+    time_changed = appt_time_obj != appt.appointment_time
+
+    if date_changed or time_changed:
+        ok, reason = is_slot_available_for_edit(
+            doctor.id, appt_date_obj, appt_time_obj, appt_id, db
+        )
+        if not ok:
+            return render_error(reason)
+
+    try:
+        appt_type = AppointmentType(appointment_type)
+    except ValueError:
+        appt_type = appt.appointment_type
+
+    appt.appointment_date = appt_date_obj
+    appt.appointment_time = appt_time_obj
+    appt.appointment_type = appt_type
+    appt.duration_mins    = duration
+    appt.patient_notes    = patient_notes.strip() or None
 
     db.commit()
     return RedirectResponse(url=f"/appointments/{appt_id}", status_code=303)

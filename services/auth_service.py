@@ -44,3 +44,26 @@ def get_current_doctor(request: Request, db: Session = Depends(get_db)):
     if not doctor or not doctor.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account not found")
     return doctor
+
+
+class PlanExpired(Exception):
+    """Raised when a doctor's trial and paid plan have both expired."""
+    pass
+
+
+def get_paying_doctor(doctor=Depends(get_current_doctor)):
+    """Dependency for all protected routes — raises PlanExpired if subscription lapsed."""
+    now = datetime.utcnow()
+    trial_ok = doctor.trial_ends_at and doctor.trial_ends_at > now
+    plan_ok  = doctor.plan_expires_at and doctor.plan_expires_at > now
+    if not trial_ok and not plan_ok:
+        raise PlanExpired()
+    return doctor
+
+
+def get_admin_doctor(doctor=Depends(get_current_doctor)):
+    """Dependency for /admin routes — only allows the platform owner."""
+    from config import settings
+    if not settings.ADMIN_EMAIL or doctor.email.lower() != settings.ADMIN_EMAIL.lower():
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return doctor

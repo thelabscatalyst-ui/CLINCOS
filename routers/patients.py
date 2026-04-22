@@ -7,7 +7,7 @@ from sqlalchemy import func, or_
 
 from database.connection import get_db
 from database.models import Doctor, Patient, Appointment, AppointmentStatus
-from services.auth_service import get_current_doctor
+from services.auth_service import get_paying_doctor
 
 router = APIRouter(prefix="/patients", tags=["patients"])
 templates = Jinja2Templates(directory="templates")
@@ -21,7 +21,7 @@ templates = Jinja2Templates(directory="templates")
 def patients_list(
     request: Request,
     q: str = Query(default=""),
-    doctor: Doctor = Depends(get_current_doctor),
+    doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
     query = db.query(Patient).filter(Patient.doctor_id == doctor.id)
@@ -58,7 +58,7 @@ def patients_list(
 def patient_detail(
     patient_id: int,
     request: Request,
-    doctor: Doctor = Depends(get_current_doctor),
+    doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
     patient = db.query(Patient).filter(
@@ -103,7 +103,7 @@ def patient_detail(
 def update_notes(
     patient_id: int,
     notes: str = Form(""),
-    doctor: Doctor = Depends(get_current_doctor),
+    doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
     patient = db.query(Patient).filter(

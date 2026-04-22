@@ -110,6 +110,56 @@ def is_slot_available(
     return True, ""
 
 
+def is_slot_available_for_edit(
+    doctor_id: int, appt_date: date, appt_time: time,
+    exclude_appt_id: int, db: Session
+) -> Tuple[bool, str]:
+    """Same as is_slot_available but ignores the appointment being edited."""
+    blocked = db.query(BlockedDate).filter(
+        BlockedDate.doctor_id == doctor_id,
+        BlockedDate.blocked_date == appt_date,
+    ).first()
+    if blocked:
+        return False, "This date is blocked. Please choose another date."
+
+    dow = appt_date.weekday()
+    schedule = db.query(DoctorSchedule).filter(
+        DoctorSchedule.doctor_id == doctor_id,
+        DoctorSchedule.day_of_week == dow,
+        DoctorSchedule.is_active == True,
+    ).first()
+    if not schedule:
+        return False, "No working hours set for this day. Check Settings → Schedule."
+
+    if appt_time < schedule.start_time or appt_time >= schedule.end_time:
+        return (
+            False,
+            f"Time is outside working hours "
+            f"({schedule.start_time.strftime('%H:%M')} – {schedule.end_time.strftime('%H:%M')}).",
+        )
+
+    conflict = db.query(Appointment).filter(
+        Appointment.id != exclude_appt_id,
+        Appointment.doctor_id == doctor_id,
+        Appointment.appointment_date == appt_date,
+        Appointment.appointment_time == appt_time,
+        Appointment.status != AppointmentStatus.cancelled,
+    ).first()
+    if conflict:
+        return False, "This time slot is already booked."
+
+    day_count = db.query(Appointment).filter(
+        Appointment.id != exclude_appt_id,
+        Appointment.doctor_id == doctor_id,
+        Appointment.appointment_date == appt_date,
+        Appointment.status != AppointmentStatus.cancelled,
+    ).count()
+    if day_count >= schedule.max_patients:
+        return False, "Maximum patients for this day has been reached."
+
+    return True, ""
+
+
 def get_or_create_patient(
     doctor_id: int, name: str, phone: str, db: Session
 ) -> Patient:

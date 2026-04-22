@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Doctors — Admin — ClinicOS{% endblock %}
+
+{% block navbar %}
+<nav class="navbar">
+  <a href="/admin/dashboard" class="navbar-brand">🏥 ClinicOS <span style="font-size:12px;color:var(--muted);font-family:Inter,sans-serif;">Admin</span></a>
+  <ul class="navbar-nav">
+    <li><a href="/admin/dashboard" class="{% if active == 'admin_dashboard' %}active{% endif %}">Dashboard</a></li>
+    <li><a href="/admin/doctors"   class="{% if active == 'admin_doctors'   %}active{% endif %}">Doctors</a></li>
+    <li><a href="/dashboard">My Clinic</a></li>
+    <li><a href="/logout">Logout</a></li>
+  </ul>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <h1 class="page-title">Doctors <span class="page-date">· {{ rows|length }} total</span></h1>
+</div>
+
+<div class="settings-card" style="padding:0;overflow:hidden;">
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>Doctor</th>
+        <th>City</th>
+        <th>Plan</th>
+        <th>Status</th>
+        <th>Trial Ends</th>
+        <th>Plan Expires</th>
+        <th>Joined</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>
+          <div class="admin-doctor-name">{{ row.doctor.name }}</div>
+          <div class="admin-doctor-email">{{ row.doctor.email }}</div>
+        </td>
+        <td style="color:var(--muted);font-size:13px;">{{ row.doctor.city or '—' }}</td>
+        <td style="font-size:13px;text-transform:capitalize;">{{ row.doctor.plan_type.value }}</td>
+        <td>
+          {% if row.status == 'active_plan' %}
+            <span class="badge badge--completed" style="font-size:11px;padding:3px 10px;">Paid</span>
+          {% elif row.status == 'trial' %}
+            <span class="badge badge--scheduled" style="font-size:11px;padding:3px 10px;">Trial</span>
+          {% else %}
+            <span class="badge badge--cancelled" style="font-size:11px;padding:3px 10px;">Expired</span>
+          {% endif %}
+        </td>
+        <td style="font-size:12px;color:var(--muted);">
+          {% if row.doctor.trial_ends_at %}
+            {{ row.doctor.trial_ends_at.strftime("%d %b %Y") }}
+          {% else %}—{% endif %}
+        </td>
+        <td style="font-size:12px;color:var(--muted);">
+          {% if row.doctor.plan_expires_at %}
+            {{ row.doctor.plan_expires_at.strftime("%d %b %Y") }}
+          {% else %}—{% endif %}
+        </td>
+        <td style="font-size:12px;color:var(--muted);">
+          {{ row.doctor.created_at.strftime("%d %b %Y") }}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" style="text-align:center;padding:40px;color:var(--muted);">No doctors registered yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

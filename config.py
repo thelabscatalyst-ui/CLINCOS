@@ -9,10 +9,13 @@ class Settings(BaseSettings):
 
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
-    TWILIO_WHATSAPP_FROM: str = "whatsapp:+14155238886"
+    TWILIO_WHATSAPP_FROM: str = "whatsapp:+14155238886"  # Twilio sandbox default
+    TWILIO_SMS_FROM: str = ""  # optional: your Twilio SMS phone number e.g. +918XXXXXXXXX
 
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
+
+    ADMIN_EMAIL: str = ""  # platform owner email — set in .env
 
     class Config:
         env_file = ".env"

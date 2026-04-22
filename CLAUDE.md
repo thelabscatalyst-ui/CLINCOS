@@ -2,16 +2,16 @@
 
 ## What This Project Is
 ClinicOS is a SaaS appointment management system for independent doctors in Indian Tier 2/3 cities.
-Priced at ₹299–499/month. WhatsApp-first, regional language support, mobile-friendly.
+Priced at ₹299–499/month. WhatsApp-first, mobile-friendly, zero setup for the doctor.
 
-Target customer: Dr. Mehta in Nashik — a GP with no digital system, using a paper register.
+Target customer: Dr. Mehta in Nashik — a GP with no digital system, currently using a paper register.
 
 ---
 
 ## Three User Types
 - **Doctor** — pays ₹299–499/month, manages appointments, sees calendar, gets reports
-- **Patient** — books via public link, receives WhatsApp/SMS reminders, no login needed
-- **Admin** — platform owner (me), manages all doctors, billing, platform stats
+- **Patient** — books via public link, receives WhatsApp/SMS confirmations + reminders, no login needed
+- **Admin** — platform owner, manages all doctors, monitors billing and platform stats at `/admin`
 
 ---
 
@@ -24,249 +24,278 @@ Target customer: Dr. Mehta in Nashik — a GP with no digital system, using a pa
 | Database (dev) | SQLite | File: `clinic.db` |
 | Database (prod) | PostgreSQL | Railway.app managed |
 | ORM | SQLAlchemy | Python classes, not raw SQL |
-| Auth | JWT + Passlib (bcrypt) | Token-based login |
-| WhatsApp/SMS | Twilio | Primary notification service |
+| Auth | JWT + Passlib (bcrypt) | Token stored in HTTP-only cookie |
+| WhatsApp/SMS | Twilio | Primary notification channel |
 | Payments | Razorpay | Indian UPI/card payments |
-| Scheduler | APScheduler | Background reminder jobs |
+| Scheduler | APScheduler | Background reminder jobs (every 15 min) |
 | Deployment | Railway.app | Auto-deploy from GitHub |
 
 ---
 
-## Known Compatibility Issues (Important)
-- **bcrypt must stay at 4.0.1** — passlib 1.7.4 is incompatible with bcrypt 5.x (`__about__` removed). Do NOT upgrade bcrypt.
-- **Starlette 1.0.0 TemplateResponse API changed** — `request` is now the FIRST argument: `templates.TemplateResponse(request, "template.html", context)`. Old signature with `{"request": request}` in the context dict causes `TypeError: cannot use 'tuple' as dict key`.
-- **httpx required for TestClient** — install `httpx` separately for FastAPI test client to work.
-- **Python 3.14 in use** — venv is at `/Users/apple/Desktop/ClinicOS/venv/`.
+## Known Compatibility Issues (Critical)
+- **bcrypt must stay at 4.0.1** — passlib 1.7.4 is incompatible with bcrypt 5.x (`__about__` removed). Do NOT upgrade.
+- **Starlette 1.0.0 TemplateResponse API** — `request` is now the FIRST positional argument: `templates.TemplateResponse(request, "template.html", context)`. The old signature with `{"request": request}` in the context dict raises `TypeError: cannot use 'tuple' as dict key`.
+- **httpx required for TestClient** — install separately; FastAPI test client depends on it.
+- **Python 3.14 in use** — venv at `/Users/apple/Desktop/ClinicOS/venv/`.
+- **SQLite `connect_args`** — `{"check_same_thread": False}` applied only for SQLite URLs; PostgreSQL skips it automatically (handled in `database/connection.py`).
 
 ---
 
-## How to Run
+## How to Run Locally
 ```bash
 cd ~/Desktop/ClinicOS
 source venv/bin/activate
 uvicorn main:app --reload
 ```
-Then open `http://127.0.0.1:8000`. If port 8000 is busy: `kill $(lsof -ti:8000)` then restart.
+Open `http://127.0.0.1:8000`. If port is busy: `kill $(lsof -ti:8000)` then restart.
 
 ---
 
 ## Folder Structure
 ```
 ClinicOS/
-├── main.py                  # Entry point — registers all routers, starts app
-├── config.py                # Settings loaded from .env (pydantic-settings)
-├── requirements.txt         # All pip packages
-├── .env                     # Secret keys — NEVER commit this
-├── .gitignore               # Ignores .env, venv/, clinic.db, __pycache__
-├── CLAUDE.md                # This file
+├── main.py                      # Entry point — routers, lifespan (scheduler start/stop)
+├── config.py                    # Settings from .env via pydantic-settings
+├── requirements.txt             # All pip packages (pinned)
+├── Procfile                     # Railway: web: uvicorn main:app --host 0.0.0.0 --port $PORT
+├── .env                         # Secret keys — NEVER commit
+├── .gitignore
+├── CLAUDE.md                    # This file
+├── README.md                    # Public-facing project docs
 │
 ├── database/
-│   ├── __init__.py
-│   ├── connection.py        # Engine, SessionLocal, Base, get_db(), create_tables()
-│   └── models.py            # All 7 SQLAlchemy ORM models + enums
+│   ├── connection.py            # Engine, SessionLocal, Base, get_db(), create_tables()
+│   └── models.py                # 7 ORM models + enums (see Database Tables below)
 │
 ├── routers/
-│   ├── __init__.py
-│   ├── auth.py              # /register, /login, /logout (DONE)
-│   ├── doctors.py           # /dashboard, /doctors/settings/* (DONE)
-│   ├── appointments.py      # /appointments — CRUD (stub)
-│   ├── patients.py          # /patients — list, profile (stub)
-│   ├── public.py            # /book/{slug} — no auth needed (stub)
-│   └── admin.py             # /admin — platform owner only (stub)
+│   ├── auth.py                  # /register, /login, /logout
+│   ├── doctors.py               # /dashboard, /calendar, /reports, /billing, /doctors/settings/*
+│   ├── appointments.py          # /appointments — full CRUD + edit + status update
+│   ├── patients.py              # /patients — list, search, detail, notes
+│   ├── public.py                # /book/{slug} — public booking (no auth, rate-limited)
+│   └── admin.py                 # /admin — platform owner only
 │
 ├── services/
-│   ├── __init__.py
-│   ├── auth_service.py      # hash_password, verify_password, create_access_token,
-│   │                        # decode_token, get_current_doctor (DONE)
-│   ├── appointment_service.py
-│   ├── notification_service.py
-│   ├── payment_service.py
-│   └── scheduler_service.py
+│   ├── auth_service.py          # JWT auth + get_current_doctor + get_paying_doctor + get_admin_doctor
+│   ├── appointment_service.py   # Slot availability, get_or_create_patient
+│   ├── notification_service.py  # Twilio WhatsApp + SMS, confirmation + reminder sends
+│   ├── payment_service.py       # Razorpay order create + HMAC signature verify
+│   └── scheduler_service.py     # APScheduler — T-24h and T-2h reminder jobs
 │
 ├── templates/
-│   ├── base.html            # Master layout: navbar (active link aware)
-│   ├── login.html           # Two-column: brand left, card right (DONE)
-│   ├── register.html        # Two-column: brand left, card right (DONE)
-│   ├── dashboard.html       # Stats, today's schedule, quick actions (DONE)
-│   ├── settings.html        # Working hours, clinic profile, blocked dates (DONE)
-│   ├── calendar.html        # (not yet built)
-│   ├── patients.html        # (not yet built)
-│   ├── patient_detail.html  # (not yet built)
-│   ├── reports.html         # (not yet built)
-│   ├── billing.html         # (not yet built)
-│   ├── public_booking.html  # (not yet built)
+│   ├── base.html                # Master layout with active-link navbar
+│   ├── login.html               # Two-column auth page
+│   ├── register.html            # Two-column auth page
+│   ├── dashboard.html           # Stats, today's schedule, quick actions
+│   ├── settings.html            # Working hours, clinic profile, blocked dates, subscription
+│   ├── appointments.html        # Daily appointment list with date nav
+│   ├── appointment_new.html     # New appointment form with AJAX slot loading
+│   ├── appointment_detail.html  # Detail view + status update + doctor notes
+│   ├── appointment_edit.html    # Edit/reschedule form
+│   ├── calendar.html            # Monthly calendar view
+│   ├── patients.html            # Patient list with search
+│   ├── patient_detail.html      # Patient profile, history, notes
+│   ├── reports.html             # Analytics: charts, top patients, visit types
+│   ├── billing.html             # Plan cards + Razorpay checkout
+│   ├── public_booking.html      # Patient-facing booking form (no navbar)
+│   ├── public_confirm.html      # Booking confirmation + Google Calendar link
 │   └── admin/
-│       ├── admin_dashboard.html
-│       └── doctors_list.html
+│       ├── admin_dashboard.html # Platform stats
+│       └── doctors_list.html    # All registered doctors table
 │
 └── static/
-    ├── css/
-    │   └── main.css         # All styles — dark theme, glow, pop animations
+    ├── css/main.css             # All styles — dark theme, glow, pop, responsive
     ├── js/
     └── img/
 ```
 
 ---
 
-## Database Tables (Summary)
-- **doctors** — id, name, email, phone, password_hash, specialization, clinic_name, clinic_address, city, languages, slug, is_active, plan_type, trial_ends_at, plan_expires_at, created_at
-- **patients** — id, doctor_id, name, phone, language_pref, notes, visit_count, first_visit, last_visit, created_at
-- **appointments** — id, doctor_id, patient_id, appointment_date, appointment_time, duration_mins, appointment_type, status, patient_notes, doctor_notes, reminder_24h_sent, reminder_2h_sent, created_at, booked_by
-- **doctor_schedules** — id, doctor_id, day_of_week(0=Mon), start_time, end_time, slot_duration, max_patients, is_active
-- **blocked_dates** — id, doctor_id, blocked_date, reason
-- **subscriptions** — id, doctor_id, plan_name, amount(paise), payment_id, start_date, end_date, status
-- **notifications_log** — id, appointment_id, type, channel, message_body, status, sent_at
+## Database Tables
+| Table | Key Columns |
+|---|---|
+| **doctors** | id, name, email, phone, password_hash, specialization, clinic_name, clinic_address, city, languages, slug, is_active, plan_type, trial_ends_at, plan_expires_at, created_at |
+| **patients** | id, doctor_id, name, phone, language_pref, notes, visit_count, first_visit, last_visit, created_at |
+| **appointments** | id, doctor_id, patient_id, appointment_date, appointment_time, duration_mins, appointment_type, status, patient_notes, doctor_notes, reminder_24h_sent, reminder_2h_sent, booked_by, created_at |
+| **doctor_schedules** | id, doctor_id, day_of_week (0=Mon), start_time, end_time, slot_duration, max_patients, is_active |
+| **blocked_dates** | id, doctor_id, blocked_date, reason |
+| **subscriptions** | id, doctor_id, plan_name, amount (paise), payment_id, start_date, end_date, status |
+| **notifications_log** | id, appointment_id, type, channel, message_body, status, sent_at |
 
 ---
 
-## Auth & Session Pattern
-- JWT stored in **HTTP-only cookie** named `access_token` (not localStorage)
-- Cookie max-age: 24 hours, samesite=lax
-- Protected routes use `Depends(get_current_doctor)` from `services/auth_service.py`
-- Unauthenticated requests → 401 → caught by `main.py` exception handler → redirect to `/login`
+## Auth & Plan Gating Pattern
+- JWT stored in **HTTP-only cookie** `access_token` (not localStorage), max-age 24h, samesite=lax
+- `get_current_doctor` — verifies JWT, returns doctor or raises 401 → redirects to `/login`
+- `get_paying_doctor` — wraps `get_current_doctor`, raises `PlanExpired` if trial + plan both lapsed → redirects to `/billing`
+- `get_admin_doctor` — wraps `get_current_doctor`, checks `doctor.email == settings.ADMIN_EMAIL` → 403 otherwise
+- All doctor-facing routes use `Depends(get_paying_doctor)` **except** `/billing/*` (uses `get_current_doctor`) and `/admin/*` (uses `get_admin_doctor`)
+- `PlanExpired` exception handled in `main.py` → `RedirectResponse("/billing")`
 - Doctor slug auto-generated on register: `name + city` → lowercase, hyphens (e.g. `dr-rajesh-mehta-nashik`)
-- Trial set to 14 days from `datetime.utcnow()` on register
+- Trial: 14 days from `datetime.utcnow()` on register
+
+---
+
+## Complete Route Table
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/` | No | Redirect → `/login` |
+| GET/POST | `/register` | No | Doctor registration |
+| GET/POST | `/login` | No | Doctor login |
+| GET | `/logout` | No | Clear cookie |
+| GET | `/dashboard` | Plan | Stats + today's schedule |
+| GET | `/calendar` | Plan | Monthly calendar |
+| GET | `/reports` | Plan | Analytics + charts |
+| GET | `/billing` | Auth | Plan cards + Razorpay |
+| POST | `/billing/create-order` | Auth | Create Razorpay order (JSON) |
+| POST | `/billing/verify` | Auth | Verify payment + activate plan |
+| GET/POST | `/doctors/settings` | Plan | Working hours, profile, blocked dates, subscription |
+| POST | `/doctors/settings/schedule` | Plan | Save working hours |
+| POST | `/doctors/settings/profile` | Plan | Save clinic profile |
+| POST | `/doctors/settings/block` | Plan | Add blocked date |
+| POST | `/doctors/settings/unblock/{id}` | Plan | Remove blocked date |
+| GET | `/appointments` | Plan | Daily appointment list |
+| GET | `/appointments/slots` | Plan | Available slots JSON (AJAX) |
+| GET | `/appointments/new` | Plan | New appointment form |
+| POST | `/appointments` | Plan | Create appointment |
+| GET | `/appointments/{id}` | Plan | Appointment detail |
+| POST | `/appointments/{id}/status` | Plan | Update status + doctor notes |
+| GET | `/appointments/{id}/edit` | Plan | Edit/reschedule form |
+| POST | `/appointments/{id}/edit` | Plan | Save rescheduled appointment |
+| GET | `/patients` | Plan | Patient list + search |
+| GET | `/patients/{id}` | Plan | Patient profile + history |
+| POST | `/patients/{id}/notes` | Plan | Update patient notes |
+| GET | `/book/{slug}` | No | Public booking form |
+| GET | `/book/{slug}/slots` | No | Public slots JSON (AJAX) |
+| POST | `/book/{slug}` | No | Submit booking (rate-limited) |
+| GET | `/book/{slug}/confirm/{id}` | No | Booking confirmation |
+| GET | `/admin` | Admin | Redirect → `/admin/dashboard` |
+| GET | `/admin/dashboard` | Admin | Platform stats |
+| GET | `/admin/doctors` | Admin | All doctors table |
+
+Auth column: **No** = public, **Auth** = JWT only, **Plan** = JWT + active trial/plan, **Admin** = platform owner email
 
 ---
 
 ## Design System (main.css)
-All pages use a **pitch-dark theme** with grey/white palette. Key rules:
+All pages use a **pitch-dark theme** with white/grey palette:
 - Background: `#080808`, Cards: `#111111`, Inputs: `#1a1a1a`
-- Text: `#f0f0f0`, Muted: `#888`, Dim: `#555`
-- No blue — accent color is white/light grey only
-- **Every card and button has a soft white glow** (`--glow`, `--glow-hover` CSS vars)
-- **Every card and button pops on hover** (`translateY + scale` via `--transition-pop`)
-- Font: `Playfair Display` (headings/logo), `Inter` (body)
-- Border radius: `--radius: 20px` (cards), `--radius-sm: 10px` (inputs/buttons)
-- Auth pages: two-column grid — brand/logo left, form card right
-- All `TemplateResponse` calls use new Starlette 1.0 signature (request as first arg)
+- Text: `#f0f0f0`, Muted: `#888`, Dim: `#555`, Border: `rgba(255,255,255,0.06)`
+- No colour accents — white/grey only throughout
+- Every card and button: soft white glow (`--glow`) + `translateY + scale` pop on hover (`--transition-pop`)
+- Fonts: `Playfair Display` (headings, logo, page titles) + `Inter` (body)
+- Border radius: `--radius: 20px` (cards), `--radius-sm: 10px` (inputs, buttons, badges)
 
-### Component Classes
-- `.card`, `.stat-card`, `.quick-card`, `.settings-card` — dark cards with glow + pop
-- `.btn-primary` — white bg, dark text, full-width by default
-- `.btn-sm` — overrides to `width: auto`, `margin-top: 0`, smaller padding
-- `.btn-secondary` — dark bg, border, grey text
-- `.badge--scheduled/completed/cancelled/no_show` — status pill colours
-- `.input-sm` — compact dark input for dense forms (schedule grid, blocked dates)
-- `.toggle` — CSS toggle switch (grey track → white when checked)
-- `.page-title` — Playfair Display, flexbox row with `.page-date` inline
-- `schedule-row--off` — dims `.schedule-day` and `.input-sm` only, NOT the toggle
-
-### Key Design Rules to Maintain
-- Buttons on pages are `btn-sm` (not full-width) unless it's a standalone form submit
-- `<button>` elements that are not form submits MUST have `type="button"`
-- Do NOT use `disabled` on inputs inside forms — use CSS class-based dimming instead
-- Inline `flex:1/2` goes directly on `<input>` elements, not on `.form-group` wrappers
+### Key CSS Rules
+- Page buttons are always `btn-sm` (not full-width) unless it's a standalone auth form submit
+- `<button>` that is NOT a form submit MUST have `type="button"` to prevent accidental form submission
+- Never use `disabled` on inputs inside active forms — use CSS class-based dimming (e.g. `schedule-row--off`)
+- Inline flex sizing (`flex: 1`) goes on `<input>` elements directly, not `.form-group` wrappers
+- Select dropdowns use `appearance: none` + custom SVG arrow background-image
 
 ---
 
-## Routes Built So Far
-| Method | Path | Handler | Auth |
-|---|---|---|---|
-| GET | `/` | Redirect → `/login` | No |
-| GET | `/register` | `auth.register_page` | No |
-| POST | `/register` | `auth.register` | No |
-| GET | `/login` | `auth.login_page` | No |
-| POST | `/login` | `auth.login` | No |
-| GET | `/logout` | `auth.logout` | No |
-| GET | `/dashboard` | `doctors.dashboard` | Yes |
-| GET | `/doctors/settings` | `doctors.settings_page` | Yes |
-| POST | `/doctors/settings/schedule` | `doctors.save_schedule` | Yes |
-| POST | `/doctors/settings/profile` | `doctors.save_profile` | Yes |
-| POST | `/doctors/settings/block` | `doctors.add_blocked_date` | Yes |
-| POST | `/doctors/settings/unblock/{id}` | `doctors.remove_blocked_date` | Yes |
+## Notification Flow
+1. Doctor or patient books appointment → `notify_appointment_confirmed()` fires immediately
+2. Sends WhatsApp via Twilio; falls back to SMS if `TWILIO_SMS_FROM` is set
+3. Every send (success or failure) is logged to `notifications_log` table
+4. APScheduler runs `_check_reminders()` every 15 minutes:
+   - Queries appointments where `reminder_24h_sent=False` within 23–25h window → sends, sets flag
+   - Queries appointments where `reminder_2h_sent=False` within 90–150min window → sends, sets flag
+5. All notification functions are wrapped in `try/except` in routers — a Twilio failure never blocks a booking
 
 ---
 
-## Coding Rules (Always Follow)
-1. **Never store plain passwords** — always use `passlib` bcrypt hashing
-2. **Never hardcode secrets** — all keys come from `.env` via `config.py`
-3. **Always filter by doctor_id** — doctors must never see other doctors' data
-4. **Validate inputs server-side** — never trust frontend data
-5. **Rate limit public booking** — max 5 bookings per phone per 24h
-6. **Keep routes thin** — business logic belongs in services/, not routers/
-7. **One feature at a time** — build and test before moving to next feature
-8. **TemplateResponse signature** — always `templates.TemplateResponse(request, "file.html", context)`
-9. **bcrypt pinned to 4.0.1** — do not upgrade
+## Payment Flow
+1. Doctor clicks Subscribe → JS calls `POST /billing/create-order?plan=basic|pro`
+2. Backend calls `razorpay.order.create()` → returns `{order_id, amount, currency, key_id}`
+3. Frontend opens Razorpay checkout popup (loaded from CDN)
+4. On payment success, Razorpay returns `{payment_id, order_id, signature}`
+5. Frontend POSTs these to `POST /billing/verify`
+6. Backend verifies HMAC-SHA256 signature → on match: creates `Subscription` row, sets `doctor.plan_expires_at = now + 30 days`, updates `doctor.plan_type`
+7. Redirects to `/billing?success=1`
 
 ---
 
 ## Subscription Plans
-- **Free Trial** — 14 days, full access, no card needed
-- **Basic** — ₹299/month, up to 30 appointments/day, reminders, public booking
-- **Pro** — ₹499/month, unlimited appointments, two-way WhatsApp, analytics, export
-
----
-
-## Build Order (Current Progress Tracker)
-
-| # | Feature | Status |
+| Plan | Price | Limits |
 |---|---|---|
-| 1 | Project setup + virtual environment | ✅ Done |
-| 2 | database/models.py — all 7 tables | ✅ Done |
-| 3 | database/connection.py | ✅ Done |
-| 4 | config.py + .env setup | ✅ Done |
-| 5 | main.py — base FastAPI app | ✅ Done |
-| 6 | auth — register + login + JWT | ✅ Done |
-| 7 | Dashboard page (stats, today's schedule, quick actions) | ✅ Done |
-| 8 | Schedule settings (working hours, slot duration, blocked dates) | ✅ Done |
-| 9 | Appointment creation form (backend + frontend) | ⬜ Next |
-| 10 | Calendar view | ⬜ Not started |
-| 11 | Public booking page | ⬜ Not started |
-| 12 | Slot availability logic (no double-booking) | ⬜ Not started |
-| 13 | Patient profile pages | ⬜ Not started |
-| 14 | WhatsApp/SMS notifications (Twilio) | ⬜ Not started |
-| 15 | Background reminder scheduler (APScheduler) | ⬜ Not started |
-| 16 | Two-way WhatsApp reply handling | ⬜ Not started |
-| 17 | Razorpay payment integration | ⬜ Not started |
-| 18 | Subscription plan gating | ⬜ Not started |
-| 19 | Reports + analytics page | ⬜ Not started |
-| 20 | Admin panel | ⬜ Not started |
-| 21 | Deploy on Railway.app | ⬜ Not started |
+| Free Trial | 14 days | Full access |
+| Basic | ₹299/month | 30 appointments/day |
+| Pro | ₹499/month | Unlimited appointments |
 
 ---
 
-## Key Business Rules to Always Enforce
-- A slot is unavailable if: another appointment exists at same date+time for same doctor, OR the time is outside doctor's schedule hours, OR the date is in blocked_dates, OR max_patients for that shift is reached
-- Reminders fire at: T-24h and T-2h before appointment_date + appointment_time
-- No-show auto-trigger: if status not updated to 'completed' within 30 min after appointment end time, system flags it for doctor review
-- Free trial: 14 days from created_at on doctors table
-- Plan expiry check: run on every protected route — if plan_expires_at < today AND trial_ends_at < today, redirect to billing page
+## Coding Rules (Always Follow)
+1. **Never store plain passwords** — always `passlib` bcrypt hashing
+2. **Never hardcode secrets** — all keys from `.env` via `config.py`
+3. **Always filter by `doctor_id`** — doctors must never see other doctors' data
+4. **Validate inputs server-side** — never trust frontend data
+5. **Rate limit public booking** — max 5 bookings per phone per 24h (enforced in `routers/public.py`)
+6. **Keep routes thin** — business logic in `services/`, not `routers/`
+7. **TemplateResponse signature** — always `templates.TemplateResponse(request, "file.html", context)`
+8. **bcrypt pinned to 4.0.1** — do not upgrade
+9. **Notifications never block bookings** — always wrapped in `try/except` at call sites
 
 ---
 
-## Environment Variables Needed (.env file)
+## Environment Variables (.env)
 ```
-DATABASE_URL=sqlite:///./clinic.db
-SECRET_KEY=your-jwt-secret-key-here
+# Core
+DATABASE_URL=sqlite:///./clinic.db        # dev; switch to PostgreSQL URL on Railway
+SECRET_KEY=your-random-jwt-secret-here    # generate: python -c "import secrets; print(secrets.token_hex(32))"
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
-TWILIO_ACCOUNT_SID=your-twilio-sid
-TWILIO_AUTH_TOKEN=your-twilio-token
-TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+# Twilio (WhatsApp/SMS notifications)
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886   # sandbox; replace with approved number for prod
+TWILIO_SMS_FROM=                             # optional Twilio SMS number e.g. +1XXXXXXXXXX
 
-RAZORPAY_KEY_ID=your-razorpay-key
-RAZORPAY_KEY_SECRET=your-razorpay-secret
+# Razorpay (payments)
+RAZORPAY_KEY_ID=rzp_test_XXXXXXXXXXXXXXXX
+RAZORPAY_KEY_SECRET=XXXXXXXXXXXXXXXXXXXXXXXX
+
+# Admin
+ADMIN_EMAIL=your-email@example.com          # must match the email used to register the admin doctor account
 ```
 
 ---
 
-## What "Done" Means for Each Feature
-A feature is only done when:
-- [ ] Backend route works (tested in browser or Postman)
-- [ ] Frontend page displays correctly on mobile screen size
-- [ ] Data is correctly saved/retrieved from database (verified in DB Browser)
-- [ ] No hardcoded values — everything comes from DB or .env
-- [ ] Tested with wrong inputs (empty form, wrong password, double booking attempt)
+## Build Status
+| # | Feature | Status |
+|---|---|---|
+| 1 | Project setup + virtual environment | ✅ Done |
+| 2 | Database models — all 7 tables | ✅ Done |
+| 3 | Database connection + migrations | ✅ Done |
+| 4 | config.py + .env | ✅ Done |
+| 5 | main.py — FastAPI app + lifespan | ✅ Done |
+| 6 | Auth — register + login + JWT cookie | ✅ Done |
+| 7 | Dashboard — stats, today's schedule, quick actions | ✅ Done |
+| 8 | Settings — working hours, profile, blocked dates | ✅ Done |
+| 9 | Appointments — create, list, detail, status update | ✅ Done |
+| 10 | Calendar view — monthly grid | ✅ Done |
+| 11 | Public booking page `/book/{slug}` | ✅ Done |
+| 12 | Slot availability logic — no double-booking | ✅ Done |
+| 13 | Patient profiles — list, search, detail, notes | ✅ Done |
+| 14 | WhatsApp/SMS notifications (Twilio) | ✅ Done |
+| 15 | Background reminder scheduler (APScheduler) | ✅ Done |
+| 16 | Appointment edit / reschedule | ✅ Done |
+| 17 | Reports + analytics page | ✅ Done |
+| 18 | Razorpay payment integration | ✅ Done |
+| 19 | Subscription plan gating | ✅ Done |
+| 20 | Subscription section in Settings | ✅ Done |
+| 21 | Admin panel — dashboard + doctors list | ✅ Done |
+| 22 | Deploy on Railway.app | ⬜ Next |
 
 ---
 
 ## Session Startup Checklist
-When starting a new Claude Code session, say:
-> "Read CLAUDE.md. We are continuing ClinicOS. Last completed feature was [8 — Schedule Settings]. Today we are building [Feature 9 — Appointment creation form]."
+When starting a new Claude Code session:
+> "Read CLAUDE.md. We are continuing ClinicOS. All features 1–21 are complete. Today we are working on [describe task]."
 
 ---
 
 *Last updated: 2026-04-22*
-*Current phase: Core features — Features 1–8 complete, Feature 9 next*
+*Current phase: Production-ready — deploying to Railway.app next*

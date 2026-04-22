@@ -168,7 +168,123 @@
 </div>
 
 <!-- ───────────────────────────────────────────────────── -->
-<!--  4. Booking Link                                       -->
+<!--  4. Subscription                                       -->
+<!-- ───────────────────────────────────────────────────── -->
+<div class="settings-card">
+  <div class="settings-card-header" style="margin-bottom:20px;">
+    <div>
+      <div class="settings-card-title">Subscription</div>
+      <div class="settings-card-sub">
+        {% if plan_status == 'trial' %}
+          Free Trial — {{ plan_days }} day{{ 's' if plan_days != 1 }} remaining
+        {% elif plan_status == 'basic' %}
+          Basic Plan — renews in {{ plan_days }} day{{ 's' if plan_days != 1 }}
+        {% elif plan_status == 'pro' %}
+          Pro Plan — renews in {{ plan_days }} day{{ 's' if plan_days != 1 }}
+        {% else %}
+          Your plan has expired — upgrade to continue
+        {% endif %}
+      </div>
+    </div>
+    <span class="sub-status-badge sub-status-badge--{{ plan_status }}">
+      {% if plan_status == 'trial' %}Free Trial
+      {% elif plan_status == 'basic' %}Basic
+      {% elif plan_status == 'pro' %}Pro
+      {% else %}Expired{% endif %}
+    </span>
+  </div>
+
+  {% if plan_status == 'pro' %}
+    <!-- Pro — show renew option -->
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      You're on the best plan. Your Pro features are fully active.
+    </p>
+    {% if razorpay_configured %}
+    <button type="button" class="btn btn-secondary btn-sm"
+            onclick="settingsPayment('pro', 49900)">
+      Renew Pro — ₹499/mo
+    </button>
+    {% endif %}
+
+  {% elif plan_status == 'basic' %}
+    <!-- Basic — offer upgrade to Pro -->
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      Upgrade to Pro for unlimited appointments, advanced analytics, and more.
+    </p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      {% if razorpay_configured %}
+      <button type="button" class="btn btn-secondary btn-sm"
+              onclick="settingsPayment('basic', 29900)">
+        Renew Basic — ₹299/mo
+      </button>
+      <button type="button" class="btn btn-primary btn-sm"
+              onclick="settingsPayment('pro', 49900)">
+        Upgrade to Pro — ₹499/mo
+      </button>
+      {% else %}
+      <a href="/billing" class="btn btn-secondary btn-sm">Manage Plan</a>
+      {% endif %}
+    </div>
+
+  {% else %}
+    <!-- Trial or Expired — show both plan options -->
+    {% if plan_status == 'expired' %}
+    <p style="font-size:13px;color:#f87171;margin-bottom:16px;">
+      Your access is paused. Subscribe to resume.
+    </p>
+    {% else %}
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      Choose a plan to continue after your trial ends.
+    </p>
+    {% endif %}
+
+    <div class="sub-plan-row">
+      <div class="sub-plan-option">
+        <div class="sub-plan-name">Basic</div>
+        <div class="sub-plan-price">₹299 <span>/month</span></div>
+        <ul class="sub-plan-features">
+          <li>30 appointments / day</li>
+          <li>WhatsApp & SMS reminders</li>
+          <li>Public booking + patient records</li>
+          <li>Reports & analytics</li>
+        </ul>
+        {% if razorpay_configured %}
+        <button type="button" class="btn btn-secondary btn-sm"
+                onclick="settingsPayment('basic', 29900)">
+          Subscribe
+        </button>
+        {% else %}
+        <a href="/billing" class="btn btn-secondary btn-sm">Subscribe</a>
+        {% endif %}
+      </div>
+
+      <div class="sub-plan-divider"></div>
+
+      <div class="sub-plan-option sub-plan-option--pro">
+        <div class="sub-plan-name">Pro <span class="sub-pro-tag">Best Value</span></div>
+        <div class="sub-plan-price">₹499 <span>/month</span></div>
+        <ul class="sub-plan-features">
+          <li>Unlimited appointments</li>
+          <li>WhatsApp & SMS reminders</li>
+          <li>Public booking + patient records</li>
+          <li>Advanced analytics & reports</li>
+          <li style="color:var(--dim);">Two-way WhatsApp (soon)</li>
+        </ul>
+        {% if razorpay_configured %}
+        <button type="button" class="btn btn-primary btn-sm"
+                onclick="settingsPayment('pro', 49900)">
+          Subscribe
+        </button>
+        {% else %}
+        <a href="/billing" class="btn btn-primary btn-sm">Subscribe</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- ───────────────────────────────────────────────────── -->
+<!--  5. Booking Link                                       -->
 <!-- ───────────────────────────────────────────────────── -->
 {% if doctor.slug %}
 <div class="settings-card">
@@ -198,7 +314,66 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
+async function settingsPayment(plan, amount) {
+  const btn = event.target;
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Creating order…';
+
+  try {
+    const res  = await fetch(`/billing/create-order?plan=${plan}`, { method: 'POST' });
+    const data = await res.json();
+
+    if (data.error) {
+      alert('Error: ' + data.error);
+      btn.disabled = false; btn.textContent = origText; return;
+    }
+
+    const options = {
+      key:         data.key_id,
+      amount:      data.amount,
+      currency:    data.currency,
+      order_id:    data.order_id,
+      name:        'ClinicOS',
+      description: plan.charAt(0).toUpperCase() + plan.slice(1) + ' Plan — 1 Month',
+      prefill: {
+        name:    '{{ doctor.name }}',
+        email:   '{{ doctor.email }}',
+        contact: '{{ doctor.phone }}',
+      },
+      theme: { color: '#ffffff' },
+      modal: {
+        ondismiss: function() {
+          btn.disabled = false; btn.textContent = origText;
+        }
+      },
+      handler: function(response) {
+        const form = document.createElement('form');
+        form.method = 'POST'; form.action = '/billing/verify';
+        const fields = {
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_order_id:   response.razorpay_order_id,
+          razorpay_signature:  response.razorpay_signature,
+          plan:                plan,
+        };
+        for (const [k, v] of Object.entries(fields)) {
+          const inp = document.createElement('input');
+          inp.type = 'hidden'; inp.name = k; inp.value = v;
+          form.appendChild(inp);
+        }
+        document.body.appendChild(form);
+        form.submit();
+      },
+    };
+    new Razorpay(options).open();
+  } catch(err) {
+    alert('Something went wrong. Please try again.');
+    btn.disabled = false; btn.textContent = origText;
+  }
+}
+
 function toggleRow(index, isActive) {
   const row = document.getElementById('row-' + index);
   row.classList.toggle('schedule-row--off', !isActive);

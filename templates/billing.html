@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Billing — ClinicOS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <h1 class="page-title">Billing & Plans</h1>
+</div>
+
+{% if success == '1' %}
+<div class="alert alert-success">
+  Payment successful! Your plan is now active. Welcome to ClinicOS.
+</div>
+{% elif success == 'fail' %}
+<div class="alert alert-error">
+  Payment verification failed. If you were charged, please contact support.
+</div>
+{% endif %}
+
+{% if is_expired %}
+<div class="billing-expired-banner">
+  <div class="billing-expired-icon">⚠</div>
+  <div>
+    <div class="billing-expired-title">Your free trial has ended</div>
+    <div class="billing-expired-sub">Choose a plan below to continue using ClinicOS.</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Current Status -->
+<div class="settings-card" style="margin-bottom:16px;">
+  <div class="settings-card-title" style="margin-bottom:16px;">Current Status</div>
+  <div class="billing-status-row">
+    <div class="billing-status-item">
+      <div class="billing-status-label">Plan</div>
+      <div class="billing-status-value">
+        {% if plan_ok %}
+          {{ doctor.plan_type.value.title() }}
+          <span class="badge badge--completed" style="font-size:11px;padding:3px 10px;margin-left:8px;">Active</span>
+        {% elif trial_ok %}
+          Free Trial
+          <span class="badge badge--scheduled" style="font-size:11px;padding:3px 10px;margin-left:8px;">Active</span>
+        {% else %}
+          No Active Plan
+          <span class="badge badge--cancelled" style="font-size:11px;padding:3px 10px;margin-left:8px;">Expired</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="billing-status-item">
+      <div class="billing-status-label">
+        {% if plan_ok %}Plan expires in
+        {% elif trial_ok %}Trial ends in
+        {% else %}Status{% endif %}
+      </div>
+      <div class="billing-status-value">
+        {% if plan_ok %}
+          {{ plan_days_left }} days
+        {% elif trial_ok %}
+          {{ trial_days_left }} days
+        {% else %}
+          —
+        {% endif %}
+      </div>
+    </div>
+    <div class="billing-status-item">
+      <div class="billing-status-label">Doctor</div>
+      <div class="billing-status-value">{{ doctor.name }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Plan Cards -->
+<div class="billing-plans">
+
+  <!-- Basic -->
+  <div class="billing-plan-card">
+    <div class="plan-badge">Most Popular</div>
+    <div class="plan-name">Basic</div>
+    <div class="plan-price">₹299<span>/month</span></div>
+    <ul class="plan-features">
+      <li>30 appointments / day</li>
+      <li>WhatsApp & SMS reminders</li>
+      <li>Public booking page</li>
+      <li>Patient records & history</li>
+      <li>Reports & analytics</li>
+    </ul>
+    {% if razorpay_configured %}
+    <button type="button" class="btn btn-primary" onclick="startPayment('basic', 29900)">
+      Subscribe — ₹299/mo
+    </button>
+    {% else %}
+    <button type="button" class="btn btn-secondary" disabled>
+      Payment not configured
+    </button>
+    {% endif %}
+  </div>
+
+  <!-- Pro -->
+  <div class="billing-plan-card billing-plan-card--pro">
+    <div class="plan-badge plan-badge--pro">Best Value</div>
+    <div class="plan-name">Pro</div>
+    <div class="plan-price">₹499<span>/month</span></div>
+    <ul class="plan-features">
+      <li>Unlimited appointments</li>
+      <li>WhatsApp & SMS reminders</li>
+      <li>Public booking page</li>
+      <li>Full patient records & history</li>
+      <li>Advanced analytics & reports</li>
+      <li style="color:var(--muted);">Two-way WhatsApp <span style="font-size:11px;">(coming soon)</span></li>
+      <li style="color:var(--muted);">Data export <span style="font-size:11px;">(coming soon)</span></li>
+    </ul>
+    {% if razorpay_configured %}
+    <button type="button" class="btn btn-primary" onclick="startPayment('pro', 49900)">
+      Subscribe — ₹499/mo
+    </button>
+    {% else %}
+    <button type="button" class="btn btn-secondary" disabled>
+      Payment not configured
+    </button>
+    {% endif %}
+  </div>
+
+</div>
+
+<p style="text-align:center;font-size:12px;color:var(--dim);margin-top:16px;">
+  Secure payments via Razorpay · UPI, Cards, Net Banking accepted · Cancel anytime
+</p>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+async function startPayment(plan, amount) {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Creating order…';
+
+  try {
+    const res  = await fetch(`/billing/create-order?plan=${plan}`, { method: 'POST' });
+    const data = await res.json();
+
+    if (data.error) {
+      alert('Error: ' + data.error);
+      btn.disabled = false;
+      btn.textContent = `Subscribe — ₹${amount/100}/mo`;
+      return;
+    }
+
+    const options = {
+      key:         data.key_id,
+      amount:      data.amount,
+      currency:    data.currency,
+      order_id:    data.order_id,
+      name:        'ClinicOS',
+      description: plan.charAt(0).toUpperCase() + plan.slice(1) + ' Plan — 1 Month',
+      image:       '/static/img/logo.png',
+      prefill: {
+        name:    '{{ doctor.name }}',
+        email:   '{{ doctor.email }}',
+        contact: '{{ doctor.phone }}',
+      },
+      theme:  { color: '#ffffff' },
+      modal: {
+        ondismiss: function() {
+          btn.disabled = false;
+          btn.textContent = `Subscribe — ₹${amount/100}/mo`;
+        }
+      },
+      handler: function(response) {
+        // Build a form and POST to /billing/verify
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/billing/verify';
+
+        const fields = {
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_order_id:   response.razorpay_order_id,
+          razorpay_signature:  response.razorpay_signature,
+          plan:                plan,
+        };
+        for (const [k, v] of Object.entries(fields)) {
+          const inp = document.createElement('input');
+          inp.type = 'hidden'; inp.name = k; inp.value = v;
+          form.appendChild(inp);
+        }
+        document.body.appendChild(form);
+        form.submit();
+      },
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.open();
+
+  } catch(err) {
+    alert('Something went wrong. Please try again.');
+    btn.disabled = false;
+    btn.textContent = `Subscribe — ₹${amount/100}/mo`;
+  }
+}
+</script>
+{% endblock %}
