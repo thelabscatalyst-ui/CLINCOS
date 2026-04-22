@@ -70,9 +70,19 @@ def dashboard(
         trial_active = delta >= 0
         days_left = max(delta, 0)
 
+    # Time-aware greeting — use datetime.now() not date.today() (date has no hour)
+    hour = datetime.now().hour
+    if hour < 12:
+        greeting = "Good Morning"
+    elif hour < 17:
+        greeting = "Good Afternoon"
+    else:
+        greeting = "Good Evening"
+
     return templates.TemplateResponse(request, "dashboard.html", {
         "doctor": doctor,
         "today": today,
+        "greeting": greeting,
         "todays_appointments": todays_appointments,
         "total_patients": total_patients,
         "total_today": total_today,
@@ -420,10 +430,9 @@ def reports_page(
         Appointment.status != AppointmentStatus.cancelled,
     ).scalar() or 0
 
-    # ---- Completion & no-show rates (past appointments only) ----
+    # ---- Completion & no-show rates ----
     past_total = db.query(func.count(Appointment.id)).filter(
         Appointment.doctor_id == doctor.id,
-        Appointment.appointment_date < today,
         Appointment.status.in_([
             AppointmentStatus.completed,
             AppointmentStatus.no_show,

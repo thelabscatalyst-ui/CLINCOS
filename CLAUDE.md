@@ -2,14 +2,14 @@
 
 ## What This Project Is
 ClinicOS is a SaaS appointment management system for independent doctors in Indian Tier 2/3 cities.
-Priced at ₹299–499/month. WhatsApp-first, mobile-friendly, zero setup for the doctor.
+Priced at ₹399/month (Solo plan). WhatsApp-first, mobile-friendly, zero setup for the doctor.
 
 Target customer: Dr. Mehta in Nashik — a GP with no digital system, currently using a paper register.
 
 ---
 
 ## Three User Types
-- **Doctor** — pays ₹299–499/month, manages appointments, sees calendar, gets reports
+- **Doctor** — pays ₹399/month, manages appointments, sees calendar, gets reports
 - **Patient** — books via public link, receives WhatsApp/SMS confirmations + reminders, no login needed
 - **Admin** — platform owner, manages all doctors, monitors billing and platform stats at `/admin`
 
@@ -64,39 +64,39 @@ ClinicOS/
 ├── README.md                    # Public-facing project docs
 │
 ├── database/
-│   ├── connection.py            # Engine, SessionLocal, Base, get_db(), create_tables()
-│   └── models.py                # 7 ORM models + enums (see Database Tables below)
+│   ├── connection.py            # Engine, SessionLocal, Base, get_db(), create_tables() + _run_migrations()
+│   └── models.py                # ORM models + enums (see Database Tables below)
 │
 ├── routers/
 │   ├── auth.py                  # /register, /login, /logout
-│   ├── doctors.py               # /dashboard, /calendar, /reports, /billing, /doctors/settings/*
-│   ├── appointments.py          # /appointments — full CRUD + edit + status update
+│   ├── doctors.py               # /dashboard, /calendar, /reports, /billing, /doctors/settings/*, /pin-prompt
+│   ├── appointments.py          # /appointments — full CRUD + edit + status update + walk-in
 │   ├── patients.py              # /patients — list, search, detail, notes
 │   ├── public.py                # /book/{slug} — public booking (no auth, rate-limited)
 │   └── admin.py                 # /admin — platform owner only
 │
 ├── services/
-│   ├── auth_service.py          # JWT auth + get_current_doctor + get_paying_doctor + get_admin_doctor
+│   ├── auth_service.py          # JWT auth + PIN session auth + all get_*_doctor helpers
 │   ├── appointment_service.py   # Slot availability, get_or_create_patient
 │   ├── notification_service.py  # Twilio WhatsApp + SMS, confirmation + reminder sends
 │   ├── payment_service.py       # Razorpay order create + HMAC signature verify
 │   └── scheduler_service.py     # APScheduler — T-24h and T-2h reminder jobs
 │
 ├── templates/
-│   ├── base.html                # Master layout with active-link navbar
+│   ├── base.html                # Master layout — navbar (theme toggle, power-off logout), PIN blur overlay
 │   ├── login.html               # Two-column auth page
 │   ├── register.html            # Two-column auth page
-│   ├── dashboard.html           # Stats, today's schedule, quick actions
-│   ├── settings.html            # Working hours, clinic profile, blocked dates, subscription
-│   ├── appointments.html        # Daily appointment list with date nav
-│   ├── appointment_new.html     # New appointment form with AJAX slot loading
+│   ├── dashboard.html           # Stats row + today's schedule + quick actions (single-column)
+│   ├── settings.html            # Working hours, clinic profile, blocked dates, subscription, PIN protection
+│   ├── appointments.html        # Daily appointment list with date nav + walk-in quick panel
+│   ├── appointment_new.html     # New appointment form with AJAX slot loading + booking channel selector
 │   ├── appointment_detail.html  # Detail view + status update + doctor notes
 │   ├── appointment_edit.html    # Edit/reschedule form
 │   ├── calendar.html            # Monthly calendar view
 │   ├── patients.html            # Patient list with search
 │   ├── patient_detail.html      # Patient profile, history, notes
 │   ├── reports.html             # Analytics: charts, top patients, visit types
-│   ├── billing.html             # Plan cards + Razorpay checkout
+│   ├── billing.html             # Solo plan card + Razorpay checkout
 │   ├── public_booking.html      # Patient-facing booking form (no navbar)
 │   ├── public_confirm.html      # Booking confirmation + Google Calendar link
 │   └── admin/
@@ -104,7 +104,7 @@ ClinicOS/
 │       └── doctors_list.html    # All registered doctors table
 │
 └── static/
-    ├── css/main.css             # All styles — dark theme, glow, pop, responsive
+    ├── css/main.css             # All styles — dark/light theme, glow, pop, responsive
     ├── js/
     └── img/
 ```
@@ -114,13 +114,15 @@ ClinicOS/
 ## Database Tables
 | Table | Key Columns |
 |---|---|
-| **doctors** | id, name, email, phone, password_hash, specialization, clinic_name, clinic_address, city, languages, slug, is_active, plan_type, trial_ends_at, plan_expires_at, created_at |
+| **doctors** | id, name, email, phone, password_hash, pin_hash, specialization, clinic_name, clinic_address, city, languages, slug, is_active, plan_type, trial_ends_at, plan_expires_at, created_at |
 | **patients** | id, doctor_id, name, phone, language_pref, notes, visit_count, first_visit, last_visit, created_at |
 | **appointments** | id, doctor_id, patient_id, appointment_date, appointment_time, duration_mins, appointment_type, status, patient_notes, doctor_notes, reminder_24h_sent, reminder_2h_sent, booked_by, created_at |
 | **doctor_schedules** | id, doctor_id, day_of_week (0=Mon), start_time, end_time, slot_duration, max_patients, is_active |
 | **blocked_dates** | id, doctor_id, blocked_date, reason |
 | **subscriptions** | id, doctor_id, plan_name, amount (paise), payment_id, start_date, end_date, status |
 | **notifications_log** | id, appointment_id, type, channel, message_body, status, sent_at |
+
+`pin_hash` is added via `_run_migrations()` on startup (safe to re-run, ALTER TABLE ignored if column exists).
 
 ---
 
@@ -129,10 +131,42 @@ ClinicOS/
 - `get_current_doctor` — verifies JWT, returns doctor or raises 401 → redirects to `/login`
 - `get_paying_doctor` — wraps `get_current_doctor`, raises `PlanExpired` if trial + plan both lapsed → redirects to `/billing`
 - `get_admin_doctor` — wraps `get_current_doctor`, checks `doctor.email == settings.ADMIN_EMAIL` → 403 otherwise
-- All doctor-facing routes use `Depends(get_paying_doctor)` **except** `/billing/*` (uses `get_current_doctor`) and `/admin/*` (uses `get_admin_doctor`)
-- `PlanExpired` exception handled in `main.py` → `RedirectResponse("/billing")`
+- `require_pin` — wraps `get_paying_doctor`; sets `request.state.pin_required = True` on GET if PIN not unlocked; raises `PinRequired` on POST
+- `require_pin_auth` — same as `require_pin` but wraps `get_current_doctor` (used for billing routes)
+- PIN session stored in HTTP-only cookie `pin_session` (30-minute JWT with `pin_ok: True`)
+- `PlanExpired` and `PinRequired` exceptions handled in `main.py`
 - Doctor slug auto-generated on register: `name + city` → lowercase, hyphens (e.g. `dr-rajesh-mehta-nashik`)
 - Trial: 14 days from `datetime.utcnow()` on register
+
+### PIN-protected routes
+- `GET/POST /doctors/settings` — requires PIN
+- `GET /reports` — requires PIN
+- `GET /billing` and all `/billing/*` — requires PIN (auth only, not plan-gated)
+
+### PIN blur overlay (base.html)
+When `pin_required=True` is in template context, `body` gets class `pin-active`:
+- `.pin-active .navbar` and `.pin-active .main-content` get `filter: blur(14px) brightness(0.55); pointer-events: none`
+- A `.pin-overlay` with a centered `.pin-dialog` (lock icon + PIN input + Unlock button) is shown
+- Back arrow `‹` at top-left of overlay for navigation
+- On wrong PIN: redirect to same page with `?pin_error=1` query param → overlay shows "Incorrect PIN"
+
+---
+
+## BookedBy Enum Values
+```python
+class BookedBy(str, enum.Enum):
+    doctor       = "doctor"       # doctor booked manually
+    patient      = "patient"      # patient booked via public /book/{slug}
+    staff_shared = "staff_shared" # receptionist using doctor's shared login
+    walk_in      = "walk_in"      # quick walk-in from appointments page
+```
+
+---
+
+## Walk-in Booking
+- `POST /appointments/walkin` — books for `datetime.now()`, sets `booked_by=walk_in`, skips WhatsApp notification
+- Accessible from the appointments page (today only) via a slide-down panel
+- Appears as `badge-channel--walkin` badge on appointment rows
 
 ---
 
@@ -143,21 +177,25 @@ ClinicOS/
 | GET/POST | `/register` | No | Doctor registration |
 | GET/POST | `/login` | No | Doctor login |
 | GET | `/logout` | No | Clear cookie |
-| GET | `/dashboard` | Plan | Stats + today's schedule |
+| GET | `/dashboard` | Plan | Stats + today's schedule + quick actions |
 | GET | `/calendar` | Plan | Monthly calendar |
-| GET | `/reports` | Plan | Analytics + charts |
-| GET | `/billing` | Auth | Plan cards + Razorpay |
-| POST | `/billing/create-order` | Auth | Create Razorpay order (JSON) |
-| POST | `/billing/verify` | Auth | Verify payment + activate plan |
-| GET/POST | `/doctors/settings` | Plan | Working hours, profile, blocked dates, subscription |
-| POST | `/doctors/settings/schedule` | Plan | Save working hours |
-| POST | `/doctors/settings/profile` | Plan | Save clinic profile |
-| POST | `/doctors/settings/block` | Plan | Add blocked date |
-| POST | `/doctors/settings/unblock/{id}` | Plan | Remove blocked date |
+| GET | `/reports` | PIN | Analytics + charts |
+| GET | `/billing` | PIN-Auth | Plan cards + Razorpay |
+| POST | `/billing/create-order` | PIN-Auth | Create Razorpay order (JSON) |
+| POST | `/billing/verify` | PIN-Auth | Verify payment + activate plan |
+| GET/POST | `/doctors/settings` | PIN | Working hours, profile, blocked dates, PIN, subscription |
+| POST | `/doctors/settings/schedule` | PIN | Save working hours |
+| POST | `/doctors/settings/profile` | PIN | Save clinic profile |
+| POST | `/doctors/settings/block` | PIN | Add blocked date |
+| POST | `/doctors/settings/unblock/{id}` | PIN | Remove blocked date |
+| POST | `/doctors/settings/pin` | PIN | Set / change / remove PIN |
+| GET | `/pin-prompt` | No | Redirects to `next` param |
+| POST | `/pin-prompt` | No | Verify PIN → set pin_session cookie |
 | GET | `/appointments` | Plan | Daily appointment list |
 | GET | `/appointments/slots` | Plan | Available slots JSON (AJAX) |
 | GET | `/appointments/new` | Plan | New appointment form |
 | POST | `/appointments` | Plan | Create appointment |
+| POST | `/appointments/walkin` | Plan | Quick walk-in booking |
 | GET | `/appointments/{id}` | Plan | Appointment detail |
 | POST | `/appointments/{id}/status` | Plan | Update status + doctor notes |
 | GET | `/appointments/{id}/edit` | Plan | Edit/reschedule form |
@@ -173,18 +211,27 @@ ClinicOS/
 | GET | `/admin/dashboard` | Admin | Platform stats |
 | GET | `/admin/doctors` | Admin | All doctors table |
 
-Auth column: **No** = public, **Auth** = JWT only, **Plan** = JWT + active trial/plan, **Admin** = platform owner email
+Auth column: **No** = public, **Auth** = JWT only, **Plan** = JWT + active trial/plan, **PIN** = Plan + PIN unlock, **PIN-Auth** = JWT + PIN unlock, **Admin** = platform owner email
 
 ---
 
 ## Design System (main.css)
-All pages use a **pitch-dark theme** with white/grey palette:
+Supports **dark** (default) and **light** themes. Theme toggled via navbar button, saved to `localStorage`, applied to `<html>` element (`html.light` class).
+
+### Dark theme (default)
 - Background: `#080808`, Cards: `#111111`, Inputs: `#1a1a1a`
-- Text: `#f0f0f0`, Muted: `#888`, Dim: `#555`, Border: `rgba(255,255,255,0.06)`
+- Text: `#f0f0f0`, Muted: `#888`, Dim: `#555`, Border: `#252525`
+
+### Light theme (`html.light`)
+- Background: `#f4f4f5`, Cards: `#ffffff`, Inputs: `#e8e8ea`
+- Text: `#111111`, Muted: `#666`, Dim: `#aaa`, Border: `#e0e0e2`
+
+### Common
 - No colour accents — white/grey only throughout
-- Every card and button: soft white glow (`--glow`) + `translateY + scale` pop on hover (`--transition-pop`)
+- Every card and button: soft glow (`--glow`) + `translateY + scale` pop on hover (`--transition-pop`)
 - Fonts: `Playfair Display` (headings, logo, page titles) + `Inter` (body)
 - Border radius: `--radius: 20px` (cards), `--radius-sm: 10px` (inputs, buttons, badges)
+- Layout: `.main-content { padding: 32px 24px; }` — no max-width, full screen width, equal side gaps
 
 ### Key CSS Rules
 - Page buttons are always `btn-sm` (not full-width) unless it's a standalone auth form submit
@@ -192,6 +239,10 @@ All pages use a **pitch-dark theme** with white/grey palette:
 - Never use `disabled` on inputs inside active forms — use CSS class-based dimming (e.g. `schedule-row--off`)
 - Inline flex sizing (`flex: 1`) goes on `<input>` elements directly, not `.form-group` wrappers
 - Select dropdowns use `appearance: none` + custom SVG arrow background-image
+
+### Navbar
+- Brand: "ClinicOS" text only (no emoji)
+- Right side: nav links + `.navbar-controls` containing theme toggle (moon/sun icon) + power-off logout button (red)
 
 ---
 
@@ -203,11 +254,12 @@ All pages use a **pitch-dark theme** with white/grey palette:
    - Queries appointments where `reminder_24h_sent=False` within 23–25h window → sends, sets flag
    - Queries appointments where `reminder_2h_sent=False` within 90–150min window → sends, sets flag
 5. All notification functions are wrapped in `try/except` in routers — a Twilio failure never blocks a booking
+6. Walk-in bookings (`booked_by=walk_in`) skip the confirmation notification
 
 ---
 
 ## Payment Flow
-1. Doctor clicks Subscribe → JS calls `POST /billing/create-order?plan=basic|pro`
+1. Doctor clicks Subscribe → JS calls `POST /billing/create-order?plan=solo|basic|pro`
 2. Backend calls `razorpay.order.create()` → returns `{order_id, amount, currency, key_id}`
 3. Frontend opens Razorpay checkout popup (loaded from CDN)
 4. On payment success, Razorpay returns `{payment_id, order_id, signature}`
@@ -218,11 +270,19 @@ All pages use a **pitch-dark theme** with white/grey palette:
 ---
 
 ## Subscription Plans
-| Plan | Price | Limits |
+| Plan | Price | Notes |
 |---|---|---|
 | Free Trial | 14 days | Full access |
-| Basic | ₹299/month | 30 appointments/day |
-| Pro | ₹499/month | Unlimited appointments |
+| Solo | ₹399/month | Primary plan for individual doctors |
+| Basic | ₹299/month | Legacy — 30 appointments/day |
+| Pro | ₹499/month | Legacy — Unlimited appointments |
+
+PLAN_AMOUNTS in `payment_service.py`: `solo=39900, basic=29900, pro=49900` (paise).
+
+---
+
+## Reports — Completion Rate Fix
+`past_total` (denominator for completion/no-show rates) counts all appointments with status `completed` or `no_show` across all dates. It does NOT filter by `appointment_date < today` — that caused 0% rates when completions were from today.
 
 ---
 
@@ -236,6 +296,7 @@ All pages use a **pitch-dark theme** with white/grey palette:
 7. **TemplateResponse signature** — always `templates.TemplateResponse(request, "file.html", context)`
 8. **bcrypt pinned to 4.0.1** — do not upgrade
 9. **Notifications never block bookings** — always wrapped in `try/except` at call sites
+10. **Dashboard greeting** — use `datetime.now().hour` (not `date.today()`) for time-aware Good Morning/Afternoon/Evening
 
 ---
 
@@ -287,13 +348,19 @@ ADMIN_EMAIL=your-email@example.com          # must match the email used to regis
 | 19 | Subscription plan gating | ✅ Done |
 | 20 | Subscription section in Settings | ✅ Done |
 | 21 | Admin panel — dashboard + doctors list | ✅ Done |
-| 22 | Deploy on Railway.app | ⬜ Next |
+| 22 | PIN protection for billing/reports/settings (blur overlay) | ✅ Done |
+| 23 | Walk-in quick booking | ✅ Done |
+| 24 | Solo plan (₹399) + BookedBy enum extensions | ✅ Done |
+| 25 | Dark/light theme toggle in navbar | ✅ Done |
+| 26 | Full-screen layout (no max-width, equal side gaps) | ✅ Done |
+| 27 | Reports completion/no-show rate bug fix | ✅ Done |
+| 28 | Deploy on Railway.app | ⬜ Next |
 
 ---
 
 ## Session Startup Checklist
 When starting a new Claude Code session:
-> "Read CLAUDE.md. We are continuing ClinicOS. All features 1–21 are complete. Today we are working on [describe task]."
+> "Read CLAUDE.md. We are continuing ClinicOS. All features 1–27 are complete. Today we are working on [describe task]."
 
 ---
 

@@ -6,21 +6,45 @@
   <title>{% block title %}ClinicOS{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/main.css" />
   {% block head %}{% endblock %}
+  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
 <body{% if pin_required is defined and pin_required %} class="pin-active"{% endif %}>
 
 {% block navbar %}
 <nav class="navbar">
-  <a href="/dashboard" class="navbar-brand">🏥 ClinicOS</a>
-  <ul class="navbar-nav">
-    <li><a href="/dashboard" class="{% if active == 'dashboard' %}active{% endif %}">Dashboard</a></li>
-    <li><a href="/appointments" class="{% if active == 'appointments' %}active{% endif %}">Appointments</a></li>
-    <li><a href="/calendar" class="{% if active == 'calendar' %}active{% endif %}">Calendar</a></li>
-    <li><a href="/patients" class="{% if active == 'patients' %}active{% endif %}">Patients</a></li>
-    <li><a href="/reports" class="{% if active == 'reports' %}active{% endif %}">Reports</a></li>
-    <li><a href="/doctors/settings" class="{% if active == 'settings' %}active{% endif %}">Settings</a></li>
-    <li><a href="/logout">Logout</a></li>
-  </ul>
+  <a href="/dashboard" class="navbar-brand">ClinicOS</a>
+  <div style="display:flex;align-items:center;gap:0;">
+    <ul class="navbar-nav">
+      <li><a href="/dashboard" class="{% if active == 'dashboard' %}active{% endif %}">Dashboard</a></li>
+      <li><a href="/appointments" class="{% if active == 'appointments' %}active{% endif %}">Appointments</a></li>
+      <li><a href="/calendar" class="{% if active == 'calendar' %}active{% endif %}">Calendar</a></li>
+      <li><a href="/patients" class="{% if active == 'patients' %}active{% endif %}">Patients</a></li>
+      <li><a href="/reports" class="{% if active == 'reports' %}active{% endif %}">Reports</a></li>
+      <li><a href="/doctors/settings" class="{% if active == 'settings' %}active{% endif %}">Settings</a></li>
+    </ul>
+    <div class="navbar-controls">
+      <!-- Theme toggle -->
+      <button type="button" class="theme-toggle" id="themeToggle" title="Toggle theme" onclick="toggleTheme()">
+        <svg id="themeIconSun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg id="themeIconMoon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+      <!-- Logout / power off -->
+      <a href="/logout" class="logout-btn" title="Log out">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+          <line x1="12" y1="2" x2="12" y2="12"/>
+        </svg>
+      </a>
+    </div>
+  </div>
 </nav>
 {% endblock %}
 
@@ -72,6 +96,21 @@
   </div>
 </div>
 {% endif %}
+
+<script>
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  document.getElementById('themeIconSun').style.display  = isLight ? 'block' : 'none';
+  document.getElementById('themeIconMoon').style.display = isLight ? 'none'  : 'block';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const isLight = document.documentElement.classList.contains('light');
+  document.getElementById('themeIconSun').style.display  = isLight ? 'block' : 'none';
+  document.getElementById('themeIconMoon').style.display = isLight ? 'none'  : 'block';
+});
+</script>
 
 {% block scripts %}{% endblock %}
 </body>

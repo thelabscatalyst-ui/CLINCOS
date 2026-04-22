@@ -40,6 +40,32 @@
 }
 
 /* ------------------------------------------------------------------ */
+/*  CSS Variables — Light Theme                                         */
+/* ------------------------------------------------------------------ */
+html.light {
+  --bg:           #f4f4f5;
+  --bg-2:         #ffffff;
+  --bg-3:         #e8e8ea;
+  --border:       #e0e0e2;
+  --border-light: #c8c8cc;
+
+  --text:         #111111;
+  --text-muted:   #666666;
+  --text-dim:     #aaaaaa;
+
+  --primary:      #222222;
+  --primary-hover:#000000;
+
+  --shadow:       0 2px 8px rgba(0,0,0,0.08);
+  --shadow-md:    0 8px 32px rgba(0,0,0,0.12);
+
+  --glow:         0 0 0 1px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.06);
+  --glow-hover:   0 0 0 1px rgba(0,0,0,0.10), 0 6px 20px rgba(0,0,0,0.10);
+  --glow-btn:     0 2px 8px rgba(0,0,0,0.12);
+  --glow-btn-hover: 0 4px 16px rgba(0,0,0,0.20);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Reset & Base                                                        */
 /* ------------------------------------------------------------------ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -387,13 +413,63 @@ a:hover { color: var(--text); }
   color: var(--text);
 }
 
+/* Theme toggle */
+.navbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  background: var(--bg-3);
+  color: var(--text);
+  border-color: var(--border-light);
+}
+
+/* Power / logout button */
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #f87171;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.logout-btn:hover {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: #f87171;
+  color: #f87171;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Main Layout                                                         */
 /* ------------------------------------------------------------------ */
 .main-content {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 28px 20px;
+  padding: 32px 24px;
 }
 
 /* ------------------------------------------------------------------ */
@@ -483,6 +559,18 @@ a:hover { color: var(--text); }
   color: var(--text-muted);
   margin-top: 4px;
 }
+
+/* Dashboard-specific greeting */
+.dash-greeting {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 22px;
+}
+.dash-header {
+  align-items: center;
+  margin-bottom: 32px;
+}
+
 
 /* ------------------------------------------------------------------ */
 /*  Button Size Variants                                                */
@@ -679,6 +767,12 @@ a:hover { color: var(--text); }
 .quick-actions {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
 }
 
