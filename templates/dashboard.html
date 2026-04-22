@@ -19,7 +19,14 @@
     Dr. {{ doctor.name.split()[-1] }}
     <span class="page-date">· {{ today.strftime("%d %b %Y") }}</span>
   </h1>
-  <a href="/appointments/new" class="btn btn-primary btn-sm">+ New</a>
+  <div style="display:flex;gap:8px;align-items:center;">
+    {% if doctor.slug %}
+    <button type="button" class="btn btn-secondary btn-sm" id="dashCopyBtn" onclick="copyBookingLink()">
+      Share Link
+    </button>
+    {% endif %}
+    <a href="/appointments/new" class="btn btn-primary btn-sm">+ New</a>
+  </div>
 </div>
 
 <!-- Stats Row -->
@@ -139,11 +146,16 @@
 
 {% block scripts %}
 <script>
-function copyLink() {
-  const link = window.location.origin + '/book/{{ doctor.slug }}';
-  navigator.clipboard.writeText(link).then(() => {
-    alert('Booking link copied!\n' + link);
+{% if doctor.slug %}
+const BOOKING_URL = window.location.origin + '/book/{{ doctor.slug }}';
+
+function copyBookingLink() {
+  navigator.clipboard.writeText(BOOKING_URL).then(() => {
+    const btn = document.getElementById('dashCopyBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Share Link'; }, 2000);
   });
 }
+{% endif %}
 </script>
 {% endblock %}

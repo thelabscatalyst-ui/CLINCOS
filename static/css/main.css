@@ -943,6 +943,24 @@ a:hover { color: var(--text); }
   border-radius: 8px;
   padding: 12px 16px;
   letter-spacing: 0.3px;
+  display: block;
+}
+
+.booking-link-url {
+  word-break: break-all;
+  transition: border-color 0.15s, color 0.15s;
+  text-decoration: none;
+}
+
+.booking-link-url:hover {
+  border-color: var(--border-light);
+  color: var(--text);
+}
+
+.booking-link-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1233,6 +1251,190 @@ a:hover { color: var(--text); }
 .btn-status--cancel:hover { background: rgba(248, 113, 113, 0.18); }
 
 /* ------------------------------------------------------------------ */
+/*  Public Booking Page                                                 */
+/* ------------------------------------------------------------------ */
+.pub-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 20px 64px;
+  background: var(--bg);
+}
+
+.pub-brand {
+  font-family: 'Playfair Display', serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+  letter-spacing: 0.5px;
+}
+
+.pub-header {
+  text-align: center;
+  margin-bottom: 32px;
+  max-width: 520px;
+  width: 100%;
+}
+
+.pub-clinic-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.pub-doctor-name {
+  font-size: 15px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.pub-doctor-meta {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.pub-address {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
+.pub-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--glow);
+  padding: 32px 36px;
+  width: 100%;
+  max-width: 520px;
+}
+
+.pub-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.pub-card-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+}
+
+/* Confirmation card */
+.pub-confirm-card {
+  text-align: center;
+}
+
+.pub-confirm-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  color: var(--success);
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.1);
+}
+
+.pub-confirm-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.pub-confirm-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+}
+
+.pub-summary {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 0;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.pub-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pub-summary-row:last-child { border-bottom: none; }
+
+.pub-summary-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.pub-summary-value {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+  text-align: right;
+}
+
+.pub-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Not found */
+.pub-notfound {
+  text-align: center;
+  padding: 60px 24px;
+  max-width: 400px;
+}
+
+.pub-nf-icon {
+  color: var(--text-dim);
+  margin: 0 auto 20px;
+  opacity: 0.4;
+}
+
+.pub-nf-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.pub-nf-sub {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.pub-footer {
+  margin-top: 32px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Mobile Responsive                                                   */
 /* ------------------------------------------------------------------ */
 @media (max-width: 900px) {
@@ -1278,4 +1480,6 @@ a:hover { color: var(--text); }
   .cal-day-num         { font-size: 12px; width: 22px; height: 22px; }
   .cal-count           { display: none; }
   .cal-header-cell     { font-size: 10px; padding: 8px 4px; }
+  .pub-card            { padding: 24px 20px; }
+  .pub-confirm-actions { flex-direction: column; align-items: stretch; }
 }
