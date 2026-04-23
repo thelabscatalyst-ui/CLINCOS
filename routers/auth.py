@@ -1,12 +1,12 @@
 import re
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, Form, Query, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
-from database.models import Doctor, PlanType, Staff
+from database.models import Doctor, PlanType, Staff, Clinic, ClinicDoctor, ClinicDoctorInvite
 from services.auth_service import hash_password, verify_password, create_access_token, create_staff_token
 
 router = APIRouter(tags=["auth"])
@@ -34,8 +34,25 @@ def _unique_slug(base: str, db: Session) -> str:
 # ------------------------------------------------------------------ #
 
 @router.get("/register", response_class=HTMLResponse)
-def register_page(request: Request):
-    return templates.TemplateResponse(request, "register.html", {"error": None})
+def register_page(
+    request: Request,
+    clinic_invite: str = Query(default=""),
+    db: Session = Depends(get_db),
+):
+    joining_clinic = None
+    if clinic_invite:
+        invite = db.query(ClinicDoctorInvite).filter(
+            ClinicDoctorInvite.token == clinic_invite,
+            ClinicDoctorInvite.used_at == None,
+            ClinicDoctorInvite.expires_at > datetime.utcnow(),
+        ).first()
+        if invite:
+            joining_clinic = db.query(Clinic).filter(Clinic.id == invite.clinic_id).first()
+    return templates.TemplateResponse(request, "register.html", {
+        "error": None,
+        "clinic_invite": clinic_invite,
+        "joining_clinic": joining_clinic,
+    })
 
 
 @router.post("/register", response_class=HTMLResponse)
@@ -48,38 +65,109 @@ def register(
     specialization: str = Form(""),
     clinic_name: str = Form(""),
     city: str = Form(""),
+    clinic_invite: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    invite_token = clinic_invite.strip()
+
     # Check duplicates
     if db.query(Doctor).filter(Doctor.email == email).first():
         return templates.TemplateResponse(
             request, "register.html",
-            {"error": "Email already registered. Please login."},
+            {"error": "Email already registered. Please login.", "clinic_invite": invite_token, "joining_clinic": None},
             status_code=400,
         )
     if db.query(Doctor).filter(Doctor.phone == phone).first():
         return templates.TemplateResponse(
             request, "register.html",
-            {"error": "Phone number already registered."},
+            {"error": "Phone number already registered.", "clinic_invite": invite_token, "joining_clinic": None},
             status_code=400,
         )
 
     slug = _unique_slug(_make_slug(name, city or "clinic"), db)
 
-    doctor = Doctor(
-        name=name,
-        email=email.lower().strip(),
-        phone=phone.strip(),
-        password_hash=hash_password(password),
-        specialization=specialization.strip() or None,
-        clinic_name=clinic_name.strip() or None,
-        city=city.strip() or None,
-        slug=slug,
-        plan_type=PlanType.trial,
-        trial_ends_at=datetime.utcnow() + timedelta(days=14),
-    )
-    db.add(doctor)
-    db.commit()
+    # Check for valid clinic invite BEFORE creating the doctor
+    valid_invite = None
+    if invite_token:
+        valid_invite = db.query(ClinicDoctorInvite).filter(
+            ClinicDoctorInvite.token == invite_token,
+            ClinicDoctorInvite.used_at == None,
+            ClinicDoctorInvite.expires_at > datetime.utcnow(),
+        ).first()
+
+    if valid_invite:
+        # ── Clinic member path: no trial, no solo clinic ──────────────────────
+        doctor = Doctor(
+            name=name,
+            email=email.lower().strip(),
+            phone=phone.strip(),
+            password_hash=hash_password(password),
+            specialization=specialization.strip() or None,
+            clinic_name=None,    # will show joined clinic name from Clinic table
+            city=city.strip() or None,
+            slug=slug,
+            plan_type=PlanType.trial,
+            trial_ends_at=None,  # no trial — access gated by clinic plan
+            plan_expires_at=None,
+        )
+        db.add(doctor)
+        db.commit()
+        db.refresh(doctor)
+
+        db.add(ClinicDoctor(
+            clinic_id=valid_invite.clinic_id,
+            doctor_id=doctor.id,
+            role="associate",
+            is_active=True,
+        ))
+        valid_invite.used_at = datetime.utcnow()
+        db.commit()
+
+    else:
+        # ── Solo doctor path: 14-day trial + auto solo clinic ─────────────────
+        doctor = Doctor(
+            name=name,
+            email=email.lower().strip(),
+            phone=phone.strip(),
+            password_hash=hash_password(password),
+            specialization=specialization.strip() or None,
+            clinic_name=clinic_name.strip() or None,
+            city=city.strip() or None,
+            slug=slug,
+            plan_type=PlanType.trial,
+            trial_ends_at=datetime.utcnow() + timedelta(days=14),
+        )
+        db.add(doctor)
+        db.commit()
+        db.refresh(doctor)
+
+        # Auto-create an implicit clinic for every solo doctor (owner role)
+        clinic_slug = slug + "-clinic"
+        base_clinic_slug = clinic_slug
+        counter = 1
+        while db.query(Clinic).filter(Clinic.slug == clinic_slug).first():
+            clinic_slug = f"{base_clinic_slug}-{counter}"
+            counter += 1
+
+        clinic = Clinic(
+            name=clinic_name.strip() or f"{name}'s Clinic",
+            address=None,
+            city=city.strip() or None,
+            slug=clinic_slug,
+            plan_type="trial",
+            owner_doctor_id=doctor.id,
+        )
+        db.add(clinic)
+        db.commit()
+        db.refresh(clinic)
+
+        db.add(ClinicDoctor(
+            clinic_id=clinic.id,
+            doctor_id=doctor.id,
+            role="owner",
+            is_active=True,
+        ))
+        db.commit()
 
     return RedirectResponse(url="/login?registered=1", status_code=303)
 

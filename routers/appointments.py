@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from database.connection import get_db
 from database.models import (
     Doctor, Appointment, AppointmentStatus, AppointmentType, BookedBy,
+    ClinicDoctor, Clinic,
 )
 from services.auth_service import get_paying_doctor
 from services.appointment_service import (
@@ -18,6 +19,42 @@ router = APIRouter(prefix="/appointments", tags=["appointments"])
 templates = Jinja2Templates(directory="templates")
 
 
+def _get_owner_clinic_doctors(doctor: Doctor, db: Session) -> list[Doctor]:
+    """If doctor is a clinic owner with multiple doctors, return all of them. Else empty."""
+    ownership = db.query(ClinicDoctor).filter(
+        ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.role == "owner"
+    ).first()
+    if not ownership:
+        return []
+    members = db.query(ClinicDoctor).filter(
+        ClinicDoctor.clinic_id == ownership.clinic_id, ClinicDoctor.is_active == True
+    ).all()
+    if len(members) < 2:
+        return []  # solo clinic, no selector needed
+    ids = [m.doctor_id for m in members]
+    return db.query(Doctor).filter(Doctor.id.in_(ids)).order_by(Doctor.name).all()
+
+
+def _resolve_target_doctor(for_doctor_id: int, logged_in_doctor: Doctor, db: Session) -> Doctor:
+    """Return the target doctor if the logged-in doctor is their clinic owner, else return logged_in_doctor."""
+    if not for_doctor_id or for_doctor_id == logged_in_doctor.id:
+        return logged_in_doctor
+    ownership = db.query(ClinicDoctor).filter(
+        ClinicDoctor.doctor_id == logged_in_doctor.id, ClinicDoctor.role == "owner"
+    ).first()
+    if not ownership:
+        return logged_in_doctor
+    member = db.query(ClinicDoctor).filter(
+        ClinicDoctor.clinic_id == ownership.clinic_id,
+        ClinicDoctor.doctor_id == for_doctor_id,
+        ClinicDoctor.is_active == True,
+    ).first()
+    if not member:
+        return logged_in_doctor
+    target = db.query(Doctor).filter(Doctor.id == for_doctor_id).first()
+    return target or logged_in_doctor
+
+
 # ------------------------------------------------------------------ #
 #  List                                                                #
 # ------------------------------------------------------------------ #
@@ -26,6 +63,7 @@ templates = Jinja2Templates(directory="templates")
 def appointments_list(
     request: Request,
     filter_date: str = Query(default=""),
+    doctor_id: int = Query(default=0),
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
@@ -35,10 +73,13 @@ def appointments_list(
     except ValueError:
         view_date = today
 
+    clinic_doctors = _get_owner_clinic_doctors(doctor, db)
+    viewing_doctor = _resolve_target_doctor(doctor_id, doctor, db)
+
     appointments = (
         db.query(Appointment)
         .filter(
-            Appointment.doctor_id == doctor.id,
+            Appointment.doctor_id == viewing_doctor.id,
             Appointment.appointment_date == view_date,
         )
         .order_by(Appointment.appointment_time)
@@ -49,6 +90,8 @@ def appointments_list(
 
     return templates.TemplateResponse(request, "appointments.html", {
         "doctor": doctor,
+        "viewing_doctor": viewing_doctor,
+        "clinic_doctors": clinic_doctors,
         "appointments": appointments,
         "view_date": view_date,
         "today": today,
@@ -65,14 +108,16 @@ def appointments_list(
 @router.get("/slots")
 def available_slots(
     date_str: str = Query(..., alias="date"),
+    for_doctor_id: int = Query(default=0),
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
+    target = _resolve_target_doctor(for_doctor_id, doctor, db)
     try:
         appt_date = date.fromisoformat(date_str)
     except ValueError:
         return JSONResponse({"slots": [], "error": "Invalid date"})
-    slots = get_available_slots(doctor.id, appt_date, db)
+    slots = get_available_slots(target.id, appt_date, db)
     return JSONResponse({"slots": slots})
 
 
@@ -93,10 +138,12 @@ def new_appointment_page(
     except ValueError:
         initial_date = today
 
+    clinic_doctors = _get_owner_clinic_doctors(doctor, db)
     slots = get_available_slots(doctor.id, initial_date, db)
 
     return templates.TemplateResponse(request, "appointment_new.html", {
         "doctor": doctor,
+        "clinic_doctors": clinic_doctors,
         "today": today.isoformat(),
         "initial_date": initial_date.isoformat(),
         "slots": slots,
@@ -122,10 +169,13 @@ async def create_appointment(
     duration: int = Form(15),
     patient_notes: str = Form(""),
     booked_by_field: str = Form("doctor"),
+    for_doctor_id: int = Form(0),
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
+    target = _resolve_target_doctor(for_doctor_id, doctor, db)
     today = date.today()
+    clinic_doctors = _get_owner_clinic_doctors(doctor, db)
     form_data = {
         "patient_name": patient_name,
         "patient_phone": patient_phone,
@@ -134,6 +184,7 @@ async def create_appointment(
         "appointment_type": appointment_type,
         "duration": duration,
         "patient_notes": patient_notes,
+        "for_doctor_id": for_doctor_id,
     }
 
     def render_error(msg: str):
@@ -141,9 +192,10 @@ async def create_appointment(
             d = date.fromisoformat(appt_date)
         except (ValueError, TypeError):
             d = today
-        slots = get_available_slots(doctor.id, d, db)
+        slots = get_available_slots(target.id, d, db)
         return templates.TemplateResponse(request, "appointment_new.html", {
             "doctor": doctor,
+            "clinic_doctors": clinic_doctors,
             "today": today.isoformat(),
             "initial_date": appt_date,
             "slots": slots,
@@ -169,12 +221,12 @@ async def create_appointment(
         return render_error("A valid phone number is required (at least 10 digits).")
 
     # Slot availability check
-    ok, reason = is_slot_available(doctor.id, appt_date_obj, appt_time_obj, db)
+    ok, reason = is_slot_available(target.id, appt_date_obj, appt_time_obj, db)
     if not ok:
         return render_error(reason)
 
     # Get or create patient
-    patient = get_or_create_patient(doctor.id, name, phone, db)
+    patient = get_or_create_patient(target.id, name, phone, db)
 
     # Parse appointment type
     try:
@@ -188,7 +240,7 @@ async def create_appointment(
 
     # Create the appointment
     appt = Appointment(
-        doctor_id=doctor.id,
+        doctor_id=target.id,
         patient_id=patient.id,
         appointment_date=appt_date_obj,
         appointment_time=appt_time_obj,
@@ -228,9 +280,11 @@ async def create_walkin(
     patient_name: str = Form(...),
     patient_phone: str = Form(...),
     patient_notes: str = Form(""),
+    for_doctor_id: int = Form(0),
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
+    target = _resolve_target_doctor(for_doctor_id, doctor, db)
     name  = patient_name.strip()
     phone = patient_phone.strip()
 
@@ -242,14 +296,14 @@ async def create_walkin(
             status_code=303,
         )
 
-    patient = get_or_create_patient(doctor.id, name, phone, db)
+    patient = get_or_create_patient(target.id, name, phone, db)
 
     now = datetime.now()
     appt_date = now.date()
     appt_time = now.time().replace(second=0, microsecond=0)
 
     appt = Appointment(
-        doctor_id=doctor.id,
+        doctor_id=target.id,
         patient_id=patient.id,
         appointment_date=appt_date,
         appointment_time=appt_time,

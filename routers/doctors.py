@@ -79,11 +79,24 @@ def dashboard(
     else:
         greeting = "Good Evening"
 
-    # Clinic ownership check — show "Clinic Admin" link on dashboard
-    from database.models import ClinicDoctor
-    is_clinic_owner = db.query(ClinicDoctor).filter(
+    # Clinic ownership + primary clinic for display
+    from database.models import ClinicDoctor, Clinic as ClinicModel
+    own_membership = db.query(ClinicDoctor).filter(
         ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.role == "owner"
-    ).first() is not None
+    ).first()
+    is_clinic_owner = own_membership is not None
+
+    primary_clinic = None
+    if own_membership:
+        primary_clinic = db.query(ClinicModel).filter(ClinicModel.id == own_membership.clinic_id).first()
+    else:
+        assoc = db.query(ClinicDoctor).filter(
+            ClinicDoctor.doctor_id == doctor.id,
+            ClinicDoctor.role == "associate",
+            ClinicDoctor.is_active == True,
+        ).first()
+        if assoc:
+            primary_clinic = db.query(ClinicModel).filter(ClinicModel.id == assoc.clinic_id).first()
 
     return templates.TemplateResponse(request, "dashboard.html", {
         "doctor": doctor,
@@ -99,6 +112,7 @@ def dashboard(
         "days_left": days_left,
         "active": "dashboard",
         "is_clinic_owner": is_clinic_owner,
+        "primary_clinic": primary_clinic,
     })
 
 

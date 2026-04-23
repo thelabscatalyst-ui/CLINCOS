@@ -13,7 +13,7 @@
   <!-- ── Left: Branding ── -->
   <div class="auth-brand">
     <div class="brand-content">
-      <p class="brand-eyebrow">14-day free trial</p>
+      <p class="brand-eyebrow">{{ "Joining a clinic" if joining_clinic else "14-day free trial" }}</p>
       <h1 class="brand-title">Clinic<br>OS</h1>
       <p class="brand-tagline">
         Replace your paper register with a smart clinic system.
@@ -45,14 +45,30 @@
   <div class="auth-panel">
     <div class="auth-card">
 
+      {% if joining_clinic %}
+      <h2 class="auth-card-title">Join {{ joining_clinic.name }}</h2>
+      <p class="auth-card-sub">Create your ClinicOS account to accept the invite</p>
+      {% else %}
       <h2 class="auth-card-title">Create your account</h2>
       <p class="auth-card-sub">No credit card required</p>
+      {% endif %}
+
+      {% if joining_clinic %}
+      <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin:16px 0 20px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:2px;">You're joining</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);">{{ joining_clinic.name }}</div>
+        {% if joining_clinic.city %}<div style="font-size:13px;color:var(--muted);">{{ joining_clinic.city }}</div>{% endif %}
+      </div>
+      {% endif %}
 
       {% if error %}
       <div class="alert alert-error">{{ error }}</div>
       {% endif %}
 
       <form method="POST" action="/register">
+        {% if clinic_invite %}
+        <input type="hidden" name="clinic_invite" value="{{ clinic_invite }}">
+        {% endif %}
 
         <div class="form-group">
           <label for="name">Full name *</label>
@@ -110,6 +126,7 @@
           </div>
         </div>
 
+        {% if not joining_clinic %}
         <div class="form-group">
           <label for="clinic_name">Clinic name</label>
           <input
@@ -119,6 +136,7 @@
             placeholder="Mehta Clinic"
           />
         </div>
+        {% endif %}
 
         <div class="form-group">
           <label for="password">Password *</label>
@@ -133,7 +151,9 @@
           />
         </div>
 
-        <button type="submit" class="btn btn-primary">Start free trial</button>
+        <button type="submit" class="btn btn-primary">
+          {% if joining_clinic %}Create account &amp; join{% else %}Start free trial{% endif %}
+        </button>
       </form>
 
       <div class="auth-footer">

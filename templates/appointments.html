@@ -3,9 +3,17 @@
 
 {% block content %}
 
+{% set vd = viewing_doctor if viewing_doctor else doctor %}
+{% set is_other = vd.id != doctor.id %}
+{% set doc_param = "&doctor_id=" ~ vd.id if is_other else "" %}
+
 <div class="page-header">
   <h1 class="page-title">
-    Appointments
+    {% if is_other %}
+      Dr. {{ vd.name }} — Appointments
+    {% else %}
+      Appointments
+    {% endif %}
     <span class="page-date">
       · {{ view_date.strftime("%d %b %Y") }}
       {% if view_date == today %}
@@ -14,6 +22,9 @@
     </span>
   </h1>
   <div style="display:flex;gap:8px;">
+    {% if is_other %}
+    <a href="/appointments" class="btn btn-secondary btn-sm">My Appointments</a>
+    {% endif %}
     {% if view_date == today %}
     <button type="button" class="btn btn-secondary btn-sm" onclick="toggleWalkin()">Walk-in</button>
     {% endif %}
@@ -21,12 +32,36 @@
   </div>
 </div>
 
+{% if clinic_doctors %}
+<!-- Doctor selector strip -->
+<div class="card" style="margin-bottom:20px;padding:16px 20px;">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <span style="color:var(--muted);font-size:13px;">Viewing:</span>
+    {% for doc in clinic_doctors %}
+    <a href="/appointments?doctor_id={{ doc.id }}&filter_date={{ view_date.isoformat() }}"
+       class="btn btn-sm {% if doc.id == vd.id %}btn-primary{% else %}btn-secondary{% endif %}">
+      Dr. {{ doc.name.split()[-1] }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <!-- Walk-in quick form (today only) -->
 {% if view_date == today %}
 <div id="walkinPanel" class="walkin-panel" style="display:none;">
   <div class="walkin-panel-inner">
     <div class="walkin-panel-title">Walk-in Patient</div>
     <form method="POST" action="/appointments/walkin" class="walkin-form">
+      {% if clinic_doctors %}
+      <select name="for_doctor_id" class="input-sm">
+        {% for doc in clinic_doctors %}
+        <option value="{{ doc.id }}" {% if doc.id == vd.id %}selected{% endif %}>
+          Dr. {{ doc.name }}
+        </option>
+        {% endfor %}
+      </select>
+      {% endif %}
       <input type="text" name="patient_name" placeholder="Patient name" required class="input-sm" />
       <input type="tel" name="patient_phone" placeholder="Phone number" required
              minlength="10" maxlength="15" class="input-sm" />
@@ -39,15 +74,16 @@
 
 <!-- Date Navigation -->
 <div class="date-nav">
-  <a href="/appointments?filter_date={{ prev_date }}" class="btn btn-secondary btn-sm">← Previous</a>
+  <a href="/appointments?filter_date={{ prev_date }}{{ doc_param }}" class="btn btn-secondary btn-sm">← Previous</a>
   <form method="get" action="/appointments" style="display:contents;">
+    {% if is_other %}<input type="hidden" name="doctor_id" value="{{ vd.id }}">{% endif %}
     <input type="date" name="filter_date" value="{{ view_date.isoformat() }}"
            class="date-nav-input" onchange="this.form.submit()">
   </form>
   {% if view_date != today %}
-  <a href="/appointments" class="btn btn-secondary btn-sm">Today</a>
+  <a href="/appointments?{{ 'doctor_id=' ~ vd.id if is_other else '' }}" class="btn btn-secondary btn-sm">Today</a>
   {% endif %}
-  <a href="/appointments?filter_date={{ next_date }}" class="btn btn-secondary btn-sm">Next →</a>
+  <a href="/appointments?filter_date={{ next_date }}{{ doc_param }}" class="btn btn-secondary btn-sm">Next →</a>
 </div>
 
 <!-- Appointment List -->

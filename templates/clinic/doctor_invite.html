@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Join Clinic — ClinicOS</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
+</head>
+<body>
+
+<div class="auth-page">
+
+  <!-- ── Left: Branding ── -->
+  <div class="auth-brand">
+    <div class="brand-content">
+      <p class="brand-eyebrow">For independent doctors</p>
+      <h1 class="brand-title">Clinic<br>OS</h1>
+      <p class="brand-tagline">
+        Appointment management built for doctors in India.
+        Simple, fast, WhatsApp-first.
+      </p>
+      <div class="brand-divider"></div>
+      <div class="brand-features">
+        <div class="brand-feature">
+          <span class="brand-feature-dot"></span>
+          <span>Patients book via your personal link</span>
+        </div>
+        <div class="brand-feature">
+          <span class="brand-feature-dot"></span>
+          <span>Automated WhatsApp reminders</span>
+        </div>
+        <div class="brand-feature">
+          <span class="brand-feature-dot"></span>
+          <span>No more missed appointments</span>
+        </div>
+        <div class="brand-feature">
+          <span class="brand-feature-dot"></span>
+          <span>Multi-doctor clinic support</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right: Invite Card ── -->
+  <div class="auth-panel">
+    <div class="auth-card">
+
+      <h2 class="auth-card-title">Join {{ clinic.name }}</h2>
+      <p class="auth-card-sub">
+        You've been invited to join as an <strong>Associate Doctor</strong>.
+      </p>
+
+      {% if error %}
+      <div class="alert alert-error">{{ error }}</div>
+      {% endif %}
+
+      {% if already_member %}
+        <p style="color:var(--muted);font-size:14px;margin-top:16px;">
+          You are already a member of this clinic.
+        </p>
+        <a href="/dashboard" class="btn btn-primary" style="margin-top:16px;">Go to Dashboard</a>
+
+      {% elif logged_in_doctor %}
+        <!-- Doctor is logged in — show confirm button -->
+        <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;margin:20px 0;">
+          <div style="font-size:14px;color:var(--text-muted);margin-bottom:4px;">Logged in as</div>
+          <div style="font-size:16px;font-weight:600;color:var(--text);">Dr. {{ logged_in_doctor.name }}</div>
+          <div style="font-size:13px;color:var(--text-muted);">{{ logged_in_doctor.email }}</div>
+        </div>
+        <form method="post" action="/clinic/doctor-invite/{{ invite.token }}">
+          <button type="submit" class="btn btn-primary">Join {{ clinic.name }}</button>
+        </form>
+
+      {% else %}
+        <!-- Not logged in — show options -->
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:24px;">
+          <a href="/register?clinic_invite={{ invite.token }}"
+             class="btn btn-primary">Register & Join</a>
+          <p style="text-align:center;color:var(--muted);font-size:13px;margin:0;">or</p>
+          <a href="/login" class="btn btn-secondary">Log in to accept</a>
+          <p style="color:var(--muted);font-size:12px;text-align:center;margin-top:8px;">
+            Already have a ClinicOS account? Log in, then come back to this link to join.
+          </p>
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

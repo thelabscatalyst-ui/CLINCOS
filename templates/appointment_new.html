@@ -18,6 +18,23 @@
 <div class="settings-card appt-form-card">
   <form method="post" action="/appointments">
 
+    {% if clinic_doctors %}
+    <!-- Doctor Selector (clinic owner with multiple doctors) -->
+    <p class="form-section-label">Doctor</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="for_doctor_id">Booking for</label>
+        <select id="for_doctor_id" name="for_doctor_id" onchange="onDoctorChange()">
+          {% for doc in clinic_doctors %}
+          <option value="{{ doc.id }}" {% if doc.id == (form_data.get('for_doctor_id', doctor.id) | int) %}selected{% endif %}>
+            Dr. {{ doc.name }} {% if doc.specialization %}— {{ doc.specialization }}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Patient Details -->
     <p class="form-section-label">Patient Details</p>
     <div class="form-row">
@@ -123,10 +140,18 @@ function fmt(t) {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${p}`;
 }
 
+function getTargetDoctorId() {
+  const sel = document.getElementById('for_doctor_id');
+  return sel ? sel.value : '';
+}
+
 async function loadSlots(d) {
   timeSelect.innerHTML = '<option value="">Loading…</option>';
   try {
-    const res  = await fetch(`/appointments/slots?date=${d}`);
+    let url = `/appointments/slots?date=${d}`;
+    const docId = getTargetDoctorId();
+    if (docId) url += `&for_doctor_id=${docId}`;
+    const res  = await fetch(url);
     const data = await res.json();
     if (data.slots && data.slots.length) {
       timeSelect.innerHTML = data.slots.map(s =>
@@ -140,11 +165,14 @@ async function loadSlots(d) {
   }
 }
 
+function onDoctorChange() {
+  if (dateInput.value) loadSlots(dateInput.value);
+}
+
 dateInput.addEventListener('change', () => {
   if (dateInput.value) loadSlots(dateInput.value);
 });
 
-// Reload on page init to show formatted labels
 window.addEventListener('DOMContentLoaded', () => {
   if (dateInput.value) loadSlots(dateInput.value);
 });

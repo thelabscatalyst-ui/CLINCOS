@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from database.connection import get_db
 from database.models import (
-    Clinic, ClinicDoctor, Staff, StaffInvite,
+    Clinic, ClinicDoctor, Staff, StaffInvite, ClinicDoctorInvite,
     Doctor, Appointment, AppointmentStatus, AppointmentType, BookedBy, Patient,
 )
 from services.auth_service import (
@@ -532,3 +532,229 @@ def reception_slots(
         return JSONResponse({"slots": [], "error": "Invalid date"})
     slots = get_available_slots(doctor_id, appt_date, db)
     return JSONResponse({"slots": slots})
+
+
+# ─────────────────────────────────────────────────────────────────────────── #
+#  Doctor Management — invite doctors to join clinic                           #
+# ─────────────────────────────────────────────────────────────────────────── #
+
+@router.get("/admin/doctors", response_class=HTMLResponse)
+def doctors_list_page(
+    request: Request,
+    doctor: Doctor = Depends(get_clinic_owner),
+    db: Session = Depends(get_db),
+):
+    clinic = _get_owner_clinic(doctor.id, db)
+    if not clinic:
+        return RedirectResponse(url="/dashboard", status_code=303)
+
+    # All doctors in this clinic with their roles
+    memberships = (
+        db.query(ClinicDoctor)
+        .filter(ClinicDoctor.clinic_id == clinic.id)
+        .all()
+    )
+    clinic_doctors = []
+    for m in memberships:
+        d = db.query(Doctor).filter(Doctor.id == m.doctor_id).first()
+        if d:
+            clinic_doctors.append({"doctor": d, "role": m.role, "is_active": m.is_active, "membership_id": m.id})
+
+    # Pending doctor invites
+    pending_invites = (
+        db.query(ClinicDoctorInvite)
+        .filter(
+            ClinicDoctorInvite.clinic_id == clinic.id,
+            ClinicDoctorInvite.used_at == None,
+            ClinicDoctorInvite.expires_at > datetime.utcnow(),
+        )
+        .all()
+    )
+
+    return templates.TemplateResponse(request, "clinic/admin_doctors.html", {
+        "doctor": doctor,
+        "clinic": clinic,
+        "clinic_doctors": clinic_doctors,
+        "pending_invites": pending_invites,
+        "active": "clinic_admin",
+        "success": None,
+        "error": None,
+    })
+
+
+@router.post("/admin/doctors/invite", response_class=HTMLResponse)
+def send_doctor_invite(
+    request: Request,
+    invite_email: str = Form(...),
+    doctor: Doctor = Depends(get_clinic_owner),
+    db: Session = Depends(get_db),
+):
+    clinic = _get_owner_clinic(doctor.id, db)
+    if not clinic:
+        return RedirectResponse(url="/dashboard", status_code=303)
+
+    email = invite_email.lower().strip()
+
+    def _render(success=None, error=None):
+        memberships = db.query(ClinicDoctor).filter(ClinicDoctor.clinic_id == clinic.id).all()
+        clinic_doctors = []
+        for m in memberships:
+            d = db.query(Doctor).filter(Doctor.id == m.doctor_id).first()
+            if d:
+                clinic_doctors.append({"doctor": d, "role": m.role, "is_active": m.is_active, "membership_id": m.id})
+        pending_invites = db.query(ClinicDoctorInvite).filter(
+            ClinicDoctorInvite.clinic_id == clinic.id,
+            ClinicDoctorInvite.used_at == None,
+            ClinicDoctorInvite.expires_at > datetime.utcnow(),
+        ).all()
+        return templates.TemplateResponse(request, "clinic/admin_doctors.html", {
+            "doctor": doctor, "clinic": clinic,
+            "clinic_doctors": clinic_doctors, "pending_invites": pending_invites,
+            "active": "clinic_admin", "success": success, "error": error,
+        }, status_code=400 if error else 200)
+
+    # Check if this doctor is already in the clinic
+    existing_doctor = db.query(Doctor).filter(Doctor.email == email).first()
+    if existing_doctor:
+        already = db.query(ClinicDoctor).filter(
+            ClinicDoctor.clinic_id == clinic.id,
+            ClinicDoctor.doctor_id == existing_doctor.id,
+        ).first()
+        if already:
+            return _render(error=f"{email} is already a doctor in this clinic.")
+
+    # Revoke any existing unused invite for this email+clinic
+    db.query(ClinicDoctorInvite).filter(
+        ClinicDoctorInvite.clinic_id == clinic.id,
+        ClinicDoctorInvite.email == email,
+        ClinicDoctorInvite.used_at == None,
+    ).delete()
+    db.commit()
+
+    token = secrets.token_urlsafe(32)
+    invite = ClinicDoctorInvite(
+        clinic_id  = clinic.id,
+        email      = email,
+        token      = token,
+        expires_at = datetime.utcnow() + timedelta(days=7),
+    )
+    db.add(invite)
+    db.commit()
+
+    # Send invite email (best-effort)
+    try:
+        from services.invite_service import send_invite_email
+        send_invite_email(email, token, clinic.name, doctor.name)
+    except Exception:
+        pass
+
+    return _render(success=f"Invite sent to {email}. They have 7 days to accept.")
+
+
+# ─────────────────────────────────────────────────────────────────────────── #
+#  Doctor Invite Accept — public                                               #
+# ─────────────────────────────────────────────────────────────────────────── #
+
+@router.get("/doctor-invite/{token}", response_class=HTMLResponse)
+def doctor_invite_page(
+    token: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    invite = db.query(ClinicDoctorInvite).filter(ClinicDoctorInvite.token == token).first()
+    if not invite or invite.used_at or invite.expires_at < datetime.utcnow():
+        return templates.TemplateResponse(request, "clinic/invite_invalid.html", {
+            "reason": "This invite link is invalid or has expired."
+        }, status_code=410)
+
+    clinic = db.query(Clinic).filter(Clinic.id == invite.clinic_id).first()
+
+    # Try to detect if a doctor is already logged in (soft check)
+    logged_in_doctor = None
+    token_cookie = request.cookies.get("access_token")
+    if token_cookie:
+        try:
+            from jose import jwt
+            from config import settings
+            payload = jwt.decode(token_cookie, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            doctor_id = payload.get("doctor_id")
+            if doctor_id:
+                logged_in_doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
+        except Exception:
+            pass
+
+    # Check if logged-in doctor is already in this clinic
+    already_member = False
+    if logged_in_doctor:
+        already_member = db.query(ClinicDoctor).filter(
+            ClinicDoctor.clinic_id == invite.clinic_id,
+            ClinicDoctor.doctor_id == logged_in_doctor.id,
+        ).first() is not None
+
+    return templates.TemplateResponse(request, "clinic/doctor_invite.html", {
+        "invite": invite,
+        "clinic": clinic,
+        "logged_in_doctor": logged_in_doctor,
+        "already_member": already_member,
+        "error": None,
+    })
+
+
+@router.post("/doctor-invite/{token}", response_class=HTMLResponse)
+def doctor_invite_accept(
+    token: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    invite = db.query(ClinicDoctorInvite).filter(ClinicDoctorInvite.token == token).first()
+    if not invite or invite.used_at or invite.expires_at < datetime.utcnow():
+        return templates.TemplateResponse(request, "clinic/invite_invalid.html", {
+            "reason": "This invite link is invalid or has expired."
+        }, status_code=410)
+
+    clinic = db.query(Clinic).filter(Clinic.id == invite.clinic_id).first()
+
+    # Must be logged in as a doctor
+    logged_in_doctor = None
+    token_cookie = request.cookies.get("access_token")
+    if token_cookie:
+        try:
+            from jose import jwt
+            from config import settings
+            payload = jwt.decode(token_cookie, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            doctor_id = payload.get("doctor_id")
+            if doctor_id:
+                logged_in_doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
+        except Exception:
+            pass
+
+    if not logged_in_doctor:
+        return templates.TemplateResponse(request, "clinic/doctor_invite.html", {
+            "invite": invite, "clinic": clinic,
+            "logged_in_doctor": None, "already_member": False,
+            "error": "Please log in first, then come back to this link.",
+        })
+
+    # Check not already in this clinic
+    already = db.query(ClinicDoctor).filter(
+        ClinicDoctor.clinic_id == invite.clinic_id,
+        ClinicDoctor.doctor_id == logged_in_doctor.id,
+    ).first()
+    if already:
+        return templates.TemplateResponse(request, "clinic/doctor_invite.html", {
+            "invite": invite, "clinic": clinic,
+            "logged_in_doctor": logged_in_doctor, "already_member": True,
+            "error": "You are already a member of this clinic.",
+        })
+
+    # Add doctor to clinic as associate
+    db.add(ClinicDoctor(
+        clinic_id=invite.clinic_id,
+        doctor_id=logged_in_doctor.id,
+        role="associate",
+        is_active=True,
+    ))
+    invite.used_at = datetime.utcnow()
+    db.commit()
+
+    return RedirectResponse(url="/dashboard?joined=1", status_code=303)

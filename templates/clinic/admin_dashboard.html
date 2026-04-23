@@ -9,6 +9,7 @@
     <div class="page-date" style="margin-top:4px;">Clinic Admin Dashboard</div>
   </div>
   <div style="display:flex;gap:8px;">
+    <a href="/clinic/admin/doctors" class="btn btn-secondary btn-sm">Manage Doctors</a>
     <a href="/clinic/admin/staff" class="btn btn-secondary btn-sm">Manage Staff</a>
     <a href="/dashboard" class="btn btn-secondary btn-sm">My Dashboard</a>
   </div>
@@ -76,7 +77,7 @@
         <span class="info-value">{{ stat.week }} appt{{ 's' if stat.week != 1 else '' }}</span>
       </div>
       <div class="info-card-action">
-        <a href="/appointments" class="btn btn-secondary btn-xs">View Appointments</a>
+        <a href="/appointments?doctor_id={{ stat.doctor.id }}" class="btn btn-secondary btn-xs">View Appointments</a>
       </div>
     </div>
     {% endfor %}

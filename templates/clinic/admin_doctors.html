@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Manage Doctors — ClinicOS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Manage Doctors</h1>
+    <div class="page-date" style="margin-top:4px;">{{ clinic.name }}</div>
+  </div>
+  <a href="/clinic/admin" class="btn btn-secondary btn-sm">← Clinic Admin</a>
+</div>
+
+{% if success %}
+<div class="alert alert-success">{{ success }}</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+<!-- Invite New Doctor -->
+<div class="settings-card" style="margin-bottom:24px;">
+  <div class="settings-card-title">Invite Doctor</div>
+  <form method="post" action="/clinic/admin/doctors/invite">
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label for="invite_email">Doctor's Email Address</label>
+        <input type="email" id="invite_email" name="invite_email"
+               placeholder="doctor@example.com" required>
+      </div>
+    </div>
+    <p style="color:var(--muted);font-size:12px;margin:8px 0 0;">
+      The doctor will get an invite link. If they already have a ClinicOS account, they can
+      accept directly. If not, they'll register first and auto-join your clinic.
+    </p>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+      <button type="submit" class="btn btn-primary btn-sm">Send Invite</button>
+    </div>
+  </form>
+</div>
+
+<!-- Current Doctors -->
+<div class="settings-card" style="margin-bottom:24px;">
+  <div class="info-section-title">Doctors in Clinic</div>
+  {% if clinic_doctors %}
+  <div class="info-grid">
+    {% for item in clinic_doctors %}
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Doctor</span>
+        <span class="info-value">Dr. {{ item.doctor.name }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Email</span>
+        <span class="info-value">{{ item.doctor.email }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Specialization</span>
+        <span class="info-value">{{ item.doctor.specialization or "Not specified" }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Role</span>
+        <span class="info-value">{{ item.role | title }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Status</span>
+        <span class="info-value">{{ "Active" if item.is_active else "Inactive" }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:var(--muted);font-size:14px;">No doctors yet.</p>
+  {% endif %}
+</div>
+
+<!-- Pending Doctor Invites -->
+{% if pending_invites %}
+<div class="settings-card">
+  <div class="info-section-title">Pending Doctor Invites</div>
+  <div class="info-grid">
+    {% for inv in pending_invites %}
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Email</span>
+        <span class="info-value">{{ inv.email }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Expires</span>
+        <span class="info-value">{{ inv.expires_at.strftime("%d %b %Y") }}</span>
+      </div>
+      <div class="info-card-action">
+        <button type="button" class="btn btn-secondary btn-xs"
+                onclick="copyDoctorInviteLink('/clinic/doctor-invite/{{ inv.token }}', this)">
+          Copy Link
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyDoctorInviteLink(path, btn) {
+  const url = window.location.origin + path;
+  navigator.clipboard.writeText(url).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
+  });
+}
+</script>
+{% endblock %}

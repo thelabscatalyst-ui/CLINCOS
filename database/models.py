@@ -123,6 +123,20 @@ class StaffInvite(Base):
     clinic = relationship("Clinic", back_populates="invites")
 
 
+class ClinicDoctorInvite(Base):
+    """One-time invite for a doctor to join a clinic as associate."""
+    __tablename__ = "clinic_doctor_invites"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    clinic_id  = Column(Integer, ForeignKey("clinics.id"), nullable=False, index=True)
+    email      = Column(String(200), nullable=False)
+    token      = Column(String(100), unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at    = Column(DateTime, nullable=True)
+
+    clinic = relationship("Clinic")
+
+
 # --------------------------------------------------------------------------- #
 #  Doctor                                                                       #
 # --------------------------------------------------------------------------- #

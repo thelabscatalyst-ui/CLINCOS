@@ -3,8 +3,8 @@
 
 {% block content %}
 
-<!-- Trial Banner -->
-{% if trial_active %}
+<!-- Trial Banner (only for solo doctors on trial, not clinic-billed associates) -->
+{% if doctor.trial_ends_at and trial_active %}
 <div class="trial-banner">
   <span class="trial-dot"></span>
   Free trial — <strong>{{ days_left }} day{{ 's' if days_left != 1 else '' }} left</strong>.
@@ -57,8 +57,8 @@
   </div>
   <div class="stat-card">
     <div class="stat-label">Clinic</div>
-    <div class="stat-value stat-value--sm">{{ doctor.clinic_name or "—" }}</div>
-    <div class="stat-sub">{{ doctor.city or "" }}</div>
+    <div class="stat-value stat-value--sm">{{ primary_clinic.name if primary_clinic else (doctor.clinic_name or "—") }}</div>
+    <div class="stat-sub">{{ primary_clinic.city if primary_clinic else (doctor.city or "") }}</div>
   </div>
 </div>
 

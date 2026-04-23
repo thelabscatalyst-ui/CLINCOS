@@ -92,13 +92,45 @@ def _pin_ok(request: Request, doctor) -> bool:
     return bool(payload and payload.get("doctor_id") == doctor.id)
 
 
-def get_paying_doctor(doctor=Depends(get_current_doctor)):
-    """Dependency for all protected routes — raises PlanExpired if subscription lapsed."""
+def get_paying_doctor(doctor=Depends(get_current_doctor), db: Session = Depends(get_db)):
+    """Dependency for all protected routes — raises PlanExpired if subscription lapsed.
+    For clinic-member doctors (no trial, no own plan), checks if their clinic is active.
+    A clinic is considered active if:
+      (a) it has a paid plan_expires_at in the future, OR
+      (b) the clinic owner still has an active trial or plan (clinic is in trial mode)
+    """
     now = datetime.utcnow()
     trial_ok = doctor.trial_ends_at and doctor.trial_ends_at > now
     plan_ok  = doctor.plan_expires_at and doctor.plan_expires_at > now
     if not trial_ok and not plan_ok:
-        raise PlanExpired()
+        from database.models import ClinicDoctor, Clinic, Doctor as DoctorModel
+        # Find all clinics this doctor is an active member of
+        memberships = db.query(ClinicDoctor).filter(
+            ClinicDoctor.doctor_id == doctor.id,
+            ClinicDoctor.is_active == True,
+        ).all()
+        clinic_ok = False
+        for m in memberships:
+            clinic = db.query(Clinic).filter(Clinic.id == m.clinic_id).first()
+            if not clinic:
+                continue
+            # (a) Clinic has a paid active plan
+            if clinic.plan_expires_at and clinic.plan_expires_at > now:
+                clinic_ok = True
+                break
+            # (b) Clinic is on trial — check owner's trial/plan is still active
+            if clinic.owner_doctor_id:
+                owner = db.query(DoctorModel).filter(DoctorModel.id == clinic.owner_doctor_id).first()
+                if owner:
+                    owner_ok = (
+                        (owner.trial_ends_at and owner.trial_ends_at > now) or
+                        (owner.plan_expires_at and owner.plan_expires_at > now)
+                    )
+                    if owner_ok:
+                        clinic_ok = True
+                        break
+        if not clinic_ok:
+            raise PlanExpired()
     return doctor
 
 
