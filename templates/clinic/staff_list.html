@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Manage Staff — ClinicOS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Staff Management</h1>
+    <div class="page-date" style="margin-top:4px;">{{ clinic.name }}</div>
+  </div>
+  <a href="/clinic/admin" class="btn btn-secondary btn-sm">← Clinic Admin</a>
+</div>
+
+{% if success %}
+<div class="alert alert-success">{{ success }}</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+<!-- Invite New Staff -->
+<div class="settings-card" style="margin-bottom:24px;">
+  <div class="settings-card-title">Invite Staff Member</div>
+  <form method="post" action="/clinic/admin/staff/invite">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="invite_email">Email Address</label>
+        <input type="email" id="invite_email" name="invite_email"
+               placeholder="receptionist@example.com" required>
+      </div>
+      <div class="form-group">
+        <label for="invite_role">Role</label>
+        <select id="invite_role" name="invite_role">
+          <option value="receptionist">Receptionist</option>
+          <option value="manager">Manager</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:4px;">
+      <button type="submit" class="btn btn-primary btn-sm">Send Invite</button>
+    </div>
+  </form>
+</div>
+
+<!-- Active Staff -->
+<div class="settings-card" style="margin-bottom:24px;">
+  <div class="info-section-title">Active Staff</div>
+  {% if staff_members %}
+  <div class="info-grid">
+    {% for s in staff_members %}
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Name</span>
+        <span class="info-value">{{ s.name }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Email</span>
+        <span class="info-value">{{ s.email }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Role</span>
+        <span class="info-value">{{ s.role | title }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Status</span>
+        <span class="info-value">{{ "Active" if s.is_active else "Inactive" }}</span>
+      </div>
+      <div class="info-card-action">
+        {% if s.is_active %}
+        <form method="post" action="/clinic/admin/staff/{{ s.id }}/deactivate" style="display:inline;">
+          <button type="submit" class="btn btn-secondary btn-xs"
+                  onclick="return confirm('Deactivate {{ s.name }}? They will no longer be able to log in.')">
+            Deactivate
+          </button>
+        </form>
+        {% else %}
+        <form method="post" action="/clinic/admin/staff/{{ s.id }}/reactivate" style="display:inline;">
+          <button type="submit" class="btn btn-secondary btn-xs">Reactivate</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:var(--muted);font-size:14px;">No staff members yet. Send an invite above.</p>
+  {% endif %}
+</div>
+
+<!-- Pending Invites -->
+{% if pending_invites %}
+<div class="settings-card">
+  <div class="info-section-title">Pending Invites</div>
+  <div class="info-grid">
+    {% for inv in pending_invites %}
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Email</span>
+        <span class="info-value">{{ inv.email }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Role</span>
+        <span class="info-value">{{ inv.role | title }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Expires</span>
+        <span class="info-value">{{ inv.expires_at.strftime("%d %b %Y") }}</span>
+      </div>
+      <div class="info-card-action">
+        <button type="button" class="btn btn-secondary btn-xs"
+                onclick="copyInviteLink('/clinic/invite/{{ inv.token }}', this)">
+          Copy Link
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyInviteLink(path, btn) {
+  const url = window.location.origin + path;
+  navigator.clipboard.writeText(url).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
+  });
+}
+</script>
+{% endblock %}

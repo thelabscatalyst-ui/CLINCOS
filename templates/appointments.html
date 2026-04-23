@@ -64,7 +64,7 @@
         · {{ appt.patient.phone }}
         {% if appt.booked_by.value == 'walk_in' %}
         · <span class="badge-channel badge-channel--walkin">Walk-in</span>
-        {% elif appt.booked_by.value == 'staff_shared' %}
+        {% elif appt.booked_by.value in ('staff_shared', 'staff') %}
         · <span class="badge-channel badge-channel--staff">Reception</span>
         {% endif %}
       </div>

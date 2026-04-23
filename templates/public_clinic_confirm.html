@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Booking Confirmed — {{ clinic.name }}{% endblock %}
+
+{% block navbar %}{% endblock %}
+
+{% block content %}
+
+<div class="pub-page">
+
+  <div class="pub-header">
+    <div class="pub-brand">ClinicOS</div>
+    <div class="pub-clinic-name">{{ clinic.name }}</div>
+    {% if clinic.city %}<div class="pub-doctor-meta">{{ clinic.city }}</div>{% endif %}
+  </div>
+
+  <!-- Confirmation Card -->
+  <div class="pub-card pub-confirm-card">
+
+    <div class="pub-confirm-icon">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 6L9 17l-5-5"/>
+      </svg>
+    </div>
+
+    <h2 class="pub-confirm-title">Appointment Confirmed!</h2>
+    <p class="pub-confirm-sub">
+      Your appointment has been booked. Please arrive 5 minutes early.
+    </p>
+
+    <div class="pub-summary">
+      <div class="pub-summary-row">
+        <span class="pub-summary-label">Patient</span>
+        <span class="pub-summary-value">{{ appt.patient.name }}</span>
+      </div>
+      <div class="pub-summary-row">
+        <span class="pub-summary-label">Doctor</span>
+        <span class="pub-summary-value">Dr. {{ doctor.name }}</span>
+      </div>
+      {% if doctor.specialization %}
+      <div class="pub-summary-row">
+        <span class="pub-summary-label">Specialization</span>
+        <span class="pub-summary-value">{{ doctor.specialization }}</span>
+      </div>
+      {% endif %}
+      <div class="pub-summary-row">
+        <span class="pub-summary-label">Date</span>
+        <span class="pub-summary-value">{{ appt.appointment_date.strftime("%A, %d %B %Y") }}</span>
+      </div>
+      <div class="pub-summary-row">
+        <span class="pub-summary-label">Time</span>
+        <span class="pub-summary-value">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</span>
+      </div>
+      <div class="pub-summary-row">
+        <span class="pub-summary-label">Visit Type</span>
+        <span class="pub-summary-value">{{ appt.appointment_type.value.replace("_", " ").title() }}</span>
+      </div>
+      {% if clinic.address %}
+      <div class="pub-summary-row">
+        <span class="pub-summary-label">Address</span>
+        <span class="pub-summary-value">{{ clinic.address }}</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="pub-confirm-actions">
+      <a href="{{ gc_url }}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
+        + Add to Google Calendar
+      </a>
+      <a href="/book/clinic/{{ slug }}" class="btn btn-secondary btn-sm">
+        Book Another
+      </a>
+    </div>
+
+  </div>
+
+  <p class="pub-footer">Powered by <strong>ClinicOS</strong></p>
+
+</div>
+
+{% endblock %}

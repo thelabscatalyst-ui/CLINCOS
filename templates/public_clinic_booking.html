@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}
+  {% if clinic %}Book at {{ clinic.name }}{% else %}Not Found{% endif %}
+{% endblock %}
+
+{% block navbar %}{% endblock %}
+
+{% block content %}
+
+{% if not_found %}
+<div class="pub-page">
+  <div class="pub-notfound">
+    <div class="pub-nf-icon">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    </div>
+    <h2 class="pub-nf-title">Clinic not found</h2>
+    <p class="pub-nf-sub">This link may be incorrect or the clinic is no longer active.</p>
+  </div>
+</div>
+
+{% else %}
+
+<div class="pub-page">
+
+  <!-- Clinic Header -->
+  <div class="pub-header">
+    <div class="pub-brand">ClinicOS</div>
+    <div class="pub-clinic-name">{{ clinic.name }}</div>
+    {% if clinic.city %}<div class="pub-doctor-meta">{{ clinic.city }}</div>{% endif %}
+    {% if clinic.address %}<div class="pub-address">{{ clinic.address }}</div>{% endif %}
+  </div>
+
+  {% if not doctors %}
+  <div class="pub-card">
+    <p style="text-align:center;color:var(--muted);">No doctors available for booking at this time.</p>
+  </div>
+  {% elif not selected_doctor %}
+  <!-- Doctor picker -->
+  <div class="pub-card">
+    <h2 class="pub-card-title">Choose Your Doctor</h2>
+    <p class="pub-card-sub">Select a doctor to see their available slots</p>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px;">
+      {% for doc in doctors %}
+      <a href="/book/clinic/{{ clinic.slug }}?selected_doctor_id={{ doc.id }}"
+         class="btn btn-secondary" style="text-align:left;padding:14px 18px;border-radius:var(--radius-sm);">
+        <div style="font-weight:600;font-size:15px;">Dr. {{ doc.name }}</div>
+        {% if doc.specialization %}<div style="font-size:13px;color:var(--muted);margin-top:2px;">{{ doc.specialization }}</div>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% else %}
+  <!-- Booking form for selected doctor -->
+  {% if error %}
+  <div class="pub-card" style="padding:14px 20px;">
+    <p style="color:#e74c3c;font-size:14px;margin:0;">⚠ {{ error }}</p>
+  </div>
+  {% endif %}
+
+  <div class="pub-card">
+    <!-- Back to doctor list -->
+    <a href="/book/clinic/{{ clinic.slug }}" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-bottom:16px;text-decoration:none;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to doctors
+    </a>
+
+    <h2 class="pub-card-title">Dr. {{ selected_doctor.name }}</h2>
+    <p class="pub-card-sub">
+      {% if selected_doctor.specialization %}{{ selected_doctor.specialization }} · {% endif %}
+      Book an appointment
+    </p>
+
+    <form method="post" action="/book/clinic/{{ clinic.slug }}" style="margin-top:20px;">
+      <input type="hidden" name="doctor_id" value="{{ selected_doctor.id }}" />
+
+      <div class="pub-form-group">
+        <label class="pub-label">Your Name</label>
+        <input type="text" name="patient_name" class="pub-input"
+               placeholder="Full name" required
+               value="{{ form_data.get('patient_name', '') }}" />
+      </div>
+
+      <div class="pub-form-group">
+        <label class="pub-label">Phone Number</label>
+        <input type="tel" name="patient_phone" class="pub-input"
+               placeholder="10-digit mobile number" required
+               minlength="10" maxlength="15"
+               value="{{ form_data.get('patient_phone', '') }}" />
+      </div>
+
+      <div class="pub-form-group">
+        <label class="pub-label">Visit Type</label>
+        <select name="appointment_type" class="pub-input">
+          {% for t in appointment_types %}
+          <option value="{{ t }}" {% if form_data.get('appointment_type', 'new_patient') == t %}selected{% endif %}>
+            {{ t.replace('_', ' ').title() }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="pub-form-group">
+        <label class="pub-label">Date</label>
+        <input type="date" id="appt_date" name="appt_date" class="pub-input"
+               value="{{ form_data.get('appt_date', today) }}"
+               min="{{ today }}" required />
+      </div>
+
+      <div class="pub-form-group">
+        <label class="pub-label">Time Slot</label>
+        <select id="appt_time" name="appt_time" class="pub-input" required>
+          {% if slots %}
+            {% for s in slots %}
+            <option value="{{ s }}" {% if form_data.get('appt_time') == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="">No slots available — try another date</option>
+          {% endif %}
+        </select>
+      </div>
+
+      <div class="pub-form-group">
+        <label class="pub-label">Notes (optional)</label>
+        <textarea name="patient_notes" class="pub-input" rows="2"
+                  placeholder="Reason for visit, symptoms...">{{ form_data.get('patient_notes', '') }}</textarea>
+      </div>
+
+      <button type="submit" class="pub-submit-btn">Confirm Appointment</button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{% if selected_doctor %}
+<script>
+const dateInput  = document.getElementById('appt_date');
+const timeSelect = document.getElementById('appt_time');
+const clinicSlug = "{{ clinic.slug }}";
+const doctorId   = {{ selected_doctor.id }};
+const savedTime  = "{{ form_data.get('appt_time', '') }}";
+
+function fmt(t) {
+  const [h, m] = t.split(':').map(Number);
+  const p = h >= 12 ? 'PM' : 'AM';
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${p}`;
+}
+
+async function loadSlots(d) {
+  timeSelect.innerHTML = '<option value="">Loading…</option>';
+  try {
+    const res  = await fetch(`/book/clinic/${clinicSlug}/slots?date=${d}&doctor_id=${doctorId}`);
+    const data = await res.json();
+    if (data.slots && data.slots.length) {
+      timeSelect.innerHTML = data.slots.map(s =>
+        `<option value="${s}"${s === savedTime ? ' selected' : ''}>${fmt(s)}</option>`
+      ).join('');
+    } else {
+      timeSelect.innerHTML = '<option value="">No slots available for this day</option>';
+    }
+  } catch {
+    timeSelect.innerHTML = '<option value="">Error loading slots</option>';
+  }
+}
+
+dateInput.addEventListener('change', () => { if (dateInput.value) loadSlots(dateInput.value); });
+window.addEventListener('DOMContentLoaded', () => { if (dateInput.value) loadSlots(dateInput.value); });
+</script>
+{% endif %}
+{% endblock %}

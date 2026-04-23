@@ -6,8 +6,8 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
-from database.models import Doctor, PlanType
-from services.auth_service import hash_password, verify_password, create_access_token
+from database.models import Doctor, PlanType, Staff
+from services.auth_service import hash_password, verify_password, create_access_token, create_staff_token
 
 router = APIRouter(tags=["auth"])
 templates = Jinja2Templates(directory="templates")
@@ -101,30 +101,54 @@ def login(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    doctor = db.query(Doctor).filter(Doctor.email == email.lower().strip()).first()
-    if not doctor or not verify_password(password, doctor.password_hash):
-        return templates.TemplateResponse(
-            request, "login.html",
-            {"error": "Invalid email or password.", "success": None},
-            status_code=401,
-        )
-    if not doctor.is_active:
-        return templates.TemplateResponse(
-            request, "login.html",
-            {"error": "Your account has been deactivated.", "success": None},
-            status_code=403,
-        )
+    normalized_email = email.lower().strip()
 
-    token = create_access_token({"doctor_id": doctor.id})
-    response = RedirectResponse(url="/dashboard", status_code=303)
-    response.set_cookie(
-        key="access_token",
-        value=token,
-        httponly=True,
-        max_age=60 * 60 * 24,  # 24 hours
-        samesite="lax",
+    # ── Try doctor first ──────────────────────────────────────────────────────
+    doctor = db.query(Doctor).filter(Doctor.email == normalized_email).first()
+    if doctor:
+        if not verify_password(password, doctor.password_hash):
+            return templates.TemplateResponse(
+                request, "login.html",
+                {"error": "Invalid email or password.", "success": None},
+                status_code=401,
+            )
+        if not doctor.is_active:
+            return templates.TemplateResponse(
+                request, "login.html",
+                {"error": "Your account has been deactivated.", "success": None},
+                status_code=403,
+            )
+        token = create_access_token({"doctor_id": doctor.id})
+        response = RedirectResponse(url="/dashboard", status_code=303)
+        response.set_cookie(
+            key="access_token", value=token,
+            httponly=True, max_age=60 * 60 * 24, samesite="lax",
+        )
+        return response
+
+    # ── Try staff (receptionist / manager) ───────────────────────────────────
+    staff = db.query(Staff).filter(Staff.email == normalized_email).first()
+    if staff and staff.password_hash and verify_password(password, staff.password_hash):
+        if not staff.is_active:
+            return templates.TemplateResponse(
+                request, "login.html",
+                {"error": "Your account has been deactivated.", "success": None},
+                status_code=403,
+            )
+        allowed = staff.allowed_doctor_ids or []
+        token = create_staff_token(staff.id, staff.clinic_id, allowed)
+        response = RedirectResponse(url="/clinic/reception", status_code=303)
+        response.set_cookie(
+            key="access_token", value=token,
+            httponly=True, max_age=60 * 60 * 24, samesite="lax",
+        )
+        return response
+
+    return templates.TemplateResponse(
+        request, "login.html",
+        {"error": "Invalid email or password.", "success": None},
+        status_code=401,
     )
-    return response
 
 
 # ------------------------------------------------------------------ #

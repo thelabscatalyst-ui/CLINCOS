@@ -69,6 +69,29 @@
   </div>
 </div>
 
+<!-- Clinic Status (if applicable) -->
+{% if clinic and clinic_plan_ok %}
+<div class="settings-card" style="margin-bottom:16px;">
+  <div class="billing-status-row">
+    <div class="billing-status-item">
+      <div class="billing-status-label">Clinic Plan</div>
+      <div class="billing-status-value">
+        {{ clinic.name }}
+        <span class="badge badge--completed" style="font-size:11px;padding:3px 10px;margin-left:8px;">Active</span>
+      </div>
+    </div>
+    <div class="billing-status-item">
+      <div class="billing-status-label">Clinic plan expires in</div>
+      <div class="billing-status-value">{{ clinic_plan_days_left }} days</div>
+    </div>
+    <div class="billing-status-item">
+      <div class="billing-status-label">Doctors</div>
+      <div class="billing-status-value">{{ clinic_doctor_count }}</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- Plan Cards -->
 <div class="billing-plans">
 
@@ -96,6 +119,31 @@
     </button>
     {% endif %}
   </div>
+
+  <!-- Clinic -->
+  {% if clinic %}
+  <div class="billing-plan-card">
+    <div class="plan-name">Clinic</div>
+    <div class="plan-price">₹1,499<span>/month</span></div>
+    <ul class="plan-features">
+      <li>Up to 5 doctors</li>
+      <li>Dedicated staff accounts</li>
+      <li>Receptionist workspace</li>
+      <li>Unified clinic booking page</li>
+      <li>Clinic-level admin dashboard</li>
+      <li>Everything in Solo × all doctors</li>
+    </ul>
+    {% if razorpay_configured %}
+    <button type="button" class="btn btn-primary" onclick="startPayment('clinic', 149900)">
+      Subscribe — ₹1,499/mo
+    </button>
+    {% else %}
+    <button type="button" class="btn btn-secondary" disabled>
+      Payment not configured
+    </button>
+    {% endif %}
+  </div>
+  {% endif %}
 
 </div>
 

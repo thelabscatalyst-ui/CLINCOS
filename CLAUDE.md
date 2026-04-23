@@ -354,7 +354,14 @@ ADMIN_EMAIL=your-email@example.com          # must match the email used to regis
 | 25 | Dark/light theme toggle in navbar | ✅ Done |
 | 26 | Full-screen layout (no max-width, equal side gaps) | ✅ Done |
 | 27 | Reports completion/no-show rate bug fix | ✅ Done |
-| 28 | Deploy on Railway.app | ⬜ Next |
+| 28 | Phase 2: Clinic schema — Clinic, ClinicDoctor, Staff, StaffInvite tables | ✅ Done |
+| 29 | Phase 2: Staff login (receptionist/manager JWT via /login) | ✅ Done |
+| 30 | Phase 2: Staff invite flow (email one-time link + accept page) | ✅ Done |
+| 31 | Phase 2: Reception workspace (/clinic/reception — doctor dropdown, appt list) | ✅ Done |
+| 32 | Phase 2: Clinic admin dashboard (/clinic/admin — aggregated stats, staff list) | ✅ Done |
+| 33 | Phase 2: Unified clinic public booking (/book/clinic/{slug}) | ✅ Done |
+| 34 | Phase 2: Clinic plan billing (₹1,499/month, Razorpay + clinic.plan_expires_at) | ✅ Done |
+| 35 | Deploy on Railway.app | ⬜ Next |
 
 ---
 
@@ -364,5 +371,5 @@ When starting a new Claude Code session:
 
 ---
 
-*Last updated: 2026-04-22*
-*Current phase: Production-ready — deploying to Railway.app next*
+*Last updated: 2026-04-23*
+*Current phase: Phase 2 Clinic (Tier 2) complete — deploying to Railway.app next*

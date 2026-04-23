@@ -1,7 +1,7 @@
 from datetime import datetime, date, time
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime, Date, Time,
-    ForeignKey, Text, Enum as SAEnum
+    ForeignKey, Text, Enum as SAEnum, JSON
 )
 from sqlalchemy.orm import relationship
 import enum
@@ -51,6 +51,76 @@ class BookedBy(str, enum.Enum):
     patient      = "patient"
     staff_shared = "staff_shared"  # receptionist on shared login
     walk_in      = "walk_in"       # on-site patient, booked for now()
+    staff        = "staff"         # Tier 2: dedicated staff account books for a doctor
+
+
+# --------------------------------------------------------------------------- #
+#  Clinic (Tier 2)                                                              #
+# --------------------------------------------------------------------------- #
+
+class Clinic(Base):
+    __tablename__ = "clinics"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    name            = Column(String(150), nullable=False)
+    address         = Column(Text, nullable=True)
+    city            = Column(String(100), nullable=True)
+    slug            = Column(String(100), unique=True, index=True, nullable=True)
+    plan_type       = Column(String(20), default="trial")   # trial | clinic
+    plan_expires_at = Column(DateTime, nullable=True)
+    owner_doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=True)
+    created_at      = Column(DateTime, default=datetime.utcnow)
+
+    doctor_memberships = relationship("ClinicDoctor", back_populates="clinic", cascade="all, delete-orphan")
+    staff              = relationship("Staff", back_populates="clinic", cascade="all, delete-orphan")
+    invites            = relationship("StaffInvite", back_populates="clinic", cascade="all, delete-orphan")
+
+
+class ClinicDoctor(Base):
+    """Junction table: doctor ↔ clinic (with role)."""
+    __tablename__ = "clinic_doctors"
+
+    id        = Column(Integer, primary_key=True, index=True)
+    clinic_id = Column(Integer, ForeignKey("clinics.id"), nullable=False, index=True)
+    doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    role      = Column(String(20), default="owner")   # owner | associate
+    is_active = Column(Boolean, default=True)
+    joined_at = Column(DateTime, default=datetime.utcnow)
+
+    clinic = relationship("Clinic", back_populates="doctor_memberships")
+    doctor = relationship("Doctor", back_populates="clinic_memberships")
+
+
+class Staff(Base):
+    """Receptionist / manager with their own login, scoped to a clinic."""
+    __tablename__ = "staff"
+
+    id                 = Column(Integer, primary_key=True, index=True)
+    clinic_id          = Column(Integer, ForeignKey("clinics.id"), nullable=False, index=True)
+    name               = Column(String(100), nullable=False)
+    email              = Column(String(150), unique=True, index=True, nullable=False)
+    password_hash      = Column(String(255), nullable=True)  # null until invite accepted
+    role               = Column(String(20), default="receptionist")  # receptionist | manager
+    allowed_doctor_ids = Column(JSON, default=list)   # [] = all doctors in clinic
+    is_active          = Column(Boolean, default=True)
+    created_at         = Column(DateTime, default=datetime.utcnow)
+
+    clinic = relationship("Clinic", back_populates="staff")
+
+
+class StaffInvite(Base):
+    """One-time email invite for a staff member to set their password."""
+    __tablename__ = "staff_invites"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    clinic_id  = Column(Integer, ForeignKey("clinics.id"), nullable=False, index=True)
+    email      = Column(String(150), nullable=False)
+    token      = Column(String(100), unique=True, index=True, nullable=False)
+    role       = Column(String(20), default="receptionist")
+    expires_at = Column(DateTime, nullable=False)
+    used_at    = Column(DateTime, nullable=True)
+
+    clinic = relationship("Clinic", back_populates="invites")
 
 
 # --------------------------------------------------------------------------- #
@@ -78,11 +148,12 @@ class Doctor(Base):
     plan_expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    appointments = relationship("Appointment", back_populates="doctor", cascade="all, delete-orphan")
-    patients = relationship("Patient", back_populates="doctor", cascade="all, delete-orphan")
-    schedules = relationship("DoctorSchedule", back_populates="doctor", cascade="all, delete-orphan")
-    blocked_dates = relationship("BlockedDate", back_populates="doctor", cascade="all, delete-orphan")
-    subscriptions = relationship("Subscription", back_populates="doctor", cascade="all, delete-orphan")
+    appointments       = relationship("Appointment", back_populates="doctor", cascade="all, delete-orphan")
+    patients           = relationship("Patient", back_populates="doctor", cascade="all, delete-orphan")
+    schedules          = relationship("DoctorSchedule", back_populates="doctor", cascade="all, delete-orphan")
+    blocked_dates      = relationship("BlockedDate", back_populates="doctor", cascade="all, delete-orphan")
+    subscriptions      = relationship("Subscription", back_populates="doctor", cascade="all, delete-orphan")
+    clinic_memberships = relationship("ClinicDoctor", back_populates="doctor")
 
 
 # --------------------------------------------------------------------------- #
@@ -94,6 +165,7 @@ class Patient(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    clinic_id = Column(Integer, ForeignKey("clinics.id"), nullable=True, index=True)   # Phase 2
     name = Column(String(100), nullable=False)
     phone = Column(String(15), nullable=False)
     language_pref = Column(String(20), default="english")
@@ -117,6 +189,8 @@ class Appointment(Base):
     id = Column(Integer, primary_key=True, index=True)
     doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False, index=True)
+    clinic_id = Column(Integer, ForeignKey("clinics.id"), nullable=True, index=True)   # Phase 2
+    staff_id  = Column(Integer, ForeignKey("staff.id"), nullable=True)                  # Phase 2: who booked
     appointment_date = Column(Date, nullable=False)
     appointment_time = Column(Time, nullable=False)
     duration_mins = Column(Integer, default=15)
@@ -143,6 +217,7 @@ class DoctorSchedule(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    clinic_id = Column(Integer, ForeignKey("clinics.id"), nullable=True, index=True)   # Phase 2
     day_of_week = Column(Integer, nullable=False)  # 0=Monday … 6=Sunday
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
@@ -177,6 +252,7 @@ class Subscription(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    clinic_id = Column(Integer, ForeignKey("clinics.id"), nullable=True, index=True)   # Phase 2: clinic billing
     plan_name = Column(String(50), nullable=False)
     amount = Column(Integer, nullable=False)  # in paise (₹299 → 29900)
     payment_id = Column(String(100), nullable=True)  # Razorpay payment ID

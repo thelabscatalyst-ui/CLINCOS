@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Accept Invite — ClinicOS</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
+</head>
+<body>
+
+<div class="auth-page">
+
+  <!-- ── Left: Branding ── -->
+  <div class="auth-brand">
+    <div class="brand-content">
+      <p class="brand-eyebrow">For independent doctors</p>
+      <h1 class="brand-title">Clinic<br>OS</h1>
+      <p class="brand-tagline">
+        Appointment management built for doctors in India.
+        Simple, fast, WhatsApp-first.
+      </p>
+      <div class="brand-divider"></div>
+      <div class="brand-features">
+        <div class="brand-feature">
+          <span class="brand-feature-dot"></span>
+          <span>Patients book via your personal link</span>
+        </div>
+        <div class="brand-feature">
+          <span class="brand-feature-dot"></span>
+          <span>Automated WhatsApp reminders</span>
+        </div>
+        <div class="brand-feature">
+          <span class="brand-feature-dot"></span>
+          <span>No more missed appointments</span>
+        </div>
+        <div class="brand-feature">
+          <span class="brand-feature-dot"></span>
+          <span>₹299/month — less than a coffee a day</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right: Invite Card ── -->
+  <div class="auth-panel">
+    <div class="auth-card">
+
+      <h2 class="auth-card-title">Join {{ clinic.name }}</h2>
+      <p class="auth-card-sub">
+        You've been invited as a <strong>{{ invite.role | title }}</strong>.
+        Set your name and password to get started.
+      </p>
+
+      {% if error %}
+      <div class="alert alert-error">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" action="/clinic/invite/{{ invite.token }}">
+        <div class="form-group">
+          <label for="staff_name">Your Name</label>
+          <input type="text" id="staff_name" name="staff_name"
+                 placeholder="e.g. Priya Sharma" required autofocus autocomplete="name">
+        </div>
+
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" value="{{ invite.email }}" disabled style="opacity:0.6;">
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password"
+                 placeholder="At least 6 characters" required minlength="6" autocomplete="new-password">
+        </div>
+
+        <div class="form-group">
+          <label for="confirm_password">Confirm Password</label>
+          <input type="password" id="confirm_password" name="confirm_password"
+                 placeholder="Repeat password" required minlength="6" autocomplete="new-password">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Create Account</button>
+      </form>
+
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

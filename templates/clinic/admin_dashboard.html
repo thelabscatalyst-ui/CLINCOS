@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Clinic Admin — ClinicOS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ clinic.name }}</h1>
+    <div class="page-date" style="margin-top:4px;">Clinic Admin Dashboard</div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <a href="/clinic/admin/staff" class="btn btn-secondary btn-sm">Manage Staff</a>
+    <a href="/dashboard" class="btn btn-secondary btn-sm">My Dashboard</a>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">Today (All Doctors)</div>
+    <div class="stat-value">{{ total_today }}</div>
+    <div class="stat-sub">appointments</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Doctors</div>
+    <div class="stat-value">{{ doctor_stats | length }}</div>
+    <div class="stat-sub">active in clinic</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Staff</div>
+    <div class="stat-value">{{ staff_list | length }}</div>
+    <div class="stat-sub">receptionist / manager</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Plan</div>
+    <div class="stat-value stat-value--sm">{{ clinic.plan_type | title }}</div>
+    <div class="stat-sub">
+      {% if clinic.plan_expires_at %}
+        expires {{ clinic.plan_expires_at.strftime("%d %b %Y") }}
+      {% else %}
+        trial
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Per-Doctor Breakdown -->
+<div class="settings-card" style="margin-top:24px;">
+  <div class="info-section-title">Doctor Schedules · Today</div>
+  {% if doctor_stats %}
+  <div class="info-grid">
+    {% for stat in doctor_stats %}
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Doctor</span>
+        <span class="info-value">Dr. {{ stat.doctor.name }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Email</span>
+        <span class="info-value">{{ stat.doctor.email }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Specialization</span>
+        <span class="info-value">{{ stat.doctor.specialization or "Not specified" }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Role</span>
+        <span class="info-value">{{ stat.role | title }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Today</span>
+        <span class="info-value info-value--bold">{{ stat.today }} appt{{ 's' if stat.today != 1 else '' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">This Week</span>
+        <span class="info-value">{{ stat.week }} appt{{ 's' if stat.week != 1 else '' }}</span>
+      </div>
+      <div class="info-card-action">
+        <a href="/appointments" class="btn btn-secondary btn-xs">View Appointments</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty-state-text">No doctors in this clinic yet.</p>
+  {% endif %}
+</div>
+
+<!-- Staff List -->
+<div class="settings-card" style="margin-top:24px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <div class="info-section-title" style="margin-bottom:0;">Staff</div>
+    <a href="/clinic/admin/staff" class="btn btn-secondary btn-sm">Manage →</a>
+  </div>
+  {% if staff_list %}
+  <div class="info-grid">
+    {% for s in staff_list %}
+    <div class="info-card">
+      <div class="info-row">
+        <span class="info-label">Name</span>
+        <span class="info-value">{{ s.name }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Email</span>
+        <span class="info-value">{{ s.email }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Role</span>
+        <span class="info-value">{{ s.role | title }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Status</span>
+        <span class="info-value">{{ "Active" if s.is_active else "Inactive" }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:var(--muted);font-size:14px;">No staff yet. <a href="/clinic/admin/staff">Invite someone →</a></p>
+  {% endif %}
+</div>
+
+{% endblock %}

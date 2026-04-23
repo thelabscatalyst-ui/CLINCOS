@@ -140,3 +140,52 @@ def get_admin_doctor(doctor=Depends(get_current_doctor)):
     if not settings.ADMIN_EMAIL or doctor.email.lower() != settings.ADMIN_EMAIL.lower():
         raise HTTPException(status_code=403, detail="Admin access required")
     return doctor
+
+
+# ──────────────────────────────────────────────────────────────────────────── #
+#  Phase 2 — Staff / Clinic auth                                               #
+# ──────────────────────────────────────────────────────────────────────────── #
+
+def create_staff_token(staff_id: int, clinic_id: int, allowed_doctor_ids: list) -> str:
+    """Issue a JWT for a staff member (receptionist / manager)."""
+    payload = {
+        "user_type":          "staff",
+        "staff_id":           staff_id,
+        "clinic_id":          clinic_id,
+        "allowed_doctor_ids": allowed_doctor_ids or [],
+        "exp":                datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def get_current_staff(request: Request, db: Session = Depends(get_db)):
+    """Dependency: returns the authenticated Staff object, or raises 401."""
+    from database.models import Staff
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not logged in")
+    payload = decode_token(token)
+    if not payload or payload.get("user_type") != "staff":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Staff session required")
+    staff = db.query(Staff).filter(Staff.id == payload["staff_id"]).first()
+    if not staff or not staff.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Staff account not found")
+    # attach allowed_doctor_ids from JWT (may be fresher than DB until next login)
+    request.state.staff_allowed_doctors = payload.get("allowed_doctor_ids", [])
+    return staff
+
+
+def get_clinic_owner(request: Request, db: Session = Depends(get_db)):
+    """Dependency for /clinic/admin routes — doctor who owns a clinic."""
+    from database.models import ClinicDoctor, Clinic
+    doctor = get_current_doctor(request, db)
+    membership = (
+        db.query(ClinicDoctor)
+        .filter(ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.role == "owner")
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=403, detail="Clinic owner access required")
+    clinic = db.query(Clinic).filter(Clinic.id == membership.clinic_id).first()
+    request.state.clinic = clinic
+    return doctor

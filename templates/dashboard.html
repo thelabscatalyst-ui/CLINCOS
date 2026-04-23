@@ -21,6 +21,9 @@
     <div class="page-date" style="margin-top:4px;">{{ today.strftime("%A, %d %B %Y") }}</div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;">
+    {% if is_clinic_owner %}
+    <a href="/clinic/admin" class="btn btn-secondary btn-sm">Clinic Admin</a>
+    {% endif %}
     {% if doctor.slug %}
     <button type="button" class="btn btn-secondary btn-sm" id="dashCopyBtn" onclick="copyBookingLink()">
       Share Link

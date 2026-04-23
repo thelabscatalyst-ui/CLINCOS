@@ -79,6 +79,12 @@ def dashboard(
     else:
         greeting = "Good Evening"
 
+    # Clinic ownership check — show "Clinic Admin" link on dashboard
+    from database.models import ClinicDoctor
+    is_clinic_owner = db.query(ClinicDoctor).filter(
+        ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.role == "owner"
+    ).first() is not None
+
     return templates.TemplateResponse(request, "dashboard.html", {
         "doctor": doctor,
         "today": today,
@@ -92,6 +98,7 @@ def dashboard(
         "trial_active": trial_active,
         "days_left": days_left,
         "active": "dashboard",
+        "is_clinic_owner": is_clinic_owner,
     })
 
 
@@ -564,17 +571,35 @@ def billing_page(
         delta = dt_obj - now
         return max(0, delta.days)
 
+    # Clinic plan context
+    from database.models import ClinicDoctor, Clinic
+    membership = db.query(ClinicDoctor).filter(
+        ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.role == "owner"
+    ).first()
+    clinic = db.query(Clinic).filter(Clinic.id == membership.clinic_id).first() if membership else None
+    clinic_doctor_count = 0
+    clinic_plan_ok = False
+    if clinic:
+        clinic_doctor_count = db.query(ClinicDoctor).filter(
+            ClinicDoctor.clinic_id == clinic.id, ClinicDoctor.is_active == True
+        ).count()
+        clinic_plan_ok = bool(clinic.plan_expires_at and clinic.plan_expires_at > now)
+
     return templates.TemplateResponse(request, "billing.html", {
-        "doctor":          doctor,
-        "trial_ok":        trial_ok,
-        "plan_ok":         plan_ok,
-        "is_expired":      is_expired,
-        "trial_days_left": days_left(doctor.trial_ends_at),
-        "plan_days_left":  days_left(doctor.plan_expires_at),
+        "doctor":              doctor,
+        "trial_ok":            trial_ok,
+        "plan_ok":             plan_ok,
+        "is_expired":          is_expired,
+        "trial_days_left":     days_left(doctor.trial_ends_at),
+        "plan_days_left":      days_left(doctor.plan_expires_at),
         "razorpay_configured": bool(cfg.RAZORPAY_KEY_ID),
-        "success":         success,
-        "active":          "billing",
-        "pin_required":    getattr(request.state, "pin_required", False),
+        "success":             success,
+        "active":              "billing",
+        "pin_required":        getattr(request.state, "pin_required", False),
+        "clinic":              clinic,
+        "clinic_doctor_count": clinic_doctor_count,
+        "clinic_plan_ok":      clinic_plan_ok,
+        "clinic_plan_days_left": days_left(clinic.plan_expires_at) if clinic else 0,
     })
 
 
@@ -608,24 +633,41 @@ def billing_verify(
     now      = dt.utcnow()
     end_date = now + timedelta(days=30)
 
-    # Record subscription
-    sub = Subscription(
-        doctor_id=doctor.id,
-        plan_name=plan,
-        amount=PLAN_AMOUNTS.get(plan, 0),
-        payment_id=razorpay_payment_id,
-        start_date=now.date(),
-        end_date=end_date.date(),
-        status="active",
-    )
-    db.add(sub)
+    if plan == "clinic":
+        # Clinic plan — activate the clinic, also extend doctor's own access
+        from database.models import ClinicDoctor, Clinic
+        membership = db.query(ClinicDoctor).filter(
+            ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.role == "owner"
+        ).first()
+        if membership:
+            clinic = db.query(Clinic).filter(Clinic.id == membership.clinic_id).first()
+            if clinic:
+                clinic.plan_type       = "clinic"
+                clinic.plan_expires_at = end_date
+                sub = Subscription(
+                    doctor_id=doctor.id, clinic_id=clinic.id,
+                    plan_name=plan, amount=PLAN_AMOUNTS.get(plan, 0),
+                    payment_id=razorpay_payment_id,
+                    start_date=now.date(), end_date=end_date.date(), status="active",
+                )
+                db.add(sub)
+        # Also extend doctor's individual plan so they can still log in
+        doctor.plan_expires_at = end_date
+        doctor.plan_type = PlanType.solo
+    else:
+        # Solo / legacy plans
+        sub = Subscription(
+            doctor_id=doctor.id,
+            plan_name=plan, amount=PLAN_AMOUNTS.get(plan, 0),
+            payment_id=razorpay_payment_id,
+            start_date=now.date(), end_date=end_date.date(), status="active",
+        )
+        db.add(sub)
+        plan_map = {"solo": PlanType.solo, "basic": PlanType.basic, "pro": PlanType.pro}
+        doctor.plan_expires_at = end_date
+        doctor.plan_type = plan_map.get(plan, PlanType.solo)
 
-    # Update doctor plan
-    plan_map = {"solo": PlanType.solo, "basic": PlanType.basic, "pro": PlanType.pro}
-    doctor.plan_expires_at = end_date
-    doctor.plan_type = plan_map.get(plan, PlanType.solo)
     db.commit()
-
     return RedirectResponse(url="/billing?success=1", status_code=303)
 
 
