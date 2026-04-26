@@ -1,3 +1,4 @@
+import mimetypes
 import uuid
 from datetime import date
 from pathlib import Path
@@ -18,6 +19,11 @@ router = APIRouter(prefix="/patients", tags=["patients"])
 templates = Jinja2Templates(directory="templates")
 
 MAX_FILE_BYTES = 10 * 1024 * 1024   # 10 MB
+
+# MIME types that browsers render inline without XSS risk.
+# Deliberately excludes text/html and application/javascript.
+_INLINE_MIME_PREFIXES = ("image/",)
+_INLINE_MIME_EXACT    = {"application/pdf", "text/plain", "text/csv"}
 
 
 # --------------------------------------------------------------------------- #
@@ -83,6 +89,18 @@ def _upload_dir(doctor_id: int, patient_id: int) -> Path:
     p = Path(f"uploads/patients/{doctor_id}/{patient_id}")
     p.mkdir(parents=True, exist_ok=True)
     return p
+
+
+def _safe_filename(original: str) -> str:
+    """Strip any directory components so callers cannot traverse outside uploads/.
+    e.g. '../../etc/passwd' → 'etc_passwd', 'report.pdf' → 'report.pdf'
+    """
+    # Path.name strips everything before the last separator
+    name = Path(original).name
+    # Replace any remaining separators (Windows backslash, null bytes, etc.)
+    for ch in ("\x00", "/", "\\", ":"):
+        name = name.replace(ch, "_")
+    return name or "file"
 
 
 # --------------------------------------------------------------------------- #
@@ -226,7 +244,7 @@ async def add_note(
         if len(content) > MAX_FILE_BYTES:
             continue   # silently skip oversized files
 
-        stored_name = f"{uuid.uuid4().hex}_{f.filename}"
+        stored_name = f"{uuid.uuid4().hex}_{_safe_filename(f.filename)}"
         dest = udir / stored_name
         async with aiofiles.open(dest, "wb") as fh:
             await fh.write(content)
@@ -266,7 +284,6 @@ def view_file(
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
-    import mimetypes
     nf = db.query(NoteFile).join(PatientNote).filter(
         NoteFile.id == file_id,
         PatientNote.doctor_id == doctor.id,
@@ -283,15 +300,16 @@ def view_file(
     if not mime_type:
         mime_type = "application/octet-stream"
 
-    # Browser-previewable types get inline; everything else forces download
+    # Only serve inline for safe previewable types.
+    # text/html and application/javascript are intentionally excluded to
+    # prevent stored-XSS from a doctor uploading a crafted HTML file.
     previewable = (
-        mime_type.startswith("image/") or
-        mime_type.startswith("text/")  or
-        mime_type == "application/pdf"
+        any(mime_type.startswith(p) for p in _INLINE_MIME_PREFIXES) or
+        mime_type in _INLINE_MIME_EXACT
     )
     disposition = "inline" if previewable else "attachment"
 
-    safe_name = nf.original_name.replace('"', '')
+    safe_name = nf.original_name.replace('"', '').replace("'", '')
     return FileResponse(
         path=str(path),
         media_type=mime_type,
@@ -356,8 +374,8 @@ async def edit_note(
     if not text and remaining_files == 0 and not real_files:
         return JSONResponse({"error": "Note cannot be empty."}, status_code=400)
 
-    if text:
-        note.note_text = text
+    # Update text: use submitted value, or fall back to "(files attached)" when blanked
+    note.note_text = text if text else "(files attached)"
 
     # Save any new files
     if real_files:
@@ -366,7 +384,7 @@ async def edit_note(
             content = await f.read()
             if len(content) > MAX_FILE_BYTES:
                 continue
-            stored_name = f"{uuid.uuid4().hex}_{f.filename}"
+            stored_name = f"{uuid.uuid4().hex}_{_safe_filename(f.filename)}"
             dest = udir / stored_name
             async with aiofiles.open(dest, "wb") as fh:
                 await fh.write(content)

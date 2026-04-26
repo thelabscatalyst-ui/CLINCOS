@@ -9,3 +9,4 @@ __pycache__/
 .claude/worktrees/
 .claude/launch.json
 clinic_test.db
+uploads/
