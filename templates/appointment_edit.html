@@ -18,16 +18,18 @@
 <div class="settings-card appt-form-card">
   <form method="post" action="/appointments/{{ appt.id }}/edit">
 
-    <!-- Patient (read-only) -->
+    <!-- Patient -->
     <p class="form-section-label">Patient</p>
     <div class="form-row">
       <div class="form-group">
-        <label>Full Name</label>
-        <input type="text" value="{{ appt.patient.name }}" disabled>
+        <label for="patient_name">Full Name</label>
+        <input type="text" id="patient_name" name="patient_name"
+               value="{{ appt.patient.name }}" required>
       </div>
       <div class="form-group">
-        <label>Phone</label>
-        <input type="text" value="{{ appt.patient.phone }}" disabled>
+        <label for="patient_phone">Phone</label>
+        <input type="tel" id="patient_phone" name="patient_phone"
+               value="{{ appt.patient.phone }}" required>
       </div>
     </div>
 

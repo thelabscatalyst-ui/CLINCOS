@@ -93,58 +93,60 @@
 {% endif %}
 
 <!-- Plan Cards -->
-<div class="billing-plans">
+<div class="billing-plans-box">
+  <div class="billing-plans">
 
-  <!-- Solo -->
-  <div class="billing-plan-card billing-plan-card--pro">
-    <div class="plan-badge plan-badge--pro">Recommended</div>
-    <div class="plan-name">Solo</div>
-    <div class="plan-price">₹399<span>/month</span></div>
-    <ul class="plan-features">
-      <li>Unlimited appointments</li>
-      <li>WhatsApp &amp; SMS reminders</li>
-      <li>Public booking page</li>
-      <li>Patient records &amp; history</li>
-      <li>Reports &amp; analytics</li>
-      <li>PIN protection for billing &amp; reports</li>
-      <li>Walk-in quick booking</li>
-    </ul>
-    {% if razorpay_configured %}
-    <button type="button" class="btn btn-primary" onclick="startPayment('solo', 39900)">
-      Subscribe — ₹399/mo
-    </button>
-    {% else %}
-    <button type="button" class="btn btn-secondary" disabled>
-      Payment not configured
-    </button>
+    <!-- Solo -->
+    <div class="billing-plan-card billing-plan-card--pro">
+      <div class="plan-badge plan-badge--pro">Recommended</div>
+      <div class="plan-name">Solo</div>
+      <div class="plan-price">₹399<span>/month</span></div>
+      <ul class="plan-features">
+        <li>Unlimited appointments</li>
+        <li>WhatsApp &amp; SMS reminders</li>
+        <li>Public booking page</li>
+        <li>Patient records &amp; history</li>
+        <li>Reports &amp; analytics</li>
+        <li>PIN protection for billing &amp; reports</li>
+        <li>Walk-in quick booking</li>
+      </ul>
+      {% if razorpay_configured %}
+      <button type="button" class="btn btn-primary billing-plan-btn" onclick="startPayment('solo', 39900)">
+        Subscribe
+      </button>
+      {% else %}
+      <button type="button" class="btn btn-secondary billing-plan-btn" disabled>
+        Payment not configured
+      </button>
+      {% endif %}
+    </div>
+
+    <!-- Clinic -->
+    {% if clinic %}
+    <div class="billing-plan-card">
+      <div class="plan-name">Clinic</div>
+      <div class="plan-price">₹1,499<span>/month</span></div>
+      <ul class="plan-features">
+        <li>Up to 5 doctors</li>
+        <li>Dedicated staff accounts</li>
+        <li>Receptionist workspace</li>
+        <li>Unified clinic booking page</li>
+        <li>Clinic-level admin dashboard</li>
+        <li>Everything in Solo × all doctors</li>
+      </ul>
+      {% if razorpay_configured %}
+      <button type="button" class="btn btn-primary billing-plan-btn" onclick="startPayment('clinic', 149900)">
+        Subscribe
+      </button>
+      {% else %}
+      <button type="button" class="btn btn-secondary billing-plan-btn" disabled>
+        Payment not configured
+      </button>
+      {% endif %}
+    </div>
     {% endif %}
-  </div>
 
-  <!-- Clinic -->
-  {% if clinic %}
-  <div class="billing-plan-card">
-    <div class="plan-name">Clinic</div>
-    <div class="plan-price">₹1,499<span>/month</span></div>
-    <ul class="plan-features">
-      <li>Up to 5 doctors</li>
-      <li>Dedicated staff accounts</li>
-      <li>Receptionist workspace</li>
-      <li>Unified clinic booking page</li>
-      <li>Clinic-level admin dashboard</li>
-      <li>Everything in Solo × all doctors</li>
-    </ul>
-    {% if razorpay_configured %}
-    <button type="button" class="btn btn-primary" onclick="startPayment('clinic', 149900)">
-      Subscribe — ₹1,499/mo
-    </button>
-    {% else %}
-    <button type="button" class="btn btn-secondary" disabled>
-      Payment not configured
-    </button>
-    {% endif %}
   </div>
-  {% endif %}
-
 </div>
 
 <p style="text-align:center;font-size:12px;color:var(--dim);margin-top:16px;">

@@ -201,8 +201,10 @@ class BookedBy(str, enum.Enum):
 | GET | `/appointments/{id}/edit` | Plan | Edit/reschedule form |
 | POST | `/appointments/{id}/edit` | Plan | Save rescheduled appointment |
 | GET | `/patients` | Plan | Patient list + search |
-| GET | `/patients/{id}` | Plan | Patient profile + history |
+| GET | `/patients/{id}` | PIN | Patient profile + history |
+| POST | `/patients/{id}/edit` | Plan | Update patient name + phone |
 | POST | `/patients/{id}/notes` | Plan | Update patient notes |
+| POST | `/patients/{id}/delete` | PIN | Delete patient + all appointments |
 | GET | `/book/{slug}` | No | Public booking form |
 | GET | `/book/{slug}/slots` | No | Public slots JSON (AJAX) |
 | POST | `/book/{slug}` | No | Submit booking (rate-limited) |
@@ -361,15 +363,38 @@ ADMIN_EMAIL=your-email@example.com          # must match the email used to regis
 | 32 | Phase 2: Clinic admin dashboard (/clinic/admin — aggregated stats, staff list) | ✅ Done |
 | 33 | Phase 2: Unified clinic public booking (/book/clinic/{slug}) | ✅ Done |
 | 34 | Phase 2: Clinic plan billing (₹1,499/month, Razorpay + clinic.plan_expires_at) | ✅ Done |
-| 35 | Deploy on Railway.app | ⬜ Next |
+| 35 | Remove Patient — PIN-gated delete (patient + appointments) | ✅ Done |
+| 36 | Edit Patient — modal to update name + phone | ✅ Done |
+| 37 | Pre-fill booking from patient profile (name, phone, last-seen doctor) | ✅ Done |
+| 38 | Booking channel badges — Doctor (green) + Patient (grey) added to Walk-in + Reception | ✅ Done |
+| 39 | Calendar today ring fix — light theme dark border + glow | ✅ Done |
+| 40 | Doctor's Notes textarea — vertical-only resize | ✅ Done |
+| 41 | New Appointment split layout — form left, ClinicOS branding panel right | ✅ Done |
+| 42 | PIN gate extended to patient detail page + `_pin_parent_path` for `/patients/{id}` | ✅ Done |
+| 43 | Deploy on Railway.app | ⬜ Next |
+
+---
+
+## Patient Page — PIN Protection Note
+`GET /patients/{id}` uses `require_pin` (not `get_paying_doctor`) so the blur overlay renders when PIN is set. The `pin_required` flag is passed explicitly in the template context. `_pin_parent_path` in `auth_service.py` maps `/patients/{id}/delete` → `/patients/{id}` for the PIN redirect.
+
+## New Appointment Split Layout
+`appointment_new.html` uses `.appt-new-split` (CSS grid, `1fr 360px`). Page header + error alert sit OUTSIDE the grid. The grid contains: left `<div>` (wraps `.appt-form-card` with `flex:1`) + right `.appt-brand-panel` (flex column, centered, `align-items: stretch` fills height). Responsive: brand panel hidden below 960px.
+
+## Booking Channel Badges
+Four values in `BookedBy` enum → four badge classes:
+- `walk_in` → `.badge-channel--walkin` (gold)
+- `staff_shared` → `.badge-channel--staff` (purple)
+- `doctor` → `.badge-channel--doctor` (green `#22c55e`)
+- `patient` → `.badge-channel--patient` (grey `#a0a0a0`)
 
 ---
 
 ## Session Startup Checklist
 When starting a new Claude Code session:
-> "Read CLAUDE.md. We are continuing ClinicOS. All features 1–27 are complete. Today we are working on [describe task]."
+> "Read CLAUDE.md. We are continuing ClinicOS. Features 1–42 are complete. Today we are working on [describe task]."
 
 ---
 
-*Last updated: 2026-04-23*
-*Current phase: Phase 2 Clinic (Tier 2) complete — deploying to Railway.app next*
+*Last updated: 2026-04-25*
+*Current phase: UI polish complete — deploying to Railway.app next*

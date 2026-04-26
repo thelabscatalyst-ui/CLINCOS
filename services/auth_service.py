@@ -140,6 +140,11 @@ def _pin_parent_path(path: str) -> str:
         return "/doctors/settings"
     if path.startswith("/billing"):
         return "/billing"
+    if path.startswith("/patients/"):
+        # e.g. /patients/42/delete → /patients/42
+        parts = path.split("/")
+        if len(parts) >= 3 and parts[2].isdigit():
+            return f"/patients/{parts[2]}"
     return "/dashboard"
 
 

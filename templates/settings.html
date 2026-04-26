@@ -38,46 +38,91 @@
         <span>Max patients</span>
       </div>
 
-      <!-- One row per day -->
+      <!-- One card per day -->
       {% for day in days_data %}
-      <div class="schedule-row {% if not day.is_active %}schedule-row--off{% endif %}" id="row-{{ day.index }}">
-        <span class="schedule-day">{{ day.name }}</span>
+      <div class="schedule-day-card" id="day-card-{{ day.index }}">
 
-        <label class="toggle">
+        <!-- Main day row -->
+        <div class="schedule-row {% if not day.is_active %}schedule-row--off{% endif %}" id="row-{{ day.index }}">
+          <span class="schedule-day">{{ day.name }}</span>
+
+          <label class="toggle">
+            <input
+              type="checkbox"
+              name="active_{{ day.index }}"
+              {% if day.is_active %}checked{% endif %}
+              onchange="toggleRow({{ day.index }}, this.checked)"
+            />
+            <span class="toggle-track"></span>
+          </label>
+
           <input
-            type="checkbox"
-            name="active_{{ day.index }}"
-            {% if day.is_active %}checked{% endif %}
-            onchange="toggleRow({{ day.index }}, this.checked)"
+            type="time"
+            name="shift_start_{{ day.index }}_0"
+            value="{{ day.start_time }}"
+            class="input-sm"
+            onchange="onShiftChange({{ day.index }})"
           />
-          <span class="toggle-track"></span>
-        </label>
+          <input
+            type="time"
+            name="shift_end_{{ day.index }}_0"
+            id="shift-end-{{ day.index }}-0"
+            value="{{ day.end_time }}"
+            class="input-sm"
+            onchange="onShiftChange({{ day.index }})"
+          />
+          <select name="slot_{{ day.index }}" class="input-sm">
+            {% for mins in [10, 15, 20, 30, 45, 60] %}
+            <option value="{{ mins }}" {% if day.slot_duration == mins %}selected{% endif %}>{{ mins }}</option>
+            {% endfor %}
+          </select>
+          <input
+            type="number"
+            name="max_{{ day.index }}"
+            value="{{ day.max_patients }}"
+            min="1"
+            max="200"
+            class="input-sm"
+          />
+        </div>
 
-        <input
-          type="time"
-          name="start_{{ day.index }}"
-          value="{{ day.start_time }}"
-          class="input-sm"
-        />
-        <input
-          type="time"
-          name="end_{{ day.index }}"
-          value="{{ day.end_time }}"
-          class="input-sm"
-        />
-        <select name="slot_{{ day.index }}" class="input-sm">
-          {% for mins in [10, 15, 20, 30, 45, 60] %}
-          <option value="{{ mins }}" {% if day.slot_duration == mins %}selected{% endif %}>{{ mins }}</option>
-          {% endfor %}
-        </select>
-        <input
-          type="number"
-          name="max_{{ day.index }}"
-          value="{{ day.max_patients }}"
-          min="1"
-          max="200"
-          class="input-sm"
-        />
+        <!-- Extra shift sub-rows (loaded from DB) -->
+        {% for shift in day.extra_shifts %}
+        <div class="schedule-shift-row {% if not day.is_active %}schedule-row--off{% endif %}"
+             id="shift-row-{{ day.index }}-{{ loop.index }}"
+             data-day="{{ day.index }}" data-k="{{ loop.index }}">
+          <span class="schedule-shift-label">Shift {{ loop.index + 1 }}</span>
+          <span></span>
+          <input type="time"
+                 name="shift_start_{{ day.index }}_{{ loop.index }}"
+                 value="{{ shift.start }}"
+                 class="input-sm"
+                 onchange="onShiftChange({{ day.index }})" />
+          <input type="time"
+                 name="shift_end_{{ day.index }}_{{ loop.index }}"
+                 value="{{ shift.end }}"
+                 class="input-sm"
+                 onchange="onShiftChange({{ day.index }})" />
+          <button type="button" class="btn-icon-remove"
+                  onclick="removeShift(this, {{ day.index }})" title="Remove shift">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+          <span></span>
+        </div>
+        {% endfor %}
+
+        <!-- Add shift row -->
+        <div class="schedule-add-row" id="add-row-{{ day.index }}"
+             {% if not day.is_active %}style="display:none;"{% endif %}>
+          <span></span>
+          <span></span>
+          <button type="button" class="btn-add-shift"
+                  onclick="addShift({{ day.index }})">+ Add Shift</button>
+        </div>
+
       </div>
       {% endfor %}
     </div>
@@ -241,7 +286,7 @@
     </div>
 
   {% else %}
-    <!-- Trial or Expired — show Solo plan -->
+    <!-- Trial or Expired — show Solo + Clinic plans -->
     {% if plan_status == 'expired' %}
     <p style="font-size:13px;color:#f87171;margin-bottom:16px;">
       Your access is paused. Subscribe to resume.
@@ -252,26 +297,48 @@
     </p>
     {% endif %}
 
-    <div class="sub-plan-row">
-      <div class="sub-plan-option sub-plan-option--pro">
-        <div class="sub-plan-name">Solo <span class="sub-pro-tag">Recommended</span></div>
-        <div class="sub-plan-price">₹399 <span>/month</span></div>
-        <ul class="sub-plan-features">
-          <li>Unlimited appointments</li>
-          <li>WhatsApp &amp; SMS reminders</li>
-          <li>Public booking + patient records</li>
-          <li>Reports &amp; analytics</li>
-          <li>PIN protection for sensitive sections</li>
-          <li>Walk-in quick booking</li>
-        </ul>
-        {% if razorpay_configured %}
-        <button type="button" class="btn btn-primary btn-sm"
-                onclick="settingsPayment('solo', 39900)">
-          Subscribe
-        </button>
-        {% else %}
-        <a href="/billing" class="btn btn-primary btn-sm">Subscribe</a>
-        {% endif %}
+    <div class="sub-plan-box">
+      <div class="sub-plan-row">
+        <!-- Solo plan -->
+        <div class="sub-plan-option sub-plan-option--pro">
+          <div class="sub-plan-name">Solo <span class="sub-pro-tag">Recommended</span></div>
+          <div class="sub-plan-price">₹399 <span>/month</span></div>
+          <ul class="sub-plan-features">
+            <li>Unlimited appointments</li>
+            <li>WhatsApp &amp; SMS reminders</li>
+            <li>Public booking + patient records</li>
+            <li>Reports &amp; analytics</li>
+            <li>PIN protection for sensitive sections</li>
+            <li>Walk-in quick booking</li>
+          </ul>
+          {% if razorpay_configured %}
+          <button type="button" class="btn btn-primary btn-sm sub-plan-btn"
+                  onclick="settingsPayment('solo', 39900)">Subscribe</button>
+          {% else %}
+          <a href="/billing" class="btn btn-primary btn-sm sub-plan-btn">Subscribe</a>
+          {% endif %}
+        </div>
+
+        <div class="sub-plan-divider"></div>
+
+        <!-- Clinic plan -->
+        <div class="sub-plan-option">
+          <div class="sub-plan-name">Clinic</div>
+          <div class="sub-plan-price">₹1,499 <span>/month</span></div>
+          <ul class="sub-plan-features">
+            <li>Up to 5 doctors</li>
+            <li>Staff &amp; receptionist accounts</li>
+            <li>Unified clinic booking page</li>
+            <li>Clinic admin dashboard</li>
+            <li>Everything in Solo × all doctors</li>
+          </ul>
+          {% if razorpay_configured %}
+          <button type="button" class="btn btn-primary btn-sm sub-plan-btn"
+                  onclick="settingsPayment('clinic', 149900)">Subscribe</button>
+          {% else %}
+          <a href="/billing" class="btn btn-primary btn-sm sub-plan-btn">Subscribe</a>
+          {% endif %}
+        </div>
       </div>
     </div>
   {% endif %}
@@ -313,7 +380,7 @@
     <div>
       <div class="settings-card-title">PIN Protection</div>
       <div class="settings-card-sub">
-        Set a 4–6 digit PIN to protect billing, reports, and settings — so a shared-login receptionist
+        Set a 6-digit PIN to protect billing, reports, and settings — so a shared-login receptionist
         can book appointments without seeing sensitive data.
       </div>
     </div>
@@ -337,20 +404,20 @@
       <div class="form-group">
         <label for="current_pin">Current PIN</label>
         <input type="password" id="current_pin" name="current_pin"
-               maxlength="6" placeholder="••••" inputmode="numeric"
+               maxlength="6" placeholder="••••••" inputmode="numeric"
                autocomplete="off" />
       </div>
       {% endif %}
       <div class="form-group">
         <label for="new_pin">{% if doctor.pin_hash %}New PIN{% else %}Set PIN{% endif %}</label>
         <input type="password" id="new_pin" name="new_pin"
-               maxlength="6" placeholder="4–6 digits" inputmode="numeric"
+               minlength="6" maxlength="6" placeholder="6 digits" inputmode="numeric"
                autocomplete="new-password" />
       </div>
       <div class="form-group">
         <label for="confirm_pin">Confirm PIN</label>
         <input type="password" id="confirm_pin" name="confirm_pin"
-               maxlength="6" placeholder="Repeat PIN" inputmode="numeric"
+               minlength="6" maxlength="6" placeholder="Repeat 6 digits" inputmode="numeric"
                autocomplete="new-password" />
       </div>
     </div>
@@ -432,8 +499,98 @@ async function settingsPayment(plan, amount) {
 }
 
 function toggleRow(index, isActive) {
-  const row = document.getElementById('row-' + index);
-  row.classList.toggle('schedule-row--off', !isActive);
+  document.getElementById('row-' + index)
+          .classList.toggle('schedule-row--off', !isActive);
+  // Show/hide the + Add Shift row
+  const addRow = document.getElementById('add-row-' + index);
+  if (addRow) addRow.style.display = isActive ? '' : 'none';
+  // Dim extra shift sub-rows
+  document.querySelectorAll(`.schedule-shift-row[data-day="${index}"]`).forEach(r => {
+    r.classList.toggle('schedule-row--off', !isActive);
+  });
+}
+
+/* ---- Multi-shift functions ---- */
+
+function addShift(dayIdx) {
+  const addRow  = document.getElementById('add-row-' + dayIdx);
+  const existing = document.querySelectorAll(`.schedule-shift-row[data-day="${dayIdx}"]`);
+  const newK    = existing.length + 1;   // k starts at 1 (0 is the main row)
+
+  // Default start = last shift's end + 30 min
+  let prevEnd = document.querySelector(`[name="shift_end_${dayIdx}_${newK - 1}"]`);
+  let minStart = prevEnd && prevEnd.value ? prevEnd.value : '13:00';
+  function addMins(t, m) {
+    const [h, mn] = t.split(':').map(Number);
+    const tot = h * 60 + mn + m;
+    return String(Math.floor(tot / 60) % 24).padStart(2,'0') + ':' + String(tot % 60).padStart(2,'0');
+  }
+  const newStart = addMins(minStart, 30);
+  const newEnd   = addMins(newStart, 180);
+
+  const row = document.createElement('div');
+  row.className = 'schedule-shift-row';
+  row.dataset.day = dayIdx;
+  row.dataset.k   = newK;
+  row.innerHTML =
+    `<span class="schedule-shift-label">Shift ${newK + 1}</span>` +
+    `<span></span>` +
+    `<input type="time" name="shift_start_${dayIdx}_${newK}" value="${newStart}" min="${minStart}" class="input-sm" onchange="onShiftChange(${dayIdx})" />` +
+    `<input type="time" name="shift_end_${dayIdx}_${newK}"   value="${newEnd}"   min="${newStart}" class="input-sm" onchange="onShiftChange(${dayIdx})" />` +
+    `<button type="button" class="btn-icon-remove" onclick="removeShift(this,${dayIdx})" title="Remove shift">` +
+    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">` +
+    `<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` +
+    `<span></span>`;
+  addRow.parentNode.insertBefore(row, addRow);
+}
+
+function removeShift(btn, dayIdx) {
+  btn.closest('.schedule-shift-row').remove();
+  reindexShifts(dayIdx);
+}
+
+function reindexShifts(dayIdx) {
+  document.querySelectorAll(`.schedule-shift-row[data-day="${dayIdx}"]`).forEach((row, idx) => {
+    const k = idx + 1;   // k=0 is the main row; extra rows start at k=1
+    row.dataset.k = k;
+    const label = row.querySelector('.schedule-shift-label');
+    if (label) label.textContent = 'Shift ' + (k + 1);
+    const inputs = row.querySelectorAll('input[type="time"]');
+    if (inputs[0]) inputs[0].name = `shift_start_${dayIdx}_${k}`;
+    if (inputs[1]) inputs[1].name = `shift_end_${dayIdx}_${k}`;
+  });
+  onShiftChange(dayIdx);
+}
+
+/* Enforce non-overlapping constraint across all shifts */
+function onShiftChange(dayIdx) {
+  const allRows = [
+    // Main row inputs (k=0)
+    {
+      s: document.querySelector(`[name="shift_start_${dayIdx}_0"]`),
+      e: document.querySelector(`[name="shift_end_${dayIdx}_0"]`),
+    },
+    // Extra shift rows (k=1,2,3…)
+    ...Array.from(document.querySelectorAll(`.schedule-shift-row[data-day="${dayIdx}"]`)).map(row => {
+      const inputs = row.querySelectorAll('input[type="time"]');
+      return { s: inputs[0], e: inputs[1] };
+    }),
+  ];
+  let prevEnd = null;
+  allRows.forEach(({ s, e }) => {
+    if (!s || !e) return;
+    if (prevEnd) {
+      s.min = prevEnd;
+      if (s.value && s.value < prevEnd) s.value = prevEnd;
+    }
+    e.min = s.value;
+    if (e.value && e.value <= s.value) {
+      const [h, m] = s.value.split(':').map(Number);
+      const t = h * 60 + m + 60;
+      e.value = String(Math.floor(t/60)%24).padStart(2,'0') + ':' + String(t%60).padStart(2,'0');
+    }
+    prevEnd = e.value;
+  });
 }
 
 const BOOKING_URL = window.location.origin + '/book/{{ doctor.slug }}';

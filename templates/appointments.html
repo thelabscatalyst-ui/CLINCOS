@@ -39,8 +39,9 @@
     <span style="color:var(--muted);font-size:13px;">Viewing:</span>
     {% for doc in clinic_doctors %}
     <a href="/appointments?doctor_id={{ doc.id }}&filter_date={{ view_date.isoformat() }}"
-       class="btn btn-sm {% if doc.id == vd.id %}btn-primary{% else %}btn-secondary{% endif %}">
-      Dr. {{ doc.name.split()[-1] }}
+       class="btn btn-sm {% if doc.id == vd.id %}btn-primary{% else %}btn-secondary{% endif %}"
+       data-tip="Dr. {{ doc.name }}{% if doc.specialization %} — {{ doc.specialization }}{% endif %}">
+      Dr. {{ doc.name.split()[0] }}
     </a>
     {% endfor %}
   </div>
@@ -102,6 +103,10 @@
         · <span class="badge-channel badge-channel--walkin">Walk-in</span>
         {% elif appt.booked_by.value in ('staff_shared', 'staff') %}
         · <span class="badge-channel badge-channel--staff">Reception</span>
+        {% elif appt.booked_by.value == 'doctor' %}
+        · <span class="badge-channel badge-channel--doctor">Doctor</span>
+        {% elif appt.booked_by.value == 'patient' %}
+        · <span class="badge-channel badge-channel--patient">Patient</span>
         {% endif %}
       </div>
     </div>

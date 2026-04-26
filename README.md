@@ -10,12 +10,20 @@ Doctors get a personal booking page, WhatsApp reminders, patient records, and a 
 
 **For doctors**
 - Dashboard with today's schedule and weekly stats
-- Create, edit, and reschedule appointments
-- Monthly calendar view
-- Patient records with visit history and notes
-- Reports — completion rates, no-show rates, top patients, monthly trends
+- Create, edit, and reschedule appointments with a split-layout booking form
+- Walk-in quick booking from the appointments page
+- Monthly calendar view with today's date ring indicator
+- Patient records — list, search, edit name/phone, doctor's notes, visit history
+- Remove a patient (PIN-protected, deletes all appointments)
+- Pre-filled booking form when booking from a patient's profile (name, phone, last-seen doctor)
+- Reports — completion rates, no-show rates, top patients, monthly trend chart
 - Configurable working hours, slot duration, and blocked dates
-- Shareable public booking link for patients
+- PIN protection for sensitive pages (reports, settings, billing, patient delete)
+- Dark / light theme toggle persisted via localStorage
+
+**Appointments**
+- Booking channel badges: Walk-in (gold), Reception (purple), Doctor (green), Patient (grey)
+- Appointment status: Scheduled, Completed, No-show, Cancelled
 
 **For patients**
 - Book appointments via a public URL — no login, no app
@@ -23,7 +31,8 @@ Doctors get a personal booking page, WhatsApp reminders, patient records, and a 
 - Automatic reminders 24 hours and 2 hours before the appointment
 
 **Platform**
-- 14-day free trial, then ₹299 (Basic) or ₹499 (Pro) per month
+- 14-day free trial, then ₹399/month (Solo plan)
+- Clinic / multi-doctor plan at ₹1,499/month
 - Razorpay payments — UPI, cards, net banking
 - Admin panel for platform owner to monitor all doctors and revenue
 
@@ -140,7 +149,7 @@ ClinicOS/
 │
 ├── templates/              # Jinja2 HTML templates
 └── static/
-    └── css/main.css        # Dark theme design system
+    └── css/main.css        # Dark/light theme design system
 ```
 
 ---
@@ -175,8 +184,10 @@ Use Razorpay test keys for development — no real charges.
 | Plan | Price | Notes |
 |---|---|---|
 | Free Trial | 14 days | Full access, no card needed |
-| Basic | ₹299/month | Up to 30 appointments/day |
-| Pro | ₹499/month | Unlimited appointments |
+| Solo | ₹399/month | Primary plan — individual doctor |
+| Clinic | ₹1,499/month | Multi-doctor clinic with reception workspace |
+| Basic | ₹299/month | Legacy |
+| Pro | ₹499/month | Legacy |
 
 ---
 

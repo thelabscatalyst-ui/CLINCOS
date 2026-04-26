@@ -256,7 +256,7 @@ a:hover { color: var(--text); }
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
-  border-color: #444;
+  border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(255,255,255,0.04);
 }
 
@@ -413,6 +413,34 @@ a:hover { color: var(--text); }
   color: var(--text);
 }
 
+/* Custom tooltip via data-tip */
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-3);
+  color: var(--text);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  transition-delay: 0s;
+  z-index: 200;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+[data-tip]:hover::after {
+  opacity: 1;
+  transition-delay: 0.18s;
+}
+
 /* Theme toggle */
 .navbar-controls {
   display: flex;
@@ -469,9 +497,7 @@ a:hover { color: var(--text); }
 /*  Main Layout                                                         */
 /* ------------------------------------------------------------------ */
 .main-content {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 32px 40px;
+  padding: 32px 80px;
 }
 
 /* ------------------------------------------------------------------ */
@@ -737,6 +763,45 @@ a:hover { color: var(--text); }
 .badge--cancelled { background: rgba(248, 113, 113, 0.12); color: var(--danger); }
 .badge--no_show   { background: rgba(251, 191, 36, 0.12); color: var(--warning); }
 
+/* Light theme: colored boxes keep bg/border, text becomes black */
+html.light .badge--scheduled { background: rgba(0,0,0,0.07); color: #111; }
+html.light .badge--completed { background: rgba(22,163,74,0.12); color: #111; }
+html.light .badge--cancelled { background: rgba(220,38,38,0.10); color: #111; }
+html.light .badge--no_show   { background: rgba(180,130,0,0.10); color: #111; }
+
+html.light .alert-error   { color: #111; }
+html.light .alert-success { color: #111; }
+
+html.light .sub-status-badge--trial   { color: #111; }
+html.light .sub-status-badge--solo    { color: #111; }
+html.light .sub-status-badge--basic   { color: #111; }
+html.light .sub-status-badge--pro     { color: #111; }
+html.light .sub-status-badge--expired { color: #111; }
+
+html.light .badge-channel--walkin { color: #111; }
+html.light .badge-channel--staff  { color: #111; }
+html.light .badge-channel--patient { color: #111; }
+html.light .badge-channel--doctor  { color: #111; }
+
+html.light .billing-expired-title { color: #111; }
+
+/* Calendar today ring — light theme */
+html.light .cal-day--today {
+  background: rgba(0,0,0,0.04);
+}
+html.light .cal-day--today .cal-day-num {
+  border-color: rgba(0,0,0,0.60);
+  box-shadow: 0 0 8px rgba(0,0,0,0.10), 0 0 18px rgba(0,0,0,0.05);
+}
+
+/* Theme toggle + logout — light theme: more visible border */
+html.light .theme-toggle {
+  border-color: var(--border-light);
+}
+html.light .logout-btn {
+  border-color: var(--border-light);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Empty State                                                         */
 /* ------------------------------------------------------------------ */
@@ -851,7 +916,29 @@ a:hover { color: var(--text); }
 .schedule-grid {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
+}
+
+.schedule-day-card {
+  background: var(--bg-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  transition: border-color 0.15s;
+}
+
+.schedule-day-card:hover {
+  border-color: var(--border);
+}
+
+.schedule-day-card > .schedule-row,
+.schedule-day-card > .schedule-shift-row,
+.schedule-day-card > .schedule-add-row {
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .schedule-header {
@@ -872,13 +959,8 @@ a:hover { color: var(--text); }
   gap: 12px;
   align-items: center;
   padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-3);
-  border: 1px solid transparent;
-  transition: border-color 0.15s, opacity 0.2s;
+  transition: opacity 0.2s;
 }
-
-.schedule-row:hover { border-color: var(--border); }
 
 .schedule-row--off .schedule-day,
 .schedule-row--off .input-sm {
@@ -891,6 +973,53 @@ a:hover { color: var(--text); }
   font-weight: 500;
   color: var(--text);
 }
+
+/* ---- Extra shift sub-rows ---- */
+.schedule-shift-row {
+  display: grid;
+  grid-template-columns: 110px 56px 1fr 1fr 110px 110px;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+}
+.schedule-shift-row.schedule-row--off {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.schedule-shift-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.2px;
+}
+
+/* ---- Add Shift row ---- */
+.schedule-add-row {
+  display: grid;
+  grid-template-columns: 110px 56px 1fr 1fr 110px 110px;
+  gap: 12px;
+  align-items: center;
+  padding: 5px 12px 9px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-add-shift {
+  grid-column: 3 / 7;
+  background: none;
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: color 0.15s, border-color 0.15s;
+}
+.btn-add-shift:hover { color: var(--text-muted); border-color: var(--text-dim); }
 
 /* ---- Toggle Switch ---- */
 .toggle {
@@ -931,6 +1060,12 @@ a:hover { color: var(--text); }
   background: var(--text);
 }
 
+/* Light theme: toggle is white-on-white without this override */
+html.light .toggle-track { background: rgba(0,0,0,0.14); }
+html.light .toggle-track::after { background: #666; }
+html.light .toggle input:checked + .toggle-track { background: #222; }
+html.light .toggle input:checked + .toggle-track::after { background: #fff; }
+
 /* ---- Small inline inputs ---- */
 .input-sm {
   width: 100%;
@@ -945,9 +1080,19 @@ a:hover { color: var(--text); }
   transition: border-color 0.15s;
 }
 
-.input-sm:focus { border-color: #444; }
+.input-sm:focus { border-color: var(--primary); }
 .input-sm:disabled { opacity: 0.3; cursor: not-allowed; }
 .input-sm option { background: var(--bg-2); }
+
+select.input-sm {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23555555' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  cursor: pointer;
+}
 
 /* ---- Clinic Profile grid ---- */
 .settings-form-grid {
@@ -1258,13 +1403,178 @@ a:hover { color: var(--text); }
   cursor: pointer;
 }
 
-.date-nav-input:focus { border-color: #555; }
+.date-nav-input:focus { border-color: var(--primary); }
 
 /* ------------------------------------------------------------------ */
-/*  New Appointment Form                                                */
+/*  Slot Picker                                                         */
 /* ------------------------------------------------------------------ */
+.slot-wrap {
+  position: relative;
+}
+
+.slot-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-3);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+  user-select: none;
+  transition: border-color 0.15s;
+}
+.slot-trigger:hover { border-color: var(--primary); }
+.slot-trigger svg { flex-shrink: 0; color: var(--text-dim); }
+.slot-trigger-text { flex: 1; }
+.slot-trigger-dim { color: var(--text-dim); }
+
+.slot-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  max-height: 196px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-3);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.28);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+.slot-dropdown::-webkit-scrollbar { width: 5px; }
+.slot-dropdown::-webkit-scrollbar-track { background: transparent; }
+.slot-dropdown::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+.slot-dropdown--open { display: block; }
+
+.slot-item {
+  padding: 11px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: background 0.1s, color 0.1s;
+  user-select: none;
+}
+.slot-item:last-child { border-bottom: none; }
+.slot-item:hover { background: var(--bg-2); color: var(--text); }
+.slot-item--active { background: var(--bg-2); color: var(--text); font-weight: 600; }
+
+.slot-empty,
+.slot-loading {
+  padding: 11px 14px;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+/* ------------------------------------------------------------------ */
+/*  New Appointment Form — Split Layout                                 */
+/* ------------------------------------------------------------------ */
+.appt-new-split {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 28px;
+  align-items: stretch;
+}
+
+.appt-new-split > div:first-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.appt-new-split > div:first-child .appt-form-card {
+  flex: 1;
+}
+
 .appt-form-card {
-  max-width: 620px;
+  width: 100%;
+}
+
+.appt-brand-panel {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 52px 40px 48px;
+  text-align: center;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.appt-brand-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.035) 0%, transparent 65%),
+    radial-gradient(ellipse at 50% 100%, rgba(255,255,255,0.015) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.appt-brand-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.appt-brand-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 76px;
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -2px;
+  color: var(--text);
+  margin-bottom: 28px;
+  position: relative;
+}
+
+.appt-brand-divider {
+  width: 40px;
+  height: 1px;
+  background: var(--border-light);
+  margin: 0 auto 28px;
+  position: relative;
+}
+
+.appt-brand-tagline {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-bottom: 36px;
+  position: relative;
+}
+
+.appt-brand-clinic {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  position: relative;
+}
+
+.appt-brand-clinic-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  position: relative;
+}
+
+@media (max-width: 960px) {
+  .appt-new-split {
+    grid-template-columns: 1fr;
+  }
+  .appt-brand-panel { display: none; }
 }
 
 .appt-form-actions {
@@ -1378,7 +1688,7 @@ a:hover { color: var(--text); }
   transition: border-color 0.15s;
 }
 
-.patient-search-input:focus { border-color: #444; }
+.patient-search-input:focus { border-color: var(--primary); }
 .patient-search-input::placeholder { color: var(--text-dim); }
 
 .patient-search-clear {
@@ -1649,8 +1959,10 @@ a:hover { color: var(--text); }
   .stats-row        { grid-template-columns: 1fr 1fr; }
   .quick-actions    { grid-template-columns: 1fr 1fr; }
   .settings-form-grid { grid-template-columns: 1fr; }
-  .schedule-header  { display: none; }
-  .schedule-row     { grid-template-columns: 90px 44px 1fr 1fr 80px 80px; gap: 8px; }
+  .schedule-header      { display: none; }
+  .schedule-row         { grid-template-columns: 90px 44px 1fr 1fr 80px 80px; gap: 8px; }
+  .schedule-shift-row   { grid-template-columns: 90px 44px 1fr 1fr 80px 80px; gap: 8px; }
+  .schedule-add-row     { grid-template-columns: 90px 44px 1fr 1fr 80px 80px; gap: 8px; }
 }
 
 @media (max-width: 480px) {
@@ -1775,14 +2087,15 @@ a:hover { color: var(--text); }
 .report-type-bar-wrap {
   flex: 1;
   height: 6px;
-  background: rgba(255,255,255,0.06);
+  background: var(--bg-3);
+  border: 1px solid var(--border-light);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .report-type-bar {
   height: 100%;
-  background: rgba(255,255,255,0.35);
+  background: var(--text);
   border-radius: 3px;
   transition: width 0.4s ease;
   min-width: 2px;
@@ -1876,32 +2189,49 @@ a:hover { color: var(--text); }
   gap: 6px;
 }
 
+/* Outer border box enclosing both plan cards */
+.billing-plans-box {
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+html.light .billing-plans-box {
+  border-color: rgba(0,0,0,0.14);
+}
+
 .billing-plans {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 0;
+  background: rgba(255,255,255,0.12); /* divider colour in dark */
+}
+html.light .billing-plans {
+  background: rgba(0,0,0,0.10); /* divider colour in light */
 }
 
 .billing-plan-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: none;
+  border-radius: 0;
   padding: 32px 28px;
   display: flex;
   flex-direction: column;
   gap: 0;
-  box-shadow: var(--glow);
-  transition: var(--transition-pop);
+  box-shadow: none;
+  transition: background 0.15s;
   position: relative;
 }
-.billing-plan-card:hover {
-  box-shadow: var(--glow-hover);
-  transform: translateY(-2px) scale(1.01);
-}
 .billing-plan-card--pro {
-  border-color: rgba(255,255,255,0.2);
-  background: #161616;
+  background: var(--bg-3);
+}
+html.light .billing-plan-card--pro {
+  background: var(--bg-2);
+}
+
+.billing-plan-btn {
+  width: 100%;
+  margin-top: auto;
 }
 
 .plan-badge {
@@ -2033,6 +2363,15 @@ a:hover { color: var(--text); }
 .sub-status-badge--pro     { color: #f0f0f0; border-color: rgba(240,240,240,0.3); background: rgba(240,240,240,0.08); }
 .sub-status-badge--expired { color: #f87171; border-color: rgba(248,113,113,0.3); background: rgba(248,113,113,0.08); }
 
+.sub-plan-box {
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+html.light .sub-plan-box {
+  border-color: rgba(0,0,0,0.14);
+}
+
 .sub-plan-row {
   display: flex;
   gap: 0;
@@ -2044,15 +2383,21 @@ a:hover { color: var(--text); }
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 4px 0;
+  padding: 20px 24px;
 }
-.sub-plan-option--pro {}
 
 .sub-plan-divider {
   width: 1px;
-  background: var(--border);
-  margin: 0 28px;
+  background: rgba(255,255,255,0.12);
   flex-shrink: 0;
+}
+html.light .sub-plan-divider {
+  background: rgba(0,0,0,0.10);
+}
+
+.sub-plan-btn {
+  margin-top: auto;
+  width: 100%;
 }
 
 .sub-plan-name {
@@ -2074,6 +2419,11 @@ a:hover { color: var(--text); }
   border-radius: 10px;
   padding: 2px 8px;
   letter-spacing: 0.04em;
+}
+html.light .sub-pro-tag {
+  background: rgba(0,0,0,0.07);
+  border-color: rgba(0,0,0,0.12);
+  color: #333;
 }
 
 .sub-plan-price {
@@ -2114,8 +2464,9 @@ a:hover { color: var(--text); }
 }
 
 @media (max-width: 600px) {
-  .sub-plan-row      { flex-direction: column; gap: 24px; }
-  .sub-plan-divider  { width: 100%; height: 1px; margin: 0; }
+  .sub-plan-row      { flex-direction: column; }
+  .sub-plan-divider  { width: 100%; height: 1px; }
+  .billing-plans     { grid-template-columns: 1fr; }
 }
 
 /* ------------------------------------------------------------------ */
@@ -2307,6 +2658,18 @@ a:hover { color: var(--text); }
   background: rgba(167, 139, 250, 0.12);
   color: #a78bfa;
   border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.badge-channel--doctor {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.badge-channel--patient {
+  background: rgba(160, 160, 160, 0.12);
+  color: #a0a0a0;
+  border: 1px solid rgba(160, 160, 160, 0.2);
 }
 
 /* ─── Phase 2: info card layout (clinic admin) ──────────────────────── */
@@ -2590,4 +2953,20 @@ html.light .data-table tbody tr:hover td {
   transform: none;
   box-shadow: none;
   border-color: transparent;
+}
+
+/* ── Page slide transitions ─────────────────────────────────────── */
+@keyframes pageSlideInRight {
+  from { transform: translateX(52px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes pageSlideInLeft {
+  from { transform: translateX(-52px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+.page-slide-right {
+  animation: pageSlideInRight 0.27s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.page-slide-left {
+  animation: pageSlideInLeft 0.27s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }

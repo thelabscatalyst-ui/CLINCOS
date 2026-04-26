@@ -133,18 +133,44 @@
 
 {% block scripts %}
 <script>
+function chartColors() {
+  const light = document.documentElement.classList.contains('light');
+  return light ? {
+    bar:        'rgba(0,0,0,0.40)',
+    barHover:   'rgba(0,0,0,0.55)',
+    border:     'rgba(0,0,0,0.70)',
+    grid:       'rgba(0,0,0,0.08)',
+    tick:       '#555',
+    tooltipBg:  '#ffffff',
+    tooltipBdr: '#cccccc',
+    titleCol:   '#111111',
+    bodyCol:    '#666666',
+  } : {
+    bar:        'rgba(255,255,255,0.40)',
+    barHover:   'rgba(255,255,255,0.55)',
+    border:     'rgba(255,255,255,0.70)',
+    grid:       'rgba(255,255,255,0.07)',
+    tick:       '#777',
+    tooltipBg:  '#1a1a1a',
+    tooltipBdr: '#2e2e2e',
+    titleCol:   '#f0f0f0',
+    bodyCol:    '#888',
+  };
+}
+
+const c = chartColors();
 const ctx = document.getElementById('monthlyChart').getContext('2d');
-new Chart(ctx, {
+const monthlyChart = new Chart(ctx, {
   type: 'bar',
   data: {
     labels: {{ monthly_labels | safe }},
     datasets: [{
       data: {{ monthly_counts | safe }},
-      backgroundColor: 'rgba(255,255,255,0.08)',
-      borderColor:     'rgba(255,255,255,0.25)',
+      backgroundColor: c.bar,
+      borderColor:     c.border,
       borderWidth: 1,
       borderRadius: 6,
-      hoverBackgroundColor: 'rgba(255,255,255,0.14)',
+      hoverBackgroundColor: c.barHover,
     }]
   },
   options: {
@@ -153,30 +179,48 @@ new Chart(ctx, {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: '#1a1a1a',
-        borderColor: '#2e2e2e',
+        backgroundColor: c.tooltipBg,
+        borderColor:     c.tooltipBdr,
         borderWidth: 1,
-        titleColor: '#f0f0f0',
-        bodyColor: '#888',
-        callbacks: {
-          label: ctx => ` ${ctx.parsed.y} appointments`,
-        }
+        titleColor: c.titleCol,
+        bodyColor:  c.bodyCol,
+        callbacks: { label: ctx => ` ${ctx.parsed.y} appointments` }
       }
     },
     scales: {
       x: {
-        grid:  { color: 'rgba(255,255,255,0.04)' },
-        ticks: { color: '#555', font: { size: 12 } },
+        grid:  { color: c.grid },
+        ticks: { color: c.tick, font: { size: 12 } },
         border:{ color: 'transparent' },
       },
       y: {
-        grid:  { color: 'rgba(255,255,255,0.04)' },
-        ticks: { color: '#555', font: { size: 12 }, stepSize: 1 },
+        grid:  { color: c.grid },
+        ticks: { color: c.tick, font: { size: 12 }, stepSize: 1 },
         border:{ color: 'transparent' },
         beginAtZero: true,
       }
     }
   }
 });
+
+// Re-colour chart whenever theme is toggled
+const _origToggle = window.toggleTheme;
+window.toggleTheme = function() {
+  _origToggle();
+  const nc = chartColors();
+  const ds = monthlyChart.data.datasets[0];
+  ds.backgroundColor      = nc.bar;
+  ds.borderColor          = nc.border;
+  ds.hoverBackgroundColor = nc.barHover;
+  const sc = monthlyChart.options.scales;
+  sc.x.grid.color  = sc.y.grid.color  = nc.grid;
+  sc.x.ticks.color = sc.y.ticks.color = nc.tick;
+  const tt = monthlyChart.options.plugins.tooltip;
+  tt.backgroundColor = nc.tooltipBg;
+  tt.borderColor     = nc.tooltipBdr;
+  tt.titleColor      = nc.titleCol;
+  tt.bodyColor       = nc.bodyCol;
+  monthlyChart.update();
+};
 </script>
 {% endblock %}

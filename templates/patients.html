@@ -26,6 +26,7 @@
 </form>
 
 <!-- Patient List -->
+<div id="patient-results">
 {% if patients %}
 
 <div class="patient-list-header">
@@ -86,18 +87,27 @@
   </div>
 </div>
 {% endif %}
+</div>
 
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Live search on keystroke
 const searchInput = document.querySelector('.patient-search-input');
 if (searchInput) {
   let timer;
   searchInput.addEventListener('input', () => {
     clearTimeout(timer);
-    timer = setTimeout(() => searchInput.closest('form').submit(), 350);
+    timer = setTimeout(async () => {
+      const q = searchInput.value;
+      const url = '/patients' + (q ? '?q=' + encodeURIComponent(q) : '');
+      history.pushState({}, '', url);
+      const res  = await fetch(url, { headers: { 'X-Requested-With': 'fetch' } });
+      const html = await res.text();
+      const doc  = new DOMParser().parseFromString(html, 'text/html');
+      document.getElementById('patient-results').innerHTML =
+        doc.getElementById('patient-results').innerHTML;
+    }, 700);
   });
 }
 </script>

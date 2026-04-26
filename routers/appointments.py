@@ -6,12 +6,13 @@ from sqlalchemy.orm import Session
 
 from database.connection import get_db
 from database.models import (
-    Doctor, Appointment, AppointmentStatus, AppointmentType, BookedBy,
+    Doctor, Patient, Appointment, AppointmentStatus, AppointmentType, BookedBy,
     ClinicDoctor, Clinic,
 )
 from services.auth_service import get_paying_doctor
 from services.appointment_service import (
-    get_available_slots, is_slot_available, is_slot_available_for_edit, get_or_create_patient,
+    get_available_slots, is_slot_available, is_slot_available_for_edit,
+    get_or_create_patient, has_open_appointment_on_date,
 )
 from services.notification_service import notify_appointment_confirmed
 
@@ -129,6 +130,7 @@ def available_slots(
 def new_appointment_page(
     request: Request,
     prefill_date: str = Query(default=""),
+    patient_id: int = Query(default=0),
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
@@ -139,7 +141,31 @@ def new_appointment_page(
         initial_date = today
 
     clinic_doctors = _get_owner_clinic_doctors(doctor, db)
-    slots = get_available_slots(doctor.id, initial_date, db)
+
+    # Pre-fill from patient if patient_id provided
+    form_data = {}
+    prefill_doctor_id = doctor.id
+    if patient_id:
+        patient = db.query(Patient).filter(
+            Patient.id == patient_id,
+            Patient.doctor_id == doctor.id,
+        ).first()
+        if patient:
+            form_data["patient_name"]  = patient.name
+            form_data["patient_phone"] = patient.phone
+            # Find the last appointment's doctor for this patient
+            last_appt = (
+                db.query(Appointment)
+                .filter(Appointment.patient_id == patient.id)
+                .order_by(Appointment.appointment_date.desc(), Appointment.appointment_time.desc())
+                .first()
+            )
+            if last_appt:
+                prefill_doctor_id = last_appt.doctor_id
+                form_data["for_doctor_id"] = last_appt.doctor_id
+
+    target_id = form_data.get("for_doctor_id", doctor.id)
+    slots = get_available_slots(target_id, initial_date, db)
 
     return templates.TemplateResponse(request, "appointment_new.html", {
         "doctor": doctor,
@@ -150,7 +176,7 @@ def new_appointment_page(
         "appointment_types": [e.value for e in AppointmentType],
         "active": "appointments",
         "error": None,
-        "form_data": {},
+        "form_data": form_data,
     })
 
 
@@ -219,6 +245,13 @@ async def create_appointment(
         return render_error("Patient name is required.")
     if not phone or len(phone) < 10:
         return render_error("A valid phone number is required (at least 10 digits).")
+
+    # Duplicate open appointment check
+    if has_open_appointment_on_date(target.id, phone, appt_date_obj, db):
+        return render_error(
+            "This patient already has a scheduled appointment on this day. "
+            "Mark it as completed, no-show, or cancelled before booking again."
+        )
 
     # Slot availability check
     ok, reason = is_slot_available(target.id, appt_date_obj, appt_time_obj, db)
@@ -432,6 +465,8 @@ def edit_appointment_page(
 async def edit_appointment(
     appt_id: int,
     request: Request,
+    patient_name: str = Form(""),
+    patient_phone: str = Form(""),
     appt_date: str = Form(...),
     appt_time: str = Form(...),
     appointment_type: str = Form("follow_up"),
@@ -497,6 +532,13 @@ async def edit_appointment(
     appt.appointment_type = appt_type
     appt.duration_mins    = duration
     appt.patient_notes    = patient_notes.strip() or None
+
+    # Update patient name / phone if changed
+    if appt.patient:
+        if patient_name.strip():
+            appt.patient.name = patient_name.strip()
+        if patient_phone.strip():
+            appt.patient.phone = patient_phone.strip()
 
     db.commit()
     return RedirectResponse(url=f"/appointments/{appt_id}", status_code=303)

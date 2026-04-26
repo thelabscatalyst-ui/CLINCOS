@@ -45,16 +45,20 @@
     <div class="stat-value">{{ total_patients }}</div>
     <div class="stat-sub">All time</div>
   </div>
+  {% if next_appointment %}
+  <a href="/appointments/{{ next_appointment.id }}" class="stat-card" style="text-decoration:none;cursor:pointer;">
+  {% else %}
   <div class="stat-card">
+  {% endif %}
     <div class="stat-label">Next Up</div>
     {% if next_appointment %}
     <div class="stat-value stat-value--sm">{{ next_appointment.patient.name }}</div>
-    <div class="stat-sub">{{ next_appointment.appointment_time.strftime("%I:%M %p") }} · {{ next_appointment.appointment_type.value.replace("_", " ").title() }}</div>
+    <div class="stat-sub">{{ next_appointment.appointment_time.strftime("%I:%M %p").lstrip("0") }} · {{ next_appointment.appointment_type.value.replace("_", " ").title() }}</div>
     {% else %}
     <div class="stat-value stat-value--sm">—</div>
     <div class="stat-sub">No more today</div>
     {% endif %}
-  </div>
+  {% if next_appointment %}</a>{% else %}</div>{% endif %}
   <div class="stat-card">
     <div class="stat-label">Clinic</div>
     <div class="stat-value stat-value--sm">{{ primary_clinic.name if primary_clinic else (doctor.clinic_name or "—") }}</div>

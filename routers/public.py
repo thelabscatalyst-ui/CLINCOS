@@ -11,6 +11,7 @@ from database.models import (
 )
 from services.appointment_service import (
     get_available_slots, is_slot_available, get_or_create_patient,
+    has_open_appointment_on_date,
 )
 from services.notification_service import notify_appointment_confirmed
 
@@ -160,6 +161,13 @@ async def clinic_book_appointment(
 
     if not _rate_limit_ok(phone, db):
         return render_error("Too many bookings from this number in the last 24 hours. Please call the clinic directly.")
+
+    # Duplicate open appointment check
+    if has_open_appointment_on_date(selected.id, phone, appt_date_obj, db):
+        return render_error(
+            "You already have a scheduled appointment on this day. "
+            "Please contact the clinic to reschedule or cancel it first."
+        )
 
     ok, reason = is_slot_available(selected.id, appt_date_obj, appt_time_obj, db)
     if not ok:
@@ -369,6 +377,13 @@ async def book_appointment(
         return render_error(
             "Too many bookings from this number in the last 24 hours. "
             "Please call the clinic directly."
+        )
+
+    # Duplicate open appointment check
+    if has_open_appointment_on_date(doctor.id, phone, appt_date_obj, db):
+        return render_error(
+            "You already have a scheduled appointment on this day. "
+            "Please contact the clinic to reschedule or cancel it first."
         )
 
     # Slot availability

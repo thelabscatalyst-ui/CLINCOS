@@ -25,6 +25,7 @@ from services.auth_service import (
 )
 from services.appointment_service import (
     get_available_slots, is_slot_available, get_or_create_patient,
+    has_open_appointment_on_date,
 )
 from services.notification_service import notify_appointment_confirmed
 
@@ -179,11 +180,24 @@ def reception_create_appointment(
     except ValueError:
         return _error("Invalid date or time.")
 
+    phone = patient_phone.strip()
+    if has_open_appointment_on_date(selected.id, phone, a_date, db):
+        return _error(
+            "This patient already has a scheduled appointment on this day. "
+            "Mark it as completed, no-show, or cancelled before booking again."
+        )
+
     ok, reason = is_slot_available(selected.id, a_date, a_time, db)
     if not ok:
         return _error(reason)
 
-    patient = get_or_create_patient(selected.id, patient_name.strip(), patient_phone.strip(), db)
+    # Defensive enum parse — match the pattern used by /appointments and /book/{slug}
+    try:
+        appt_type = AppointmentType(appointment_type)
+    except ValueError:
+        appt_type = AppointmentType.follow_up
+
+    patient = get_or_create_patient(selected.id, patient_name.strip(), phone, db)
 
     appt = Appointment(
         doctor_id        = selected.id,
@@ -192,7 +206,7 @@ def reception_create_appointment(
         staff_id         = staff.id,
         appointment_date = a_date,
         appointment_time = a_time,
-        appointment_type = AppointmentType(appointment_type),
+        appointment_type = appt_type,
         patient_notes    = patient_notes.strip() or None,
         booked_by        = BookedBy.staff,
     )

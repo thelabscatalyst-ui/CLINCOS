@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, Depends, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, case
 from typing import Optional, List
 
 from database.connection import get_db
@@ -44,7 +44,10 @@ def dashboard(
             Appointment.appointment_date == today,
             Appointment.status != AppointmentStatus.cancelled,
         )
-        .order_by(Appointment.appointment_time)
+        .order_by(
+            case((Appointment.status == AppointmentStatus.scheduled, 0), else_=1),
+            Appointment.appointment_time,
+        )
         .all()
     )
 
@@ -56,10 +59,9 @@ def dashboard(
     completed_today = sum(1 for a in todays_appointments if a.status == AppointmentStatus.completed)
     pending_today = sum(1 for a in todays_appointments if a.status == AppointmentStatus.scheduled)
 
-    now_time = datetime.now().time()
+    # Show the earliest still-open appointment regardless of whether its time has passed
     next_appointment = next(
-        (a for a in todays_appointments
-         if a.status == AppointmentStatus.scheduled and a.appointment_time >= now_time),
+        (a for a in todays_appointments if a.status == AppointmentStatus.scheduled),
         None,
     )
 
@@ -128,21 +130,28 @@ def settings_page(
     saved: str = "",
     pin_error: str = "",
 ):
-    schedules_db = db.query(DoctorSchedule).filter(DoctorSchedule.doctor_id == doctor.id).all()
-    schedule_map = {s.day_of_week: s for s in schedules_db}
-
-    # Build a list of 7 day dicts for the template
+    # Build a list of 7 day dicts — each day has a primary shift + optional extra shifts
     days_data = []
     for i, name in enumerate(DAYS):
-        s = schedule_map.get(i)
+        rows = (
+            db.query(DoctorSchedule)
+            .filter(DoctorSchedule.doctor_id == doctor.id, DoctorSchedule.day_of_week == i)
+            .order_by(DoctorSchedule.start_time)
+            .all()
+        )
+        s1 = rows[0] if rows else None
         days_data.append({
-            "index": i,
-            "name": name,
-            "is_active": s.is_active if s else False,
-            "start_time": s.start_time.strftime("%H:%M") if s else "09:00",
-            "end_time": s.end_time.strftime("%H:%M") if s else "18:00",
-            "slot_duration": s.slot_duration if s else 15,
-            "max_patients": s.max_patients if s else 30,
+            "index":        i,
+            "name":         name,
+            "is_active":    s1.is_active    if s1 else False,
+            "start_time":   s1.start_time.strftime("%H:%M") if s1 else "09:00",
+            "end_time":     s1.end_time.strftime("%H:%M")   if s1 else "13:00",
+            "slot_duration":s1.slot_duration if s1 else 15,
+            "max_patients": s1.max_patients  if s1 else 30,
+            "extra_shifts": [
+                {"start": s.start_time.strftime("%H:%M"), "end": s.end_time.strftime("%H:%M")}
+                for s in rows[1:]
+            ],
         })
 
     blocked = (
@@ -175,8 +184,15 @@ def settings_page(
     pin_error_msg = {
         "wrong":    "Incorrect current PIN.",
         "mismatch": "PINs do not match.",
-        "invalid":  "PIN must be 4–6 digits.",
+        "invalid":  "PIN must be exactly 6 digits.",
     }.get(pin_error, "")
+
+    from database.models import ClinicDoctor
+    is_clinic_owner = db.query(ClinicDoctor).filter(
+        ClinicDoctor.doctor_id == doctor.id,
+        ClinicDoctor.role == "owner",
+        ClinicDoctor.is_active == True,
+    ).first() is not None
 
     return templates.TemplateResponse(request, "settings.html", {
         "doctor":               doctor,
@@ -189,6 +205,7 @@ def settings_page(
         "razorpay_configured":  bool(cfg.RAZORPAY_KEY_ID),
         "pin_error":            pin_error_msg,
         "pin_required":         getattr(request.state, "pin_required", False),
+        "is_clinic_owner":      is_clinic_owner,
     })
 
 
@@ -205,39 +222,41 @@ async def save_schedule(
     form = await request.form()
 
     for i in range(7):
-        is_active = form.get(f"active_{i}") == "on"
-        start_str = form.get(f"start_{i}", "09:00")
-        end_str = form.get(f"end_{i}", "18:00")
-        slot_dur = int(form.get(f"slot_{i}", 15))
-        max_pat = int(form.get(f"max_{i}", 30))
-
-        try:
-            start_t = dtime.fromisoformat(start_str)
-            end_t = dtime.fromisoformat(end_str)
-        except ValueError:
-            continue
-
-        existing = db.query(DoctorSchedule).filter(
+        # Delete all existing schedules for this day (clean slate)
+        db.query(DoctorSchedule).filter(
             DoctorSchedule.doctor_id == doctor.id,
             DoctorSchedule.day_of_week == i,
-        ).first()
+        ).delete(synchronize_session=False)
 
-        if existing:
-            existing.is_active = is_active
-            existing.start_time = start_t
-            existing.end_time = end_t
-            existing.slot_duration = slot_dur
-            existing.max_patients = max_pat
-        else:
+        if form.get(f"active_{i}") != "on":
+            continue   # day is off — leave deleted
+
+        slot_dur = int(form.get(f"slot_{i}", 15))
+        max_pat  = int(form.get(f"max_{i}",  30))
+
+        # Read shifts in order: shift_start_{day}_{k} / shift_end_{day}_{k}
+        prev_end = None
+        for k in range(20):    # hard cap: 20 shifts per day
+            s = (form.get(f"shift_start_{i}_{k}") or "").strip()
+            e = (form.get(f"shift_end_{i}_{k}")   or "").strip()
+            if not s or not e:
+                break          # no more shifts submitted
+            try:
+                st = dtime.fromisoformat(s)
+                et = dtime.fromisoformat(e)
+            except ValueError:
+                continue
+            if et <= st:
+                continue       # invalid range
+            if prev_end and st < prev_end:
+                continue       # overlaps previous shift — skip
             db.add(DoctorSchedule(
-                doctor_id=doctor.id,
-                day_of_week=i,
-                start_time=start_t,
-                end_time=end_t,
-                slot_duration=slot_dur,
-                max_patients=max_pat,
-                is_active=is_active,
+                doctor_id=doctor.id, day_of_week=i,
+                start_time=st, end_time=et,
+                slot_duration=slot_dur, max_patients=max_pat,
+                is_active=True,
             ))
+            prev_end = et
 
     db.commit()
     return RedirectResponse(url="/doctors/settings?saved=1", status_code=303)
@@ -752,7 +771,7 @@ async def update_pin(
     # Validate new PIN
     pin = new_pin.strip()
     confirm = confirm_pin.strip()
-    if not pin.isdigit() or not (4 <= len(pin) <= 6):
+    if not pin.isdigit() or len(pin) != 6:
         return RedirectResponse("/doctors/settings?pin_error=invalid", 303)
     if pin != confirm:
         return RedirectResponse("/doctors/settings?pin_error=mismatch", 303)

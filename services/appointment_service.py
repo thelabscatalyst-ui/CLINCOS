@@ -20,7 +20,9 @@ def _generate_slots(start: time, end: time, duration_mins: int) -> List[time]:
 
 
 def get_available_slots(doctor_id: int, appt_date: date, db: Session) -> List[str]:
-    """Return list of available HH:MM time slots for a doctor on a given date."""
+    """Return list of available HH:MM time slots for a doctor on a given date.
+    Merges slots across all active shifts for the day (supports multi-shift days).
+    """
     # Check blocked date
     blocked = db.query(BlockedDate).filter(
         BlockedDate.doctor_id == doctor_id,
@@ -29,18 +31,26 @@ def get_available_slots(doctor_id: int, appt_date: date, db: Session) -> List[st
     if blocked:
         return []
 
-    # Get schedule for that day of week (0=Mon … 6=Sun)
+    # Get ALL active schedules for that day (ordered by start time)
     dow = appt_date.weekday()
-    schedule = db.query(DoctorSchedule).filter(
-        DoctorSchedule.doctor_id == doctor_id,
-        DoctorSchedule.day_of_week == dow,
-        DoctorSchedule.is_active == True,
-    ).first()
-    if not schedule:
+    schedules = (
+        db.query(DoctorSchedule)
+        .filter(
+            DoctorSchedule.doctor_id == doctor_id,
+            DoctorSchedule.day_of_week == dow,
+            DoctorSchedule.is_active == True,
+        )
+        .order_by(DoctorSchedule.start_time)
+        .all()
+    )
+    if not schedules:
         return []
 
-    # All slots for this shift
-    all_slots = _generate_slots(schedule.start_time, schedule.end_time, schedule.slot_duration)
+    # Merge slots from all shifts (deduplicated + sorted)
+    all_slots_set: set = set()
+    for s in schedules:
+        all_slots_set.update(_generate_slots(s.start_time, s.end_time, s.slot_duration))
+    all_slots = sorted(all_slots_set)
 
     # Already-booked (non-cancelled) appointments
     booked = db.query(Appointment).filter(
@@ -49,12 +59,19 @@ def get_available_slots(doctor_id: int, appt_date: date, db: Session) -> List[st
         Appointment.status != AppointmentStatus.cancelled,
     ).all()
 
-    # max_patients cap
-    if len(booked) >= schedule.max_patients:
+    # Use highest max_patients across shifts as the daily cap
+    total_max = max(s.max_patients for s in schedules)
+    if len(booked) >= total_max:
         return []
 
     booked_times = {a.appointment_time for a in booked}
-    available = [s for s in all_slots if s not in booked_times]
+
+    # For today: only show slots that haven't passed yet (includes upcoming shifts)
+    if appt_date == date.today():
+        now_time = datetime.now().time()
+        available = [s for s in all_slots if s not in booked_times and s > now_time]
+    else:
+        available = [s for s in all_slots if s not in booked_times]
 
     return [s.strftime("%H:%M") for s in available]
 
@@ -62,8 +79,9 @@ def get_available_slots(doctor_id: int, appt_date: date, db: Session) -> List[st
 def is_slot_available(
     doctor_id: int, appt_date: date, appt_time: time, db: Session
 ) -> Tuple[bool, str]:
-    """Returns (True, '') if slot is available, or (False, reason) otherwise."""
-    # Blocked date check
+    """Returns (True, '') if slot is available, or (False, reason) otherwise.
+    Checks all active shifts for the day.
+    """
     blocked = db.query(BlockedDate).filter(
         BlockedDate.doctor_id == doctor_id,
         BlockedDate.blocked_date == appt_date,
@@ -71,22 +89,28 @@ def is_slot_available(
     if blocked:
         return False, "This date is blocked. Please choose another date."
 
-    # Schedule check
     dow = appt_date.weekday()
-    schedule = db.query(DoctorSchedule).filter(
-        DoctorSchedule.doctor_id == doctor_id,
-        DoctorSchedule.day_of_week == dow,
-        DoctorSchedule.is_active == True,
-    ).first()
-    if not schedule:
+    schedules = (
+        db.query(DoctorSchedule)
+        .filter(
+            DoctorSchedule.doctor_id == doctor_id,
+            DoctorSchedule.day_of_week == dow,
+            DoctorSchedule.is_active == True,
+        )
+        .order_by(DoctorSchedule.start_time)
+        .all()
+    )
+    if not schedules:
         return False, "No working hours set for this day. Check Settings → Schedule."
 
-    if appt_time < schedule.start_time or appt_time >= schedule.end_time:
-        return (
-            False,
-            f"Time is outside working hours "
-            f"({schedule.start_time.strftime('%H:%M')} – {schedule.end_time.strftime('%H:%M')}).",
+    # Time must fall within at least one shift
+    in_shift = any(s.start_time <= appt_time < s.end_time for s in schedules)
+    if not in_shift:
+        shifts_str = " / ".join(
+            f"{s.start_time.strftime('%H:%M')}–{s.end_time.strftime('%H:%M')}"
+            for s in schedules
         )
+        return False, f"Time is outside working hours ({shifts_str})."
 
     # Double-booking check
     conflict = db.query(Appointment).filter(
@@ -98,13 +122,14 @@ def is_slot_available(
     if conflict:
         return False, "This time slot is already booked."
 
-    # Max-patients cap
+    # Max-patients cap (use highest across shifts)
+    total_max = max(s.max_patients for s in schedules)
     day_count = db.query(Appointment).filter(
         Appointment.doctor_id == doctor_id,
         Appointment.appointment_date == appt_date,
         Appointment.status != AppointmentStatus.cancelled,
     ).count()
-    if day_count >= schedule.max_patients:
+    if day_count >= total_max:
         return False, "Maximum patients for this day has been reached."
 
     return True, ""
@@ -123,20 +148,26 @@ def is_slot_available_for_edit(
         return False, "This date is blocked. Please choose another date."
 
     dow = appt_date.weekday()
-    schedule = db.query(DoctorSchedule).filter(
-        DoctorSchedule.doctor_id == doctor_id,
-        DoctorSchedule.day_of_week == dow,
-        DoctorSchedule.is_active == True,
-    ).first()
-    if not schedule:
+    schedules = (
+        db.query(DoctorSchedule)
+        .filter(
+            DoctorSchedule.doctor_id == doctor_id,
+            DoctorSchedule.day_of_week == dow,
+            DoctorSchedule.is_active == True,
+        )
+        .order_by(DoctorSchedule.start_time)
+        .all()
+    )
+    if not schedules:
         return False, "No working hours set for this day. Check Settings → Schedule."
 
-    if appt_time < schedule.start_time or appt_time >= schedule.end_time:
-        return (
-            False,
-            f"Time is outside working hours "
-            f"({schedule.start_time.strftime('%H:%M')} – {schedule.end_time.strftime('%H:%M')}).",
+    in_shift = any(s.start_time <= appt_time < s.end_time for s in schedules)
+    if not in_shift:
+        shifts_str = " / ".join(
+            f"{s.start_time.strftime('%H:%M')}–{s.end_time.strftime('%H:%M')}"
+            for s in schedules
         )
+        return False, f"Time is outside working hours ({shifts_str})."
 
     conflict = db.query(Appointment).filter(
         Appointment.id != exclude_appt_id,
@@ -148,16 +179,40 @@ def is_slot_available_for_edit(
     if conflict:
         return False, "This time slot is already booked."
 
+    total_max = max(s.max_patients for s in schedules)
     day_count = db.query(Appointment).filter(
         Appointment.id != exclude_appt_id,
         Appointment.doctor_id == doctor_id,
         Appointment.appointment_date == appt_date,
         Appointment.status != AppointmentStatus.cancelled,
     ).count()
-    if day_count >= schedule.max_patients:
+    if day_count >= total_max:
         return False, "Maximum patients for this day has been reached."
 
     return True, ""
+
+
+def has_open_appointment_on_date(
+    doctor_id: int, phone: str, appt_date: date, db: Session,
+    exclude_appt_id: int = 0,
+) -> bool:
+    """Return True if the patient (by phone) already has a scheduled appointment
+    with this doctor on this date. Cancelled / completed / no-show are ignored."""
+    patient = db.query(Patient).filter(
+        Patient.doctor_id == doctor_id,
+        Patient.phone == phone,
+    ).first()
+    if not patient:
+        return False
+    q = db.query(Appointment).filter(
+        Appointment.doctor_id  == doctor_id,
+        Appointment.patient_id == patient.id,
+        Appointment.appointment_date == appt_date,
+        Appointment.status == AppointmentStatus.scheduled,
+    )
+    if exclude_appt_id:
+        q = q.filter(Appointment.id != exclude_appt_id)
+    return q.first() is not None
 
 
 def get_or_create_patient(

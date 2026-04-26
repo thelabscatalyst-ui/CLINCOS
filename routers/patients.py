@@ -7,7 +7,7 @@ from sqlalchemy import func, or_
 
 from database.connection import get_db
 from database.models import Doctor, Patient, Appointment, AppointmentStatus
-from services.auth_service import get_paying_doctor
+from services.auth_service import get_paying_doctor, require_pin
 
 router = APIRouter(prefix="/patients", tags=["patients"])
 templates = Jinja2Templates(directory="templates")
@@ -58,7 +58,7 @@ def patients_list(
 def patient_detail(
     patient_id: int,
     request: Request,
-    doctor: Doctor = Depends(get_paying_doctor),
+    doctor: Doctor = Depends(require_pin),
     db: Session = Depends(get_db),
 ):
     patient = db.query(Patient).filter(
@@ -92,12 +92,50 @@ def patient_detail(
         "completed":    completed,
         "upcoming":     upcoming,
         "active":       "patients",
+        "pin_required": getattr(request.state, "pin_required", False),
     })
 
 
 # ------------------------------------------------------------------ #
 #  Update Notes                                                        #
 # ------------------------------------------------------------------ #
+
+@router.post("/{patient_id}/delete")
+def delete_patient(
+    patient_id: int,
+    request: Request,
+    doctor: Doctor = Depends(require_pin),
+    db: Session = Depends(get_db),
+):
+    patient = db.query(Patient).filter(
+        Patient.id == patient_id,
+        Patient.doctor_id == doctor.id,
+    ).first()
+    if patient:
+        db.query(Appointment).filter(Appointment.patient_id == patient.id).delete()
+        db.delete(patient)
+        db.commit()
+    return RedirectResponse(url="/patients", status_code=303)
+
+
+@router.post("/{patient_id}/edit")
+def edit_patient(
+    patient_id: int,
+    name: str = Form(...),
+    phone: str = Form(...),
+    doctor: Doctor = Depends(get_paying_doctor),
+    db: Session = Depends(get_db),
+):
+    patient = db.query(Patient).filter(
+        Patient.id == patient_id,
+        Patient.doctor_id == doctor.id,
+    ).first()
+    if patient:
+        patient.name = name.strip()
+        patient.phone = phone.strip()
+        db.commit()
+    return RedirectResponse(url=f"/patients/{patient_id}", status_code=303)
+
 
 @router.post("/{patient_id}/notes", response_class=HTMLResponse)
 def update_notes(
