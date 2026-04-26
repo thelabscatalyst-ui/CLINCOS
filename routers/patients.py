@@ -328,6 +328,97 @@ def delete_note(
 
 
 # --------------------------------------------------------------------------- #
+#  Edit Note (AJAX — update text + add more files)                             #
+# --------------------------------------------------------------------------- #
+
+@router.post("/{patient_id}/notes/{note_id}/edit")
+async def edit_note(
+    patient_id: int,
+    note_id: int,
+    note_text: str = Form(""),
+    new_files: List[UploadFile] = File(default=[]),
+    doctor: Doctor = Depends(get_paying_doctor),
+    db: Session = Depends(get_db),
+):
+    note = db.query(PatientNote).filter(
+        PatientNote.id == note_id,
+        PatientNote.patient_id == patient_id,
+        PatientNote.doctor_id == doctor.id,
+    ).first()
+    if not note:
+        return JSONResponse({"error": "Note not found."}, status_code=404)
+
+    text = note_text.strip()
+    real_files = [f for f in new_files if f.filename]
+
+    # Must have at least some content after edit
+    remaining_files = len(note.files)
+    if not text and remaining_files == 0 and not real_files:
+        return JSONResponse({"error": "Note cannot be empty."}, status_code=400)
+
+    if text:
+        note.note_text = text
+
+    # Save any new files
+    if real_files:
+        udir = _upload_dir(doctor.id, patient_id)
+        for f in real_files:
+            content = await f.read()
+            if len(content) > MAX_FILE_BYTES:
+                continue
+            stored_name = f"{uuid.uuid4().hex}_{f.filename}"
+            dest = udir / stored_name
+            async with aiofiles.open(dest, "wb") as fh:
+                await fh.write(content)
+            db.add(NoteFile(
+                note_id=note.id,
+                original_name=f.filename,
+                stored_name=stored_name,
+                file_size=len(content),
+            ))
+
+    db.commit()
+    db.refresh(note)
+
+    return JSONResponse({
+        "ok":   True,
+        "text": note.note_text,
+        "files": [
+            {"id": nf.id, "name": nf.original_name, "size": _fmt_size(nf.file_size)}
+            for nf in note.files
+        ],
+    })
+
+
+# --------------------------------------------------------------------------- #
+#  Delete Single File from Note (AJAX)                                         #
+# --------------------------------------------------------------------------- #
+
+@router.post("/{patient_id}/files/{file_id}/delete")
+def delete_note_file(
+    patient_id: int,
+    file_id: int,
+    doctor: Doctor = Depends(get_paying_doctor),
+    db: Session = Depends(get_db),
+):
+    nf = db.query(NoteFile).join(PatientNote).filter(
+        NoteFile.id == file_id,
+        PatientNote.patient_id == patient_id,
+        PatientNote.doctor_id == doctor.id,
+    ).first()
+    if not nf:
+        return JSONResponse({"error": "File not found."}, status_code=404)
+
+    path = Path(f"uploads/patients/{doctor.id}/{patient_id}/{nf.stored_name}")
+    if path.exists():
+        path.unlink()
+
+    db.delete(nf)
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+# --------------------------------------------------------------------------- #
 #  Delete Patient                                                               #
 # --------------------------------------------------------------------------- #
 

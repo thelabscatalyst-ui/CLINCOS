@@ -3050,6 +3050,36 @@ html.light .data-table tbody tr:hover td {
   flex-shrink: 0;
 }
 
+/* Edit + delete icon buttons — top-right of note body */
+.note-entry-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 2px;
+  z-index: 1;
+}
+.note-entry-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  transition: color 0.15s, background 0.15s;
+}
+.note-entry-action-btn:hover {
+  color: var(--text-muted);
+  background: var(--bg-2);
+}
+.note-entry-action-btn--danger:hover {
+  color: var(--danger);
+  background: rgba(248,113,113,0.1);
+}
+
+/* Legacy alias — kept so any old references still work */
 .note-entry-delete {
   position: absolute;
   top: 10px;
@@ -3068,6 +3098,82 @@ html.light .data-table tbody tr:hover td {
 .note-entry-delete:hover {
   color: var(--danger);
   background: rgba(248,113,113,0.1);
+}
+
+/* Edit mode — note body becomes a form */
+.note-entry-body--editing {
+  border-color: var(--border-light) !important;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.04);
+}
+.note-edit-textarea {
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.65;
+  padding: 10px 12px;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+}
+.note-edit-textarea:focus {
+  outline: none;
+  border-color: var(--border-light);
+}
+
+/* File chips in edit mode: not clickable, have × remove button */
+.note-file-chip--editable {
+  cursor: default;
+  padding-right: 6px;
+}
+.note-file-chip--editable:hover {
+  transform: none;
+  box-shadow: none;
+}
+.note-file-chip-remove {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  margin-left: 2px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.note-file-chip-remove:hover { color: var(--danger); }
+
+/* New-file chips queued inside edit mode */
+.note-file-chip--new {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
+/* Add-more-files row inside edit mode */
+.note-edit-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.note-edit-add-row label {
+  cursor: pointer;
+}
+
+/* Edit action buttons row */
+.note-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .note-empty-state {

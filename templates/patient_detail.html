@@ -85,7 +85,11 @@
           <div class="note-entry-files">
             {% for f in note.files %}
             <a href="/patients/{{ patient.id }}/files/{{ f.id }}"
-               class="note-file-chip" target="_blank" rel="noopener">
+               class="note-file-chip"
+               data-file-id="{{ f.id }}"
+               data-file-name="{{ f.name }}"
+               data-file-size="{{ f.size }}"
+               target="_blank" rel="noopener">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" stroke-width="2"
                    stroke-linecap="round" stroke-linejoin="round">
@@ -98,18 +102,29 @@
             {% endfor %}
           </div>
           {% endif %}
-          <button type="button" class="note-entry-delete"
-                  onclick="deleteNote({{ note.id }}, this)"
-                  title="Delete this note">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-              <path d="M10 11v6M14 11v6"/>
-              <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-            </svg>
-          </button>
+          <!-- Edit + Delete action buttons -->
+          <div class="note-entry-actions">
+            <button type="button" class="note-entry-action-btn"
+                    onclick="enterEditMode({{ note.id }})" title="Edit note">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button type="button" class="note-entry-action-btn note-entry-action-btn--danger"
+                    onclick="deleteNote({{ note.id }}, this)" title="Delete note">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2.2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
       {% endfor %}
@@ -241,11 +256,32 @@
 
 {% block scripts %}
 <script>
-/* ── Constants ──────────────────────────────────────────────────── */
-const PATIENT_ID   = {{ patient.id }};
-const ADD_NOTE_URL = `/patients/${PATIENT_ID}/notes/add`;
-const DEL_NOTE_URL = (id) => `/patients/${PATIENT_ID}/notes/${id}/delete`;
-const FILE_URL     = (id) => `/patients/${PATIENT_ID}/files/${id}`;
+/* ── Constants & URL helpers ────────────────────────────────────── */
+const PATIENT_ID       = {{ patient.id }};
+const ADD_NOTE_URL     = `/patients/${PATIENT_ID}/notes/add`;
+const DEL_NOTE_URL     = (id)          => `/patients/${PATIENT_ID}/notes/${id}/delete`;
+const EDIT_NOTE_URL    = (id)          => `/patients/${PATIENT_ID}/notes/${id}/edit`;
+const DEL_FILE_URL     = (fid)         => `/patients/${PATIENT_ID}/files/${fid}/delete`;
+const FILE_URL         = (id)          => `/patients/${PATIENT_ID}/files/${id}`;
+
+/* ── Shared SVG icon strings ────────────────────────────────────── */
+const SVG_CLIP = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19
+           a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+</svg>`;
+const SVG_EDIT = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+</svg>`;
+const SVG_TRASH = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+  stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="3 6 5 6 21 6"/>
+  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+  <path d="M10 11v6M14 11v6"/>
+  <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+</svg>`;
 
 /* ── State ──────────────────────────────────────────────────────── */
 let pendingFiles  = [];   // files staged in the modal (before Attach)
@@ -288,50 +324,47 @@ function fmtSize(bytes) {
   return `${(bytes/(1024*1024)).toFixed(1)} MB`;
 }
 
-/* ── Build HTML for a newly saved note block ─────────────────────── */
+/* ── Build read-mode file chips HTML ─────────────────────────────── */
+function buildFileChipsHTML(files) {
+  if (!files || !files.length) return '';
+  const chips = files.map(f => {
+    const sizeSpan = f.size ? `<span class="note-file-chip-size">${f.size}</span>` : '';
+    return `<a href="${FILE_URL(f.id)}" class="note-file-chip"
+               data-file-id="${f.id}"
+               data-file-name="${f.name.replace(/"/g,'&quot;')}"
+               data-file-size="${(f.size||'').replace(/"/g,'&quot;')}"
+               target="_blank" rel="noopener">
+              ${SVG_CLIP}
+              <span class="note-file-chip-name">${f.name}</span>
+              ${sizeSpan}
+            </a>`;
+  }).join('');
+  return `<div class="note-entry-files">${chips}</div>`;
+}
+
+/* ── Build read-mode note body HTML ──────────────────────────────── */
+function buildNoteBodyHTML(noteId, text, files) {
+  const safeText = (text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return `
+    <p class="note-entry-text">${safeText}</p>
+    ${buildFileChipsHTML(files)}
+    <div class="note-entry-actions">
+      <button type="button" class="note-entry-action-btn"
+              onclick="enterEditMode(${noteId})" title="Edit note">${SVG_EDIT}</button>
+      <button type="button" class="note-entry-action-btn note-entry-action-btn--danger"
+              onclick="deleteNote(${noteId}, this)" title="Delete note">${SVG_TRASH}</button>
+    </div>`;
+}
+
+/* ── Build full note entry HTML (for newly created notes) ────────── */
 function buildNoteHTML(note) {
   // note = { note_id, date_label, text, files: [{id, name, size}] }
   const dateLabel = note.date_label || formatNoteDate(null);
   const noteId    = note.note_id;
-  const text      = (note.text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
-  let filesHTML = '';
-  if (note.files && note.files.length) {
-    const chips = note.files.map(f => {
-      const sizeSpan = f.size ? `<span class="note-file-chip-size">${f.size}</span>` : '';
-      return `
-        <a href="${FILE_URL(f.id)}" class="note-file-chip" target="_blank" rel="noopener">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19
-                     a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
-          </svg>
-          <span class="note-file-chip-name">${f.name}</span>
-          ${sizeSpan}
-        </a>`;
-    }).join('');
-    filesHTML = `<div class="note-entry-files">${chips}</div>`;
-  }
-
   return `
     <div class="note-entry" id="note-${noteId}">
       <div class="note-entry-date"><span>${dateLabel}</span></div>
-      <div class="note-entry-body">
-        <p class="note-entry-text">${text}</p>
-        ${filesHTML}
-        <button type="button" class="note-entry-delete"
-                onclick="deleteNote(${noteId}, this)" title="Delete this note">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-            <path d="M10 11v6M14 11v6"/>
-            <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-          </svg>
-        </button>
-      </div>
+      <div class="note-entry-body">${buildNoteBodyHTML(noteId, note.text, note.files)}</div>
     </div>`;
 }
 
@@ -419,6 +452,178 @@ async function deleteNote(noteId, btn) {
     }
   } catch (_) {
     alert('Could not delete note. Please try again.');
+  }
+}
+
+/* ── Edit mode ───────────────────────────────────────────────────── */
+const noteEditState = {};  // noteId → { originalBodyHTML, newFiles[] }
+
+function enterEditMode(noteId) {
+  const body = document.querySelector(`#note-${noteId} .note-entry-body`);
+  if (!body) return;
+
+  // Snapshot for cancel
+  noteEditState[noteId] = { originalBodyHTML: body.innerHTML, newFiles: [] };
+
+  // Collect existing file data from DOM data-* attributes
+  const existingFiles = Array.from(body.querySelectorAll('.note-file-chip[data-file-id]')).map(a => ({
+    id:   a.dataset.fileId,
+    name: a.dataset.fileName,
+    size: a.dataset.fileSize,
+  }));
+
+  const currentText = (body.querySelector('.note-entry-text') || {}).innerText || '';
+
+  // Build editable file chips (div, not link, with × button)
+  const editChips = existingFiles.map(f => `
+    <div class="note-file-chip note-file-chip--editable" data-file-id="${f.id}">
+      ${SVG_CLIP}
+      <span class="note-file-chip-name">${f.name}</span>
+      ${f.size ? `<span class="note-file-chip-size">${f.size}</span>` : ''}
+      <button type="button" class="note-file-chip-remove"
+              onclick="removeExistingFile(${noteId}, ${f.id}, this)"
+              title="Remove file">×</button>
+    </div>`).join('');
+
+  body.classList.add('note-entry-body--editing');
+  body.innerHTML = `
+    <textarea class="note-edit-textarea" id="note-edit-ta-${noteId}">${currentText}</textarea>
+    <div class="note-edit-files" id="note-edit-files-${noteId}">${editChips}</div>
+    <div class="note-edit-add-row">
+      <label class="btn btn-secondary btn-xs" for="note-edit-input-${noteId}"
+             style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
+        ${SVG_CLIP} Add more files
+      </label>
+      <input type="file" multiple id="note-edit-input-${noteId}" style="display:none"
+             onchange="handleEditFileSelect(${noteId}, this.files)">
+    </div>
+    <div class="note-edit-actions">
+      <span class="note-edit-error" id="note-edit-err-${noteId}"
+            style="font-size:12px;color:var(--danger);margin-right:auto;display:none;"></span>
+      <button type="button" class="btn btn-secondary btn-sm"
+              onclick="cancelEdit(${noteId})">Cancel</button>
+      <button type="button" class="btn btn-primary btn-sm" id="note-save-btn-${noteId}"
+              onclick="saveEdit(${noteId})">Save Changes</button>
+    </div>`;
+
+  // Auto-focus + move cursor to end
+  const ta = document.getElementById(`note-edit-ta-${noteId}`);
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+function cancelEdit(noteId) {
+  const state = noteEditState[noteId];
+  if (!state) return;
+  const body = document.querySelector(`#note-${noteId} .note-entry-body`);
+  body.classList.remove('note-entry-body--editing');
+  body.innerHTML = state.originalBodyHTML;
+  delete noteEditState[noteId];
+}
+
+/* Remove an existing (already-saved) file — immediate AJAX */
+async function removeExistingFile(noteId, fileId, btn) {
+  if (!confirm('Remove this file? This cannot be undone.')) return;
+  btn.disabled = true;
+  try {
+    const res = await fetch(DEL_FILE_URL(fileId), { method: 'POST' });
+    if (!res.ok) throw new Error('Server error');
+    const chip = btn.closest('.note-file-chip');
+    chip.style.transition = 'opacity 0.2s, transform 0.2s';
+    chip.style.opacity    = '0';
+    chip.style.transform  = 'scale(0.85)';
+    setTimeout(() => chip.remove(), 210);
+  } catch (_) {
+    btn.disabled = false;
+    alert('Could not remove file. Please try again.');
+  }
+}
+
+/* Queue a new file to be uploaded on save */
+function handleEditFileSelect(noteId, fileList) {
+  const state = noteEditState[noteId];
+  if (!state) return;
+  const MAX = 10 * 1024 * 1024;
+  Array.from(fileList).forEach(f => {
+    if (f.size > MAX) { alert(`"${f.name}" exceeds 10 MB and was skipped.`); return; }
+    if (!state.newFiles.find(p => p.name === f.name && p.size === f.size))
+      state.newFiles.push(f);
+  });
+  // Reset input so re-selecting same file works
+  document.getElementById(`note-edit-input-${noteId}`).value = '';
+  renderEditNewFileChips(noteId);
+}
+
+function renderEditNewFileChips(noteId) {
+  const state = noteEditState[noteId];
+  const container = document.getElementById(`note-edit-files-${noteId}`);
+  if (!container) return;
+  // Remove stale "new" chips, re-render
+  container.querySelectorAll('.note-file-chip--new').forEach(c => c.remove());
+  state.newFiles.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'note-file-chip note-file-chip--new';
+    div.innerHTML = `${SVG_CLIP}
+      <span class="note-file-chip-name">${f.name}</span>
+      <span class="note-file-chip-size">${fmtSize(f.size)}</span>
+      <button type="button" class="note-file-chip-remove"
+              onclick="removeEditNewFile(${noteId},${i})" title="Remove">×</button>`;
+    container.appendChild(div);
+  });
+}
+
+function removeEditNewFile(noteId, idx) {
+  if (noteEditState[noteId]) {
+    noteEditState[noteId].newFiles.splice(idx, 1);
+    renderEditNewFileChips(noteId);
+  }
+}
+
+async function saveEdit(noteId) {
+  const state = noteEditState[noteId];
+  if (!state) return;
+
+  const ta    = document.getElementById(`note-edit-ta-${noteId}`);
+  const btn   = document.getElementById(`note-save-btn-${noteId}`);
+  const errEl = document.getElementById(`note-edit-err-${noteId}`);
+  const text  = ta ? ta.value.trim() : '';
+
+  errEl.style.display = 'none';
+
+  // Check remaining existing files
+  const remainingFiles = document.querySelectorAll(
+    `#note-${noteId} .note-file-chip--editable[data-file-id]`
+  ).length;
+
+  if (!text && remainingFiles === 0 && state.newFiles.length === 0) {
+    errEl.textContent   = 'A note must have text or at least one file.';
+    errEl.style.display = 'inline';
+    return;
+  }
+
+  btn.disabled    = true;
+  btn.textContent = 'Saving…';
+
+  const fd = new FormData();
+  fd.append('note_text', text);
+  state.newFiles.forEach(f => fd.append('new_files', f));
+
+  try {
+    const res  = await fetch(EDIT_NOTE_URL(noteId), { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Server error');
+
+    // Exit edit mode and re-render with updated content
+    const body = document.querySelector(`#note-${noteId} .note-entry-body`);
+    body.classList.remove('note-entry-body--editing');
+    body.innerHTML = buildNoteBodyHTML(noteId, data.text, data.files);
+    delete noteEditState[noteId];
+
+  } catch (err) {
+    errEl.textContent   = err.message || 'Failed to save. Please try again.';
+    errEl.style.display = 'inline';
+    btn.disabled    = false;
+    btn.textContent = 'Save Changes';
   }
 }
 
