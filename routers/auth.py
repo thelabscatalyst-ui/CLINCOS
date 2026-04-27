@@ -225,7 +225,7 @@ def login(
             )
         allowed = staff.allowed_doctor_ids or []
         token = create_staff_token(staff.id, staff.clinic_id, allowed)
-        response = RedirectResponse(url="/clinic/reception", status_code=303)
+        response = RedirectResponse(url="/clinic/reception/dashboard", status_code=303)
         response.set_cookie(
             key="access_token", value=token,
             httponly=True, max_age=60 * 60 * 24, samesite="lax",

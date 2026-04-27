@@ -14,6 +14,7 @@ from fastapi import APIRouter, Request, Depends, Form, Query, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from database.connection import get_db
 from database.models import (
@@ -68,6 +69,91 @@ def _get_owner_clinic(doctor_id: int, db: Session) -> Clinic | None:
     if not membership:
         return None
     return db.query(Clinic).filter(Clinic.id == membership.clinic_id).first()
+
+
+# ─────────────────────────────────────────────────────────────────────────── #
+#  Reception Dashboard                                                         #
+# ─────────────────────────────────────────────────────────────────────────── #
+
+@router.get("/reception/dashboard", response_class=HTMLResponse)
+def reception_dashboard(
+    request: Request,
+    staff: Staff = Depends(get_current_staff),
+    db: Session = Depends(get_db),
+):
+    from database.models import Patient, BookedBy
+    today = date.today()
+    now   = datetime.now()
+
+    # Time-aware greeting
+    hour = now.hour
+    if hour < 12:
+        greeting = "Good Morning"
+    elif hour < 17:
+        greeting = "Good Afternoon"
+    else:
+        greeting = "Good Evening"
+
+    doctors = _staff_allowed_doctors(staff, db)
+
+    # Gather today's appointments for all allowed doctors
+    all_appts = []
+    for doc in doctors:
+        appts = (
+            db.query(Appointment)
+            .filter(
+                Appointment.doctor_id == doc.id,
+                Appointment.appointment_date == today,
+                Appointment.status != AppointmentStatus.cancelled,
+            )
+            .order_by(Appointment.appointment_time)
+            .all()
+        )
+        for a in appts:
+            _ = a.patient   # lazy-load
+            a._doctor_name = doc.name   # attach for template use
+        all_appts.extend(appts)
+
+    # Sort unified list by time
+    all_appts.sort(key=lambda a: a.appointment_time)
+
+    # Stats
+    total_today     = len(all_appts)
+    pending_today   = sum(1 for a in all_appts if a.status == AppointmentStatus.scheduled)
+    completed_today = sum(1 for a in all_appts if a.status == AppointmentStatus.completed)
+    walkin_today    = sum(1 for a in all_appts if a.booked_by == BookedBy.walk_in and not a.is_emergency)
+    emergency_today = sum(1 for a in all_appts if a.is_emergency)
+
+    # Total patients across all allowed doctors (deduplicated by patient id)
+    doctor_ids = [d.id for d in doctors]
+    total_patients = (
+        db.query(func.count(Patient.id.distinct()))
+        .filter(Patient.doctor_id.in_(doctor_ids))
+        .scalar()
+    ) if doctor_ids else 0
+
+    # Next scheduled appointment across all doctors
+    next_appt = next(
+        (a for a in all_appts if a.status == AppointmentStatus.scheduled),
+        None,
+    )
+
+    return templates.TemplateResponse(request, "clinic/reception_dashboard.html", {
+        "staff":            staff,
+        "doctors":          doctors,
+        "today":            today,
+        "greeting":         greeting,
+        "all_appts":        all_appts,
+        "total_today":      total_today,
+        "pending_today":    pending_today,
+        "completed_today":  completed_today,
+        "walkin_today":     walkin_today,
+        "emergency_today":  emergency_today,
+        "total_patients":   total_patients,
+        "next_appt":        next_appt,
+        "active":           "dashboard",
+        "AppointmentStatus": AppointmentStatus,
+    })
 
 
 # ─────────────────────────────────────────────────────────────────────────── #
