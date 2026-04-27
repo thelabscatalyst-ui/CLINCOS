@@ -38,7 +38,11 @@
   <div class="stat-card">
     <div class="stat-label">Today</div>
     <div class="stat-value">{{ total_today }}</div>
-    <div class="stat-sub">{{ pending_today }} pending · {{ completed_today }} done</div>
+    <div class="stat-sub">
+      {{ pending_today }} pending · {{ completed_today }} done
+      {% if walkin_today %} · {{ walkin_today }} walk-in{% endif %}
+      {% if emergency_today %} · <span style="color:var(--danger);font-weight:600;">{{ emergency_today }} emergency</span>{% endif %}
+    </div>
   </div>
   <div class="stat-card">
     <div class="stat-label">Total Patients</div>

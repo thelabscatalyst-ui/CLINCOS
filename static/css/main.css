@@ -778,8 +778,8 @@ html.light .sub-status-badge--basic   { color: #111; }
 html.light .sub-status-badge--pro     { color: #111; }
 html.light .sub-status-badge--expired { color: #111; }
 
-html.light .badge-channel--walkin { color: #111; }
-html.light .badge-channel--staff  { color: #111; }
+html.light .badge-channel--walkin  { color: #111; }
+html.light .badge-channel--staff   { color: #111; }
 html.light .badge-channel--patient { color: #111; }
 html.light .badge-channel--doctor  { color: #111; }
 
@@ -943,7 +943,7 @@ html.light .logout-btn {
 
 .schedule-header {
   display: grid;
-  grid-template-columns: 110px 56px 1fr 1fr 110px 110px;
+  grid-template-columns: 110px 56px 1fr 1fr 110px 110px 110px;
   gap: 12px;
   padding: 0 12px 10px;
   font-size: 11px;
@@ -955,7 +955,7 @@ html.light .logout-btn {
 
 .schedule-row {
   display: grid;
-  grid-template-columns: 110px 56px 1fr 1fr 110px 110px;
+  grid-template-columns: 110px 56px 1fr 1fr 110px 110px 110px;
   gap: 12px;
   align-items: center;
   padding: 10px 12px;
@@ -977,7 +977,7 @@ html.light .logout-btn {
 /* ---- Extra shift sub-rows ---- */
 .schedule-shift-row {
   display: grid;
-  grid-template-columns: 110px 56px 1fr 1fr 110px 110px;
+  grid-template-columns: 110px 56px 1fr 1fr 110px 110px 110px;
   gap: 12px;
   align-items: center;
   padding: 6px 12px;
@@ -998,7 +998,7 @@ html.light .logout-btn {
 /* ---- Add Shift row ---- */
 .schedule-add-row {
   display: grid;
-  grid-template-columns: 110px 56px 1fr 1fr 110px 110px;
+  grid-template-columns: 110px 56px 1fr 1fr 110px 110px 110px;
   gap: 12px;
   align-items: center;
   padding: 5px 12px 9px;
@@ -1960,9 +1960,9 @@ select.input-sm {
   .quick-actions    { grid-template-columns: 1fr 1fr; }
   .settings-form-grid { grid-template-columns: 1fr; }
   .schedule-header      { display: none; }
-  .schedule-row         { grid-template-columns: 90px 44px 1fr 1fr 80px 80px; gap: 8px; }
-  .schedule-shift-row   { grid-template-columns: 90px 44px 1fr 1fr 80px 80px; gap: 8px; }
-  .schedule-add-row     { grid-template-columns: 90px 44px 1fr 1fr 80px 80px; gap: 8px; }
+  .schedule-row         { grid-template-columns: 90px 44px 1fr 1fr 80px 80px 80px; gap: 8px; }
+  .schedule-shift-row   { grid-template-columns: 90px 44px 1fr 1fr 80px 80px 80px; gap: 8px; }
+  .schedule-add-row     { grid-template-columns: 90px 44px 1fr 1fr 80px 80px 80px; gap: 8px; }
 }
 
 @media (max-width: 480px) {
@@ -2670,6 +2670,26 @@ html.light .sub-pro-tag {
   background: rgba(160, 160, 160, 0.12);
   color: #a0a0a0;
   border: 1px solid rgba(160, 160, 160, 0.2);
+}
+
+/* Emergency badge — red, prominent */
+.badge--emergency {
+  background: rgba(248, 113, 113, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  animation: pulse-emergency 2s ease-in-out infinite;
+}
+@keyframes pulse-emergency {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); }
+  50%       { box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.18); }
+}
+html.light .badge--emergency { color: #b91c1c; background: rgba(220,38,38,0.1); border-color: rgba(220,38,38,0.3); }
+
+/* Emergency row highlight */
+.appt-row--emergency {
+  border-left: 3px solid rgba(248, 113, 113, 0.6);
 }
 
 /* ─── Phase 2: info card layout (clinic admin) ──────────────────────── */

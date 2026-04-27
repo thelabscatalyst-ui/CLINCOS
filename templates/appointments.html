@@ -48,6 +48,12 @@
 </div>
 {% endif %}
 
+{% if request.query_params.get('walkin_error') %}
+<div class="alert alert-error" style="margin-bottom:16px;">
+  Walk-in requires a valid name and phone number (at least 10 digits).
+</div>
+{% endif %}
+
 <!-- Walk-in quick form (today only) -->
 {% if view_date == today %}
 <div id="walkinPanel" class="walkin-panel" style="display:none;">
@@ -67,6 +73,10 @@
       <input type="tel" name="patient_phone" placeholder="Phone number" required
              minlength="10" maxlength="15" class="input-sm" />
       <input type="text" name="patient_notes" placeholder="Notes (optional)" class="input-sm" />
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--danger);">
+        <input type="checkbox" name="is_emergency" style="accent-color:var(--danger);width:15px;height:15px;" />
+        Emergency
+      </label>
       <button type="submit" class="btn btn-primary btn-sm">Add Walk-in</button>
     </form>
   </div>
@@ -91,15 +101,18 @@
 {% if appointments %}
 <div class="appt-list">
   {% for appt in appointments %}
-  <div class="appt-row {% if appt.status.value == 'completed' %}appt-row--done{% elif appt.status.value == 'no_show' %}appt-row--noshow{% endif %}">
+  <div class="appt-row {% if appt.is_emergency %}appt-row--emergency{% elif appt.status.value == 'completed' %}appt-row--done{% elif appt.status.value == 'no_show' %}appt-row--noshow{% endif %}">
     <div class="appt-time">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</div>
     <div class="appt-info">
-      <div class="appt-name">{{ appt.patient.name }}</div>
+      <div class="appt-name">
+        {{ appt.patient.name }}
+        {% if appt.is_emergency %}<span class="badge badge--emergency" style="margin-left:6px;font-size:10px;vertical-align:middle;">Emergency</span>{% endif %}
+      </div>
       <div class="appt-meta">
         {{ appt.appointment_type.value.replace("_", " ").title() }}
         · {{ appt.duration_mins }} min
         · {{ appt.patient.phone }}
-        {% if appt.booked_by.value == 'walk_in' %}
+        {% if appt.booked_by.value == 'walk_in' and not appt.is_emergency %}
         · <span class="badge-channel badge-channel--walkin">Walk-in</span>
         {% elif appt.booked_by.value in ('staff_shared', 'staff') %}
         · <span class="badge-channel badge-channel--staff">Reception</span>
@@ -152,5 +165,13 @@ function toggleWalkin() {
   panel.style.display = isOpen ? 'none' : 'block';
   if (!isOpen) panel.querySelector('input[name="patient_name"]').focus();
 }
+
+// Auto-open walk-in panel on validation error so the form is visible
+{% if request.query_params.get('walkin_error') %}
+document.addEventListener('DOMContentLoaded', function() {
+  var panel = document.getElementById('walkinPanel');
+  if (panel) panel.style.display = 'block';
+});
+{% endif %}
 </script>
 {% endblock %}

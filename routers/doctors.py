@@ -9,7 +9,7 @@ from typing import Optional, List
 
 from database.connection import get_db
 from database.models import (
-    Doctor, Appointment, Patient, AppointmentStatus,
+    Doctor, Appointment, Patient, AppointmentStatus, BookedBy,
     DoctorSchedule, BlockedDate,
 )
 from services.auth_service import (
@@ -56,8 +56,10 @@ def dashboard(
 
     total_patients = db.query(func.count(Patient.id)).filter(Patient.doctor_id == doctor.id).scalar()
     total_today = len(todays_appointments)
-    completed_today = sum(1 for a in todays_appointments if a.status == AppointmentStatus.completed)
-    pending_today = sum(1 for a in todays_appointments if a.status == AppointmentStatus.scheduled)
+    completed_today  = sum(1 for a in todays_appointments if a.status == AppointmentStatus.completed)
+    pending_today    = sum(1 for a in todays_appointments if a.status == AppointmentStatus.scheduled)
+    walkin_today     = sum(1 for a in todays_appointments if a.booked_by == BookedBy.walk_in and not a.is_emergency)
+    emergency_today  = sum(1 for a in todays_appointments if a.is_emergency)
 
     # Show the earliest still-open appointment regardless of whether its time has passed
     next_appointment = next(
@@ -107,8 +109,10 @@ def dashboard(
         "todays_appointments": todays_appointments,
         "total_patients": total_patients,
         "total_today": total_today,
-        "completed_today": completed_today,
-        "pending_today": pending_today,
+        "completed_today":  completed_today,
+        "pending_today":    pending_today,
+        "walkin_today":     walkin_today,
+        "emergency_today":  emergency_today,
         "next_appointment": next_appointment,
         "trial_active": trial_active,
         "days_left": days_left,
@@ -147,7 +151,8 @@ def settings_page(
             "start_time":   s1.start_time.strftime("%H:%M") if s1 else "09:00",
             "end_time":     s1.end_time.strftime("%H:%M")   if s1 else "13:00",
             "slot_duration":s1.slot_duration if s1 else 15,
-            "max_patients": s1.max_patients  if s1 else 30,
+            "max_patients":   s1.max_patients   if s1 else 30,
+            "walk_in_buffer": s1.walk_in_buffer if s1 else 0,
             "extra_shifts": [
                 {"start": s.start_time.strftime("%H:%M"), "end": s.end_time.strftime("%H:%M")}
                 for s in rows[1:]
@@ -231,8 +236,9 @@ async def save_schedule(
         if form.get(f"active_{i}") != "on":
             continue   # day is off — leave deleted
 
-        slot_dur = int(form.get(f"slot_{i}", 15))
-        max_pat  = int(form.get(f"max_{i}",  30))
+        slot_dur    = int(form.get(f"slot_{i}",   15))
+        max_pat     = int(form.get(f"max_{i}",    30))
+        walk_buf    = max(0, int(form.get(f"walkin_buf_{i}", 0)))
 
         # Read shifts in order: shift_start_{day}_{k} / shift_end_{day}_{k}
         prev_end = None
@@ -254,6 +260,7 @@ async def save_schedule(
                 doctor_id=doctor.id, day_of_week=i,
                 start_time=st, end_time=et,
                 slot_duration=slot_dur, max_patients=max_pat,
+                walk_in_buffer=walk_buf,
                 is_active=True,
             ))
             prev_end = et

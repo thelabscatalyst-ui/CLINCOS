@@ -314,12 +314,14 @@ async def create_walkin(
     patient_phone: str = Form(...),
     patient_notes: str = Form(""),
     for_doctor_id: int = Form(0),
+    is_emergency: str = Form(""),   # "on" if emergency checkbox ticked
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
     target = _resolve_target_doctor(for_doctor_id, doctor, db)
     name  = patient_name.strip()
     phone = patient_phone.strip()
+    emergency = is_emergency == "on"
 
     # Validate inputs
     if not name or not phone or len(phone) < 10:
@@ -335,15 +337,18 @@ async def create_walkin(
     appt_date = now.date()
     appt_time = now.time().replace(second=0, microsecond=0)
 
+    # Emergencies bypass all slot/quota/hours checks.
+    # Regular walk-ins: still admitted (they consume the walk_in_buffer).
     appt = Appointment(
         doctor_id=target.id,
         patient_id=patient.id,
         appointment_date=appt_date,
         appointment_time=appt_time,
         duration_mins=15,
-        appointment_type=AppointmentType.new_patient,
+        appointment_type=AppointmentType.emergency if emergency else AppointmentType.new_patient,
         patient_notes=patient_notes.strip() or None,
         booked_by=BookedBy.walk_in,
+        is_emergency=emergency,
         status=AppointmentStatus.scheduled,
     )
     db.add(appt)
@@ -356,7 +361,7 @@ async def create_walkin(
     db.commit()
     db.refresh(appt)
 
-    # Walk-ins skip WhatsApp — patient is on-site
+    # Walk-ins / emergencies skip WhatsApp — patient is on-site
     return RedirectResponse(url=f"/appointments/{appt.id}", status_code=303)
 
 

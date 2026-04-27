@@ -36,6 +36,7 @@
         <span>End</span>
         <span>Slot (min)</span>
         <span>Max patients</span>
+        <span title="Slots reserved for on-site walk-ins and emergencies">Walk-in buffer</span>
       </div>
 
       <!-- One card per day -->
@@ -83,6 +84,15 @@
             min="1"
             max="200"
             class="input-sm"
+          />
+          <input
+            type="number"
+            name="walkin_buf_{{ day.index }}"
+            value="{{ day.walk_in_buffer }}"
+            min="0"
+            max="50"
+            class="input-sm"
+            title="Slots reserved for walk-ins / emergencies (subtracted from bookable quota)"
           />
         </div>
 

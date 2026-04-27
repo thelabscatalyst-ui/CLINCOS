@@ -23,7 +23,12 @@
 <!-- Appointment Info -->
 <div class="settings-card">
   <div class="settings-card-header" style="margin-bottom: 0;">
-    <div class="settings-card-title">Appointment Details</div>
+    <div class="settings-card-title">
+      Appointment Details
+      {% if appt.is_emergency %}
+      <span class="badge badge--emergency" style="margin-left:10px;font-size:11px;vertical-align:middle;">Emergency</span>
+      {% endif %}
+    </div>
     <span class="badge badge--{{ appt.status.value }}" style="font-size:12px;padding:5px 14px;">
       {{ appt.status.value.replace("_", " ").title() }}
     </span>

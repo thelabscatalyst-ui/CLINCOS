@@ -250,6 +250,7 @@ class Appointment(Base):
     reminder_24h_sent = Column(Boolean, default=False)
     reminder_2h_sent = Column(Boolean, default=False)
     booked_by = Column(SAEnum(BookedBy), default=BookedBy.doctor)
+    is_emergency = Column(Boolean, default=False)   # bypasses quota/hours checks
     created_at = Column(DateTime, default=datetime.utcnow)
 
     doctor = relationship("Doctor", back_populates="appointments")
@@ -272,6 +273,7 @@ class DoctorSchedule(Base):
     end_time = Column(Time, nullable=False)
     slot_duration = Column(Integer, default=15)  # minutes
     max_patients = Column(Integer, default=30)
+    walk_in_buffer = Column(Integer, default=0)  # slots reserved for walk-ins / emergencies
     is_active = Column(Boolean, default=True)
 
     doctor = relationship("Doctor", back_populates="schedules")

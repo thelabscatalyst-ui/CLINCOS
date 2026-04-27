@@ -3,7 +3,7 @@ from typing import List, Tuple
 from sqlalchemy.orm import Session
 
 from database.models import (
-    Appointment, AppointmentStatus, DoctorSchedule, BlockedDate, Patient
+    Appointment, AppointmentStatus, BookedBy, DoctorSchedule, BlockedDate, Patient
 )
 
 
@@ -59,9 +59,17 @@ def get_available_slots(doctor_id: int, appt_date: date, db: Session) -> List[st
         Appointment.status != AppointmentStatus.cancelled,
     ).all()
 
-    # Use highest max_patients across shifts as the daily cap
-    total_max = max(s.max_patients for s in schedules)
-    if len(booked) >= total_max:
+    # Use highest max_patients across shifts as the daily cap.
+    # Reserve walk_in_buffer slots so on-site walk-ins / emergencies always have room.
+    total_max   = max(s.max_patients   for s in schedules)
+    walk_buffer = max(s.walk_in_buffer for s in schedules)
+    # Pre-bookable quota: subtract buffer, but also subtract walk-ins already added today
+    walkins_today = sum(1 for a in booked if a.booked_by == BookedBy.walk_in or a.is_emergency)
+    effective_max = max(0, total_max - max(walk_buffer, walkins_today))
+    # Count only pre-booked appointments against effective_max
+    prebooked_count = sum(1 for a in booked
+                          if a.booked_by != BookedBy.walk_in and not a.is_emergency)
+    if prebooked_count >= effective_max:
         return []
 
     booked_times = {a.appointment_time for a in booked}
@@ -122,14 +130,20 @@ def is_slot_available(
     if conflict:
         return False, "This time slot is already booked."
 
-    # Max-patients cap (use highest across shifts)
-    total_max = max(s.max_patients for s in schedules)
-    day_count = db.query(Appointment).filter(
+    # Max-patients cap (use highest across shifts), respecting walk_in_buffer
+    total_max   = max(s.max_patients   for s in schedules)
+    walk_buffer = max(s.walk_in_buffer for s in schedules)
+    # Count all booked (walk-in + regular) to compute slots already used by walk-ins
+    all_booked = db.query(Appointment).filter(
         Appointment.doctor_id == doctor_id,
         Appointment.appointment_date == appt_date,
         Appointment.status != AppointmentStatus.cancelled,
-    ).count()
-    if day_count >= total_max:
+    ).all()
+    walkins_today = sum(1 for a in all_booked if a.booked_by == BookedBy.walk_in or a.is_emergency)
+    effective_max = max(0, total_max - max(walk_buffer, walkins_today))
+    prebooked_count = sum(1 for a in all_booked
+                          if a.booked_by != BookedBy.walk_in and not a.is_emergency)
+    if prebooked_count >= effective_max:
         return False, "Maximum patients for this day has been reached."
 
     return True, ""
@@ -179,14 +193,19 @@ def is_slot_available_for_edit(
     if conflict:
         return False, "This time slot is already booked."
 
-    total_max = max(s.max_patients for s in schedules)
-    day_count = db.query(Appointment).filter(
+    total_max   = max(s.max_patients   for s in schedules)
+    walk_buffer = max(s.walk_in_buffer for s in schedules)
+    all_booked = db.query(Appointment).filter(
         Appointment.id != exclude_appt_id,
         Appointment.doctor_id == doctor_id,
         Appointment.appointment_date == appt_date,
         Appointment.status != AppointmentStatus.cancelled,
-    ).count()
-    if day_count >= total_max:
+    ).all()
+    walkins_today = sum(1 for a in all_booked if a.booked_by == BookedBy.walk_in or a.is_emergency)
+    effective_max = max(0, total_max - max(walk_buffer, walkins_today))
+    prebooked_count = sum(1 for a in all_booked
+                          if a.booked_by != BookedBy.walk_in and not a.is_emergency)
+    if prebooked_count >= effective_max:
         return False, "Maximum patients for this day has been reached."
 
     return True, ""

@@ -111,6 +111,10 @@ def _run_migrations():
             ), {"cid": clinic_id, "did": doctor_id})
             conn.commit()
 
+        # ── Phase 4: Walk-in buffer + emergency flag ─────────────────────────
+        _add_column(conn, "ALTER TABLE doctor_schedules ADD COLUMN walk_in_buffer INTEGER DEFAULT 0")
+        _add_column(conn, "ALTER TABLE appointments ADD COLUMN is_emergency BOOLEAN DEFAULT 0")
+
         # ── Phase 3: Patient notes & file attachments ────────────────────────
         conn.execute(text(
             "CREATE TABLE IF NOT EXISTS patient_notes ("
