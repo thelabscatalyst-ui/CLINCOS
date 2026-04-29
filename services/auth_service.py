@@ -261,6 +261,28 @@ def get_appt_doctor(appt_id: int, request: Request, db: Session = Depends(get_db
         if not clinic_ok:
             raise PlanExpired()
 
+    # Allow clinic owners to access appointments belonging to their associate doctors.
+    # Fetch the appointment to check if it belongs to a different doctor.
+    appt_row = db.query(ApptModel).filter(ApptModel.id == appt_id).first()
+    if appt_row and appt_row.doctor_id != doctor.id:
+        ownership = db.query(ClinicDoctor).filter(
+            ClinicDoctor.doctor_id == doctor.id,
+            ClinicDoctor.role == "owner",
+        ).first()
+        if ownership:
+            member = db.query(ClinicDoctor).filter(
+                ClinicDoctor.clinic_id == ownership.clinic_id,
+                ClinicDoctor.doctor_id == appt_row.doctor_id,
+                ClinicDoctor.is_active == True,
+            ).first()
+            if member:
+                actual_doctor = db.query(DoctorModel).filter(
+                    DoctorModel.id == appt_row.doctor_id
+                ).first()
+                if actual_doctor:
+                    request.state.is_staff = False
+                    return actual_doctor
+
     request.state.is_staff = False
     return doctor
 

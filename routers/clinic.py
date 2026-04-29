@@ -301,7 +301,7 @@ def reception_create_appointment(
     db.refresh(appt)
 
     try:
-        notify_appointment_confirmed(appt, db)
+        notify_appointment_confirmed(appt, selected, db)
     except Exception:
         pass
 
