@@ -99,7 +99,7 @@ a:hover { color: var(--text); }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 60px 64px;
+  padding: 60px 88px;
   position: relative;
   overflow: hidden;
 }
@@ -183,7 +183,7 @@ a:hover { color: var(--text); }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 48px;
+  padding: 40px 72px;
   box-shadow: var(--glow);
 }
 
@@ -256,7 +256,7 @@ a:hover { color: var(--text); }
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
-  border-color: #444;
+  border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(255,255,255,0.04);
 }
 
@@ -413,6 +413,34 @@ a:hover { color: var(--text); }
   color: var(--text);
 }
 
+/* Custom tooltip via data-tip */
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-3);
+  color: var(--text);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  transition-delay: 0s;
+  z-index: 200;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+[data-tip]:hover::after {
+  opacity: 1;
+  transition-delay: 0.18s;
+}
+
 /* Theme toggle */
 .navbar-controls {
   display: flex;
@@ -469,9 +497,7 @@ a:hover { color: var(--text); }
 /*  Main Layout                                                         */
 /* ------------------------------------------------------------------ */
 .main-content {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 32px 40px;
+  padding: 32px 80px;
 }
 
 /* ------------------------------------------------------------------ */
@@ -737,6 +763,45 @@ a:hover { color: var(--text); }
 .badge--cancelled { background: rgba(248, 113, 113, 0.12); color: var(--danger); }
 .badge--no_show   { background: rgba(251, 191, 36, 0.12); color: var(--warning); }
 
+/* Light theme: colored boxes keep bg/border, text becomes black */
+html.light .badge--scheduled { background: rgba(0,0,0,0.07); color: #111; }
+html.light .badge--completed { background: rgba(22,163,74,0.12); color: #111; }
+html.light .badge--cancelled { background: rgba(220,38,38,0.10); color: #111; }
+html.light .badge--no_show   { background: rgba(180,130,0,0.10); color: #111; }
+
+html.light .alert-error   { color: #111; }
+html.light .alert-success { color: #111; }
+
+html.light .sub-status-badge--trial   { color: #111; }
+html.light .sub-status-badge--solo    { color: #111; }
+html.light .sub-status-badge--basic   { color: #111; }
+html.light .sub-status-badge--pro     { color: #111; }
+html.light .sub-status-badge--expired { color: #111; }
+
+html.light .badge-channel--walkin { color: #111; }
+html.light .badge-channel--staff  { color: #111; }
+html.light .badge-channel--patient { color: #111; }
+html.light .badge-channel--doctor  { color: #111; }
+
+html.light .billing-expired-title { color: #111; }
+
+/* Calendar today ring — light theme */
+html.light .cal-day--today {
+  background: rgba(0,0,0,0.04);
+}
+html.light .cal-day--today .cal-day-num {
+  border-color: rgba(0,0,0,0.60);
+  box-shadow: 0 0 8px rgba(0,0,0,0.10), 0 0 18px rgba(0,0,0,0.05);
+}
+
+/* Theme toggle + logout — light theme: more visible border */
+html.light .theme-toggle {
+  border-color: var(--border-light);
+}
+html.light .logout-btn {
+  border-color: var(--border-light);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Empty State                                                         */
 /* ------------------------------------------------------------------ */
@@ -851,12 +916,34 @@ a:hover { color: var(--text); }
 .schedule-grid {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
+}
+
+.schedule-day-card {
+  background: var(--bg-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  transition: border-color 0.15s;
+}
+
+.schedule-day-card:hover {
+  border-color: var(--border);
+}
+
+.schedule-day-card > .schedule-row,
+.schedule-day-card > .schedule-shift-row,
+.schedule-day-card > .schedule-add-row {
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .schedule-header {
   display: grid;
-  grid-template-columns: 110px 56px 1fr 1fr 110px 110px;
+  grid-template-columns: 110px 56px 1fr 1fr 110px 110px 110px;
   gap: 12px;
   padding: 0 12px 10px;
   font-size: 11px;
@@ -868,17 +955,12 @@ a:hover { color: var(--text); }
 
 .schedule-row {
   display: grid;
-  grid-template-columns: 110px 56px 1fr 1fr 110px 110px;
+  grid-template-columns: 110px 56px 1fr 1fr 110px 110px 110px;
   gap: 12px;
   align-items: center;
   padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-3);
-  border: 1px solid transparent;
-  transition: border-color 0.15s, opacity 0.2s;
+  transition: opacity 0.2s;
 }
-
-.schedule-row:hover { border-color: var(--border); }
 
 .schedule-row--off .schedule-day,
 .schedule-row--off .input-sm {
@@ -891,6 +973,53 @@ a:hover { color: var(--text); }
   font-weight: 500;
   color: var(--text);
 }
+
+/* ---- Extra shift sub-rows ---- */
+.schedule-shift-row {
+  display: grid;
+  grid-template-columns: 110px 56px 1fr 1fr 110px 110px 110px;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+}
+.schedule-shift-row.schedule-row--off {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.schedule-shift-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.2px;
+}
+
+/* ---- Add Shift row ---- */
+.schedule-add-row {
+  display: grid;
+  grid-template-columns: 110px 56px 1fr 1fr 110px 110px 110px;
+  gap: 12px;
+  align-items: center;
+  padding: 5px 12px 9px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-add-shift {
+  grid-column: 3 / 7;
+  background: none;
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: color 0.15s, border-color 0.15s;
+}
+.btn-add-shift:hover { color: var(--text-muted); border-color: var(--text-dim); }
 
 /* ---- Toggle Switch ---- */
 .toggle {
@@ -931,6 +1060,12 @@ a:hover { color: var(--text); }
   background: var(--text);
 }
 
+/* Light theme: toggle is white-on-white without this override */
+html.light .toggle-track { background: rgba(0,0,0,0.14); }
+html.light .toggle-track::after { background: #666; }
+html.light .toggle input:checked + .toggle-track { background: #222; }
+html.light .toggle input:checked + .toggle-track::after { background: #fff; }
+
 /* ---- Small inline inputs ---- */
 .input-sm {
   width: 100%;
@@ -945,9 +1080,19 @@ a:hover { color: var(--text); }
   transition: border-color 0.15s;
 }
 
-.input-sm:focus { border-color: #444; }
+.input-sm:focus { border-color: var(--primary); }
 .input-sm:disabled { opacity: 0.3; cursor: not-allowed; }
 .input-sm option { background: var(--bg-2); }
+
+select.input-sm {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23555555' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  cursor: pointer;
+}
 
 /* ---- Clinic Profile grid ---- */
 .settings-form-grid {
@@ -1258,13 +1403,178 @@ a:hover { color: var(--text); }
   cursor: pointer;
 }
 
-.date-nav-input:focus { border-color: #555; }
+.date-nav-input:focus { border-color: var(--primary); }
 
 /* ------------------------------------------------------------------ */
-/*  New Appointment Form                                                */
+/*  Slot Picker                                                         */
 /* ------------------------------------------------------------------ */
+.slot-wrap {
+  position: relative;
+}
+
+.slot-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-3);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+  user-select: none;
+  transition: border-color 0.15s;
+}
+.slot-trigger:hover { border-color: var(--primary); }
+.slot-trigger svg { flex-shrink: 0; color: var(--text-dim); }
+.slot-trigger-text { flex: 1; }
+.slot-trigger-dim { color: var(--text-dim); }
+
+.slot-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  max-height: 196px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-3);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.28);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+.slot-dropdown::-webkit-scrollbar { width: 5px; }
+.slot-dropdown::-webkit-scrollbar-track { background: transparent; }
+.slot-dropdown::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+.slot-dropdown--open { display: block; }
+
+.slot-item {
+  padding: 11px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: background 0.1s, color 0.1s;
+  user-select: none;
+}
+.slot-item:last-child { border-bottom: none; }
+.slot-item:hover { background: var(--bg-2); color: var(--text); }
+.slot-item--active { background: var(--bg-2); color: var(--text); font-weight: 600; }
+
+.slot-empty,
+.slot-loading {
+  padding: 11px 14px;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+/* ------------------------------------------------------------------ */
+/*  New Appointment Form — Split Layout                                 */
+/* ------------------------------------------------------------------ */
+.appt-new-split {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 28px;
+  align-items: stretch;
+}
+
+.appt-new-split > div:first-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.appt-new-split > div:first-child .appt-form-card {
+  flex: 1;
+}
+
 .appt-form-card {
-  max-width: 620px;
+  width: 100%;
+}
+
+.appt-brand-panel {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 52px 40px 48px;
+  text-align: center;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.appt-brand-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.035) 0%, transparent 65%),
+    radial-gradient(ellipse at 50% 100%, rgba(255,255,255,0.015) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.appt-brand-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.appt-brand-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 76px;
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -2px;
+  color: var(--text);
+  margin-bottom: 28px;
+  position: relative;
+}
+
+.appt-brand-divider {
+  width: 40px;
+  height: 1px;
+  background: var(--border-light);
+  margin: 0 auto 28px;
+  position: relative;
+}
+
+.appt-brand-tagline {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-bottom: 36px;
+  position: relative;
+}
+
+.appt-brand-clinic {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  position: relative;
+}
+
+.appt-brand-clinic-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  position: relative;
+}
+
+@media (max-width: 960px) {
+  .appt-new-split {
+    grid-template-columns: 1fr;
+  }
+  .appt-brand-panel { display: none; }
 }
 
 .appt-form-actions {
@@ -1378,7 +1688,7 @@ a:hover { color: var(--text); }
   transition: border-color 0.15s;
 }
 
-.patient-search-input:focus { border-color: #444; }
+.patient-search-input:focus { border-color: var(--primary); }
 .patient-search-input::placeholder { color: var(--text-dim); }
 
 .patient-search-clear {
@@ -1649,8 +1959,10 @@ a:hover { color: var(--text); }
   .stats-row        { grid-template-columns: 1fr 1fr; }
   .quick-actions    { grid-template-columns: 1fr 1fr; }
   .settings-form-grid { grid-template-columns: 1fr; }
-  .schedule-header  { display: none; }
-  .schedule-row     { grid-template-columns: 90px 44px 1fr 1fr 80px 80px; gap: 8px; }
+  .schedule-header      { display: none; }
+  .schedule-row         { grid-template-columns: 90px 44px 1fr 1fr 80px 80px 80px; gap: 8px; }
+  .schedule-shift-row   { grid-template-columns: 90px 44px 1fr 1fr 80px 80px 80px; gap: 8px; }
+  .schedule-add-row     { grid-template-columns: 90px 44px 1fr 1fr 80px 80px 80px; gap: 8px; }
 }
 
 @media (max-width: 480px) {
@@ -1775,14 +2087,15 @@ a:hover { color: var(--text); }
 .report-type-bar-wrap {
   flex: 1;
   height: 6px;
-  background: rgba(255,255,255,0.06);
+  background: var(--bg-3);
+  border: 1px solid var(--border-light);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .report-type-bar {
   height: 100%;
-  background: rgba(255,255,255,0.35);
+  background: var(--text);
   border-radius: 3px;
   transition: width 0.4s ease;
   min-width: 2px;
@@ -1876,32 +2189,49 @@ a:hover { color: var(--text); }
   gap: 6px;
 }
 
+/* Outer border box enclosing both plan cards */
+.billing-plans-box {
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+html.light .billing-plans-box {
+  border-color: rgba(0,0,0,0.14);
+}
+
 .billing-plans {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 0;
+  background: rgba(255,255,255,0.12); /* divider colour in dark */
+}
+html.light .billing-plans {
+  background: rgba(0,0,0,0.10); /* divider colour in light */
 }
 
 .billing-plan-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--bg-2);
+  border: none;
+  border-radius: 0;
   padding: 32px 28px;
   display: flex;
   flex-direction: column;
   gap: 0;
-  box-shadow: var(--glow);
-  transition: var(--transition-pop);
+  box-shadow: none;
+  transition: background 0.15s;
   position: relative;
 }
-.billing-plan-card:hover {
-  box-shadow: var(--glow-hover);
-  transform: translateY(-2px) scale(1.01);
-}
 .billing-plan-card--pro {
-  border-color: rgba(255,255,255,0.2);
-  background: #161616;
+  background: var(--bg-3);
+}
+html.light .billing-plan-card--pro {
+  background: var(--bg-2);
+}
+
+.billing-plan-btn {
+  width: 100%;
+  margin-top: auto;
 }
 
 .plan-badge {
@@ -2033,6 +2363,15 @@ a:hover { color: var(--text); }
 .sub-status-badge--pro     { color: #f0f0f0; border-color: rgba(240,240,240,0.3); background: rgba(240,240,240,0.08); }
 .sub-status-badge--expired { color: #f87171; border-color: rgba(248,113,113,0.3); background: rgba(248,113,113,0.08); }
 
+.sub-plan-box {
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+html.light .sub-plan-box {
+  border-color: rgba(0,0,0,0.14);
+}
+
 .sub-plan-row {
   display: flex;
   gap: 0;
@@ -2044,15 +2383,21 @@ a:hover { color: var(--text); }
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 4px 0;
+  padding: 20px 24px;
 }
-.sub-plan-option--pro {}
 
 .sub-plan-divider {
   width: 1px;
-  background: var(--border);
-  margin: 0 28px;
+  background: rgba(255,255,255,0.12);
   flex-shrink: 0;
+}
+html.light .sub-plan-divider {
+  background: rgba(0,0,0,0.10);
+}
+
+.sub-plan-btn {
+  margin-top: auto;
+  width: 100%;
 }
 
 .sub-plan-name {
@@ -2074,6 +2419,11 @@ a:hover { color: var(--text); }
   border-radius: 10px;
   padding: 2px 8px;
   letter-spacing: 0.04em;
+}
+html.light .sub-pro-tag {
+  background: rgba(0,0,0,0.07);
+  border-color: rgba(0,0,0,0.12);
+  color: #333;
 }
 
 .sub-plan-price {
@@ -2114,8 +2464,9 @@ a:hover { color: var(--text); }
 }
 
 @media (max-width: 600px) {
-  .sub-plan-row      { flex-direction: column; gap: 24px; }
-  .sub-plan-divider  { width: 100%; height: 1px; margin: 0; }
+  .sub-plan-row      { flex-direction: column; }
+  .sub-plan-divider  { width: 100%; height: 1px; }
+  .billing-plans     { grid-template-columns: 1fr; }
 }
 
 /* ------------------------------------------------------------------ */
@@ -2282,6 +2633,69 @@ a:hover { color: var(--text); }
   min-width: 140px;
 }
 
+/* ---- Emergency toggle button ---- */
+.btn-emergency-toggle {
+  padding: 7px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid rgba(248, 113, 113, 0.18);
+  background: rgba(248, 113, 113, 0.06);
+  color: rgba(248, 113, 113, 0.45);
+  transition: background 0.18s ease, color 0.18s ease,
+              border-color 0.18s ease, box-shadow 0.18s ease;
+  white-space: nowrap;
+}
+.btn-emergency-toggle:hover {
+  background: rgba(248, 113, 113, 0.12);
+  color: rgba(248, 113, 113, 0.75);
+  border-color: rgba(248, 113, 113, 0.30);
+}
+.btn-emergency-toggle.active {
+  background: rgba(248, 113, 113, 0.22) !important;
+  color: #f87171 !important;
+  border-color: rgba(248, 113, 113, 0.55) !important;
+  box-shadow: 0 0 14px rgba(248, 113, 113, 0.18);
+}
+html.light .btn-emergency-toggle {
+  border-color: rgba(220, 38, 38, 0.14);
+  background: rgba(220, 38, 38, 0.05);
+  color: rgba(220, 38, 38, 0.40);
+}
+html.light .btn-emergency-toggle:hover {
+  background: rgba(220, 38, 38, 0.10);
+  color: rgba(220, 38, 38, 0.65);
+  border-color: rgba(220, 38, 38, 0.24);
+}
+html.light .btn-emergency-toggle.active {
+  background: rgba(220, 38, 38, 0.15) !important;
+  color: #b91c1c !important;
+  border-color: rgba(220, 38, 38, 0.40) !important;
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.12);
+}
+
+/* ---- Emergency appointment row & badge ---- */
+@keyframes pulse-emergency {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.4); }
+  50%       { box-shadow: 0 0 0 4px rgba(248, 113, 113, 0); }
+}
+.badge--emergency {
+  background: rgba(248, 113, 113, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  animation: pulse-emergency 2s ease-in-out infinite;
+}
+html.light .badge--emergency {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.30);
+}
+.appt-row--emergency {
+  border-left: 3px solid #f87171;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Booking channel badges                                              */
 /* ------------------------------------------------------------------ */
@@ -2307,4 +2721,765 @@ a:hover { color: var(--text); }
   background: rgba(167, 139, 250, 0.12);
   color: #a78bfa;
   border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.badge-channel--doctor {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.badge-channel--patient {
+  background: rgba(160, 160, 160, 0.12);
+  color: #a0a0a0;
+  border: 1px solid rgba(160, 160, 160, 0.2);
+}
+
+/* ─── Phase 2: info card layout (clinic admin) ──────────────────────── */
+
+.info-section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Responsive 2-up grid — wraps to 1 col on narrow screens */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.info-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  box-shadow: var(--glow);
+  transition: var(--transition-pop);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.info-card:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: var(--glow-hover);
+  border-color: var(--border-light);
+}
+
+.info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.4;
+}
+
+.info-row:first-child {
+  padding-top: 0;
+}
+
+.info-row:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.info-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  min-width: 110px;
+  flex-shrink: 0;
+}
+
+.info-label::after {
+  content: ":";
+  margin-right: 8px;
+}
+
+.info-sep {
+  display: none;
+}
+
+.info-value {
+  font-size: 13px;
+  color: var(--text);
+  word-break: break-word;
+  flex: 1;
+}
+
+.info-value--bold {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.info-card-action {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ─── Phase 2: generic data table ──────────────────────────────────── */
+
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-table th {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+}
+.data-table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  vertical-align: middle;
+  font-size: 14px;
+}
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.data-table tbody tr:hover td {
+  background: rgba(255,255,255,0.02);
+}
+html.light .data-table th {
+  background: rgba(0,0,0,0.02);
+}
+html.light .data-table td {
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+html.light .data-table tbody tr:hover td {
+  background: rgba(0,0,0,0.02);
+}
+
+.empty-state-text {
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 16px 0;
+  margin: 0;
+}
+
+/* ─── Clinic admin doctor row ───────────────────────────────────────── */
+
+.clinic-doc-row {
+  display: grid;
+  grid-template-columns: 1fr 160px 90px 64px 64px 56px;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--glow);
+  transition: var(--transition-pop);
+}
+
+.clinic-doc-row:hover {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow: var(--glow-hover);
+  border-color: var(--border-light);
+}
+
+.clinic-doc-row--header {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  padding-bottom: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+
+.clinic-doc-row--header:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+.clinic-doc-name  { min-width: 0; }
+.clinic-doc-spec  { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clinic-doc-role  { }
+.clinic-doc-count { text-align: center; }
+.clinic-doc-action { text-align: right; }
+
+/* ─── Clinic admin staff row ────────────────────────────────────────── */
+
+.clinic-staff-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 110px 80px;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--glow);
+  transition: var(--transition-pop);
+}
+
+.clinic-staff-row:hover {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow: var(--glow-hover);
+  border-color: var(--border-light);
+}
+
+.clinic-staff-row--header {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  padding-bottom: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+
+.clinic-staff-row--header:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+/* Staff manage row (with action column) */
+.clinic-staff-manage-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 110px 80px 100px;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--glow);
+  transition: var(--transition-pop);
+}
+.clinic-staff-manage-row:hover {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow: var(--glow-hover);
+  border-color: var(--border-light);
+}
+
+/* Invite row */
+.clinic-invite-row {
+  display: grid;
+  grid-template-columns: 1fr 110px 110px 90px;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--glow);
+  transition: var(--transition-pop);
+}
+.clinic-invite-row:hover {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow: var(--glow-hover);
+  border-color: var(--border-light);
+}
+.clinic-invite-row--header {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  padding-bottom: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+.clinic-invite-row--header:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+/* ── Patient Note Timeline ──────────────────────────────────────── */
+.note-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 8px;
+}
+
+.note-entry {
+  position: relative;
+  padding-bottom: 24px;
+}
+.note-entry:last-child { padding-bottom: 0; }
+
+.note-entry-date {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.note-entry-date::before,
+.note-entry-date::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.note-entry-body {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  position: relative;
+  transition: border-color 0.2s;
+}
+.note-entry-body:hover { border-color: var(--border-light); }
+
+.note-entry-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+.note-entry-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.note-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px 5px 9px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: var(--transition-pop);
+  max-width: 220px;
+}
+.note-file-chip:hover {
+  color: var(--text);
+  border-color: var(--border-light);
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: var(--glow-hover);
+}
+.note-file-chip svg { flex-shrink: 0; }
+.note-file-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-file-chip-size {
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Edit + delete icon buttons — top-right of note body */
+.note-entry-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 2px;
+  z-index: 1;
+}
+.note-entry-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  transition: color 0.15s, background 0.15s;
+}
+.note-entry-action-btn:hover {
+  color: var(--text-muted);
+  background: var(--bg-2);
+}
+.note-entry-action-btn--danger:hover {
+  color: var(--danger);
+  background: rgba(248,113,113,0.1);
+}
+
+/* Legacy alias — kept so any old references still work */
+.note-entry-delete {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s, background 0.15s;
+  z-index: 1;
+}
+.note-entry-delete:hover {
+  color: var(--danger);
+  background: rgba(248,113,113,0.1);
+}
+
+/* Edit mode — note body becomes a form */
+.note-entry-body--editing {
+  border-color: var(--border-light) !important;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.04);
+}
+.note-edit-textarea {
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.65;
+  padding: 10px 12px;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+}
+.note-edit-textarea:focus {
+  outline: none;
+  border-color: var(--border-light);
+}
+
+/* File chips in edit mode: not clickable, have × remove button */
+.note-file-chip--editable {
+  cursor: default;
+  padding-right: 6px;
+}
+.note-file-chip--editable:hover {
+  transform: none;
+  box-shadow: none;
+}
+.note-file-chip-remove {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  margin-left: 2px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.note-file-chip-remove:hover { color: var(--danger); }
+
+/* New-file chips queued inside edit mode */
+.note-file-chip--new {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
+/* Add-more-files row inside edit mode */
+.note-edit-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.note-edit-add-row label {
+  cursor: pointer;
+}
+
+/* Edit action buttons row */
+.note-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.note-empty-state {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 24px 0 16px;
+  font-style: italic;
+}
+
+/* Compose area */
+.note-compose {
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  margin-top: 20px;
+}
+
+.note-compose textarea {
+  width: 100%;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.65;
+  padding: 12px 14px;
+  resize: vertical;
+  min-height: 88px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+.note-compose textarea:focus {
+  outline: none;
+  border-color: var(--border-light);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.04);
+}
+
+.note-compose-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.note-file-queue {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.note-file-queue-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 9px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 200px;
+}
+.note-file-queue-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-file-queue-chip button {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.note-file-queue-chip button:hover { color: var(--danger); }
+
+/* Save feedback */
+.note-save-error {
+  font-size: 12px;
+  color: var(--danger);
+  margin-right: auto;
+  display: none;
+}
+
+/* File upload modal */
+.file-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-modal {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  max-width: 460px;
+  margin: 0 24px;
+  overflow: hidden;
+}
+
+.file-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.file-modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+.file-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+.file-modal-close:hover {
+  color: var(--text);
+  background: var(--bg-3);
+}
+
+.file-modal-body { padding: 20px 24px; }
+
+.file-drop-zone {
+  border: 2px dashed var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 28px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  user-select: none;
+}
+.file-drop-zone:hover,
+.file-drop-zone.drag-over {
+  border-color: var(--text-muted);
+  background: rgba(255,255,255,0.02);
+}
+.file-drop-zone-icon {
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.file-drop-zone-label {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.file-drop-zone-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+.file-drop-limit {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 10px;
+}
+
+.file-modal-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.file-modal-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.file-modal-queue-item svg { flex-shrink: 0; color: var(--text-muted); }
+.file-modal-queue-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.file-modal-queue-size {
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.file-modal-queue-remove {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.file-modal-queue-remove:hover { color: var(--danger); }
+
+.file-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px 18px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Page slide transitions ─────────────────────────────────────── */
+@keyframes pageSlideInRight {
+  from { transform: translateX(52px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes pageSlideInLeft {
+  from { transform: translateX(-52px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+.page-slide-right {
+  animation: pageSlideInRight 0.27s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.page-slide-left {
+  animation: pageSlideInLeft 0.27s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
