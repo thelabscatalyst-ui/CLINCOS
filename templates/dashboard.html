@@ -187,50 +187,47 @@ function copyBookingLink() {
 }
 {% endif %}
 
-/* ── macOS-style dock magnification ──
-   Items grow TALLER (up/down) on hover — width stays fixed.
-   Icons scale up slightly via transform for a polished feel.       */
+/* ── macOS-style dock magnification ── */
 (function () {
-  const dock  = document.getElementById('dashDock');
-  const items = Array.from(document.querySelectorAll('.dock-item'));
-  if (!dock || !items.length) return;
+  const items   = Array.from(document.querySelectorAll('.dock-item'));
+  const BASE    = 48;   // normal icon box px
+  const NEAR    = 60;   // direct neighbour
+  const HOVERED = 76;   // hovered item
 
-  const BASE   = 48;   // resting height (px) — width is always fixed
-  const PEAK   = 70;   // max height at cursor centre
-  const RADIUS = 90;   // px influence radius around cursor
+  function sizes(hoveredIdx) {
+    return items.map((_, i) => {
+      const d = Math.abs(i - hoveredIdx);
+      return d === 0 ? HOVERED : d === 1 ? NEAR : BASE;
+    });
+  }
 
-  function applyMag(mouseY) {
-    items.forEach(item => {
-      const rect    = item.getBoundingClientRect();
-      const centerY = rect.top + rect.height / 2;
-      const dist    = Math.abs(mouseY - centerY);
-      const ratio   = dist < RADIUS
-        ? 0.5 * (1 + Math.cos(Math.PI * dist / RADIUS))
-        : 0;
-      const h = Math.round(BASE + (PEAK - BASE) * ratio);
-      // WIDTH stays fixed — only height grows
-      item.style.height = h + 'px';
-      item.style.borderRadius = Math.round(14 + ratio * 6) + 'px';
+  function apply(sz) {
+    items.forEach((item, i) => {
+      const s   = sz[i];
       const svg = item.querySelector('svg');
+      item.style.width  = s + 'px';
+      item.style.height = s + 'px';
       if (svg) {
-        // icon scales from 1.0 → 1.35 at peak
-        const scale = 1 + ratio * 0.35;
-        svg.style.transform = `scale(${scale.toFixed(3)})`;
+        const ic = Math.round(s * 0.44);
+        svg.style.width  = ic + 'px';
+        svg.style.height = ic + 'px';
       }
     });
   }
 
   function reset() {
     items.forEach(item => {
+      item.style.width  = BASE + 'px';
       item.style.height = BASE + 'px';
-      item.style.borderRadius = '14px';
       const svg = item.querySelector('svg');
-      if (svg) { svg.style.transform = 'scale(1)'; }
+      if (svg) { svg.style.width = '22px'; svg.style.height = '22px'; }
     });
   }
 
-  dock.addEventListener('mousemove',  e => applyMag(e.clientY));
-  dock.addEventListener('mouseleave', reset);
+  items.forEach((item, i) => {
+    item.addEventListener('mouseenter', () => apply(sizes(i)));
+    item.addEventListener('mouseleave', reset);
+  });
 })();
 </script>
 {% endblock %}

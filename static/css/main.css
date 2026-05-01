@@ -922,10 +922,8 @@ html.light .dash-dock {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;          /* fixed — never changes sideways */
-  min-width: 48px;
-  max-width: 48px;
-  height: 48px;         /* base height — grows on hover via JS */
+  width: 48px;
+  height: 48px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -933,8 +931,9 @@ html.light .dash-dock {
   text-decoration: none;
   cursor: pointer;
   flex-shrink: 0;
-  /* height animates for macOS-style vertical stretch */
-  transition: height 0.18s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+  /* size + shape animate on magnification */
+  transition: width 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+              height 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
               border-radius 0.18s ease,
               background 0.15s ease,
               color 0.15s ease,
@@ -969,8 +968,7 @@ html.light .dock-item:hover {
 .dock-icon svg {
   width: 22px;
   height: 22px;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-              width 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+  transition: width 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
               height 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
   display: block;
 }
