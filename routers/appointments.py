@@ -2,6 +2,7 @@ from datetime import date, time, timedelta, datetime
 from fastapi import APIRouter, Request, Depends, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import case as sa_case
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
@@ -65,6 +66,7 @@ def appointments_list(
     request: Request,
     filter_date: str = Query(default=""),
     doctor_id: int = Query(default=0),
+    q: str = Query(default=""),
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
@@ -77,17 +79,34 @@ def appointments_list(
     clinic_doctors = _get_owner_clinic_doctors(doctor, db)
     viewing_doctor = _resolve_target_doctor(doctor_id, doctor, db)
 
-    appointments = (
+    # Done statuses sink to the bottom; within each group newest-created first
+    done_last = sa_case(
+        (Appointment.status == AppointmentStatus.completed, 1),
+        (Appointment.status == AppointmentStatus.no_show, 1),
+        (Appointment.status == AppointmentStatus.cancelled, 1),
+        else_=0,
+    )
+
+    appt_query = (
         db.query(Appointment)
+        .join(Appointment.patient)
         .filter(
             Appointment.doctor_id == viewing_doctor.id,
             Appointment.appointment_date == view_date,
         )
-        .order_by(Appointment.appointment_time)
+    )
+    if q.strip():
+        appt_query = appt_query.filter(
+            Patient.name.ilike(f"%{q.strip()}%")
+        )
+
+    appointments = (
+        appt_query
+        .order_by(done_last, Appointment.created_at.desc())
         .all()
     )
     for a in appointments:
-        a.patient  # lazy-load patient
+        a.patient  # ensure lazy-load
 
     return templates.TemplateResponse(request, "appointments.html", {
         "doctor": doctor,
@@ -98,6 +117,7 @@ def appointments_list(
         "today": today,
         "prev_date": (view_date - timedelta(days=1)).isoformat(),
         "next_date": (view_date + timedelta(days=1)).isoformat(),
+        "q": q,
         "active": "appointments",
     })
 
@@ -189,6 +209,8 @@ async def create_appointment(
     request: Request,
     patient_name: str = Form(...),
     patient_phone: str = Form(...),
+    patient_age: str = Form(""),
+    patient_gender: str = Form(""),
     appt_date: str = Form(...),
     appt_time: str = Form(...),
     appointment_type: str = Form("follow_up"),
@@ -205,6 +227,8 @@ async def create_appointment(
     form_data = {
         "patient_name": patient_name,
         "patient_phone": patient_phone,
+        "patient_age": patient_age,
+        "patient_gender": patient_gender,
         "appt_date": appt_date,
         "appt_time": appt_time,
         "appointment_type": appointment_type,
@@ -258,8 +282,12 @@ async def create_appointment(
     if not ok:
         return render_error(reason)
 
+    # Parse optional age / gender
+    age_val = int(patient_age) if patient_age.strip().isdigit() else None
+    gender_val = patient_gender.strip() or None
+
     # Get or create patient
-    patient = get_or_create_patient(target.id, name, phone, db)
+    patient = get_or_create_patient(target.id, name, phone, db, age=age_val, gender=gender_val)
 
     # Parse appointment type
     try:
@@ -312,6 +340,8 @@ async def create_walkin(
     request: Request,
     patient_name: str = Form(...),
     patient_phone: str = Form(...),
+    patient_age: str = Form(""),
+    patient_gender: str = Form(""),
     patient_notes: str = Form(""),
     for_doctor_id: int = Form(0),
     is_emergency: str = Form(""),   # "on" if emergency checkbox ticked
@@ -331,7 +361,9 @@ async def create_walkin(
             status_code=303,
         )
 
-    patient = get_or_create_patient(target.id, name, phone, db)
+    age_val    = int(patient_age) if patient_age.strip().isdigit() else None
+    gender_val = patient_gender.strip() or None
+    patient = get_or_create_patient(target.id, name, phone, db, age=age_val, gender=gender_val)
 
     now = datetime.now()
     appt_date = now.date()

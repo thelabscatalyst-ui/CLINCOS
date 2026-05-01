@@ -146,6 +146,10 @@ def _run_migrations():
             "  reason       VARCHAR(200)"
             ")"
         ))
+        # ── Patient age / gender ─────────────────────────────────────────────
+        _add_column(conn, "ALTER TABLE patients ADD COLUMN age INTEGER")
+        _add_column(conn, "ALTER TABLE patients ADD COLUMN gender VARCHAR(10)")
+
         # ── Pinned patients ──────────────────────────────────────────────────
         conn.execute(text(
             "CREATE TABLE IF NOT EXISTS pinned_patients ("

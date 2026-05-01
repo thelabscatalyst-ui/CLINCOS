@@ -21,7 +21,7 @@
       {% endif %}
     </span>
   </h1>
-  <div style="display:flex;gap:8px;">
+  <div style="display:flex;gap:8px;align-items:center;">
     {% if is_other %}
     <a href="/appointments" class="btn btn-secondary btn-sm">My Appointments</a>
     {% endif %}
@@ -39,8 +39,7 @@
     <span style="color:var(--muted);font-size:13px;">Viewing:</span>
     {% for doc in clinic_doctors %}
     <a href="/appointments?doctor_id={{ doc.id }}&filter_date={{ view_date.isoformat() }}"
-       class="btn btn-sm {% if doc.id == vd.id %}btn-primary{% else %}btn-secondary{% endif %}"
-       data-tip="Dr. {{ doc.name }}{% if doc.specialization %} — {{ doc.specialization }}{% endif %}">
+       class="btn btn-sm {% if doc.id == vd.id %}btn-primary{% else %}btn-secondary{% endif %}">
       Dr. {{ doc.name.split()[0] }}
     </a>
     {% endfor %}
@@ -50,7 +49,7 @@
 
 {% if request.query_params.get('walkin_error') %}
 <div class="alert alert-error" style="margin-bottom:16px;">
-  Walk-in requires a valid name and phone number (at least 10 digits).
+  Walk-in requires a valid name and 10-digit phone number.
 </div>
 {% endif %}
 
@@ -61,7 +60,7 @@
     <div class="walkin-panel-title">Walk-in Patient</div>
     <form method="POST" action="/appointments/walkin" class="walkin-form">
       {% if clinic_doctors %}
-      <select name="for_doctor_id" class="input-sm">
+      <select name="for_doctor_id" class="input-sm walkin-field">
         {% for doc in clinic_doctors %}
         <option value="{{ doc.id }}" {% if doc.id == vd.id %}selected{% endif %}>
           Dr. {{ doc.name }}
@@ -69,15 +68,37 @@
         {% endfor %}
       </select>
       {% endif %}
-      <input type="text" name="patient_name" placeholder="Patient name" required class="input-sm" />
-      <input type="tel" id="walkinPhone" name="patient_phone" placeholder="Phone number (10 digits)" required
-             pattern="[0-9]{10}" minlength="10" maxlength="10"
-             title="Enter a 10-digit phone number" class="input-sm" />
-      <input type="text" name="patient_notes" placeholder="Notes (optional)" class="input-sm" />
+
+      <!-- Row 1: Name + Phone -->
+      <div class="walkin-row">
+        <input type="text" name="patient_name" placeholder="Patient name" required class="input-sm" />
+        <div class="walkin-phone-wrap">
+          <input type="tel" id="walkinPhone" name="patient_phone"
+                 placeholder="Phone (10 digits)" required
+                 pattern="[0-9]{10}" minlength="10" maxlength="10"
+                 title="Enter a 10-digit phone number" class="input-sm" />
+        </div>
+      </div>
+
+      <!-- Row 2: Age + Gender + Notes -->
+      <div class="walkin-row">
+        <input type="number" name="patient_age" placeholder="Age" min="0" max="120"
+               class="input-sm walkin-age" />
+        <select name="patient_gender" class="input-sm walkin-gender">
+          <option value="">Gender</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="other">Other</option>
+        </select>
+        <input type="text" name="patient_notes" placeholder="Notes (optional)" class="input-sm walkin-notes" />
+      </div>
+
       <input type="checkbox" name="is_emergency" id="emergencyCheck" style="display:none;" />
-      <div style="display:flex;gap:8px;">
+
+      <!-- Row 3: Emergency toggle + Submit -->
+      <div class="walkin-actions">
         <button type="button" class="btn-emergency-toggle" id="emergencyToggle" onclick="toggleEmergency()">Emergency</button>
-        <button type="submit" class="btn btn-primary btn-sm" style="flex:1;">Add Walk-in</button>
+        <button type="submit" class="btn btn-primary btn-sm walkin-submit">Add Walk-in</button>
       </div>
     </form>
   </div>
@@ -98,6 +119,24 @@
   <a href="/appointments?filter_date={{ next_date }}{{ doc_param }}" class="btn btn-secondary btn-sm">Next →</a>
 </div>
 
+<!-- Search bar -->
+<form method="get" action="/appointments" class="appt-search-form">
+  <input type="hidden" name="filter_date" value="{{ view_date.isoformat() }}">
+  {% if is_other %}<input type="hidden" name="doctor_id" value="{{ vd.id }}">{% endif %}
+  <div class="appt-search-wrap">
+    <svg class="appt-search-icon" width="15" height="15" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="text" name="q" value="{{ q }}" placeholder="Search by patient name…"
+           class="appt-search-input" id="apptSearchInput">
+    {% if q %}
+    <a href="/appointments?filter_date={{ view_date.isoformat() }}{{ doc_param }}" class="appt-search-clear">✕</a>
+    {% endif %}
+  </div>
+  <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+</form>
+
 <!-- Appointment List -->
 {% if appointments %}
 <div class="appt-list">
@@ -113,6 +152,8 @@
         {{ appt.appointment_type.value.replace("_", " ").title() }}
         · {{ appt.duration_mins }} min
         · {{ appt.patient.phone }}
+        {% if appt.patient.age %}· {{ appt.patient.age }}y{% endif %}
+        {% if appt.patient.gender %}· {{ appt.patient.gender.title() }}{% endif %}
         {% if appt.booked_by.value == 'walk_in' and not appt.is_emergency %}
         · <span class="badge-channel badge-channel--walkin">Walk-in</span>
         {% elif appt.booked_by.value in ('staff_shared', 'staff') %}
@@ -134,6 +175,15 @@
     </div>
   </div>
   {% endfor %}
+</div>
+
+{% elif q %}
+<div class="empty-state">
+  <div class="empty-title">No results for "{{ q }}"</div>
+  <div class="empty-sub">No appointments match this name on {{ view_date.strftime("%d %b") }}.</div>
+  <div class="empty-actions">
+    <a href="/appointments?filter_date={{ view_date.isoformat() }}{{ doc_param }}" class="btn btn-secondary btn-sm">Clear search</a>
+  </div>
 </div>
 
 {% else %}
@@ -165,12 +215,11 @@ function toggleWalkin() {
   const isOpen = panel.style.display !== 'none';
   panel.style.display = isOpen ? 'none' : 'block';
   if (!isOpen) panel.querySelector('input[name="patient_name"]').focus();
-  // Reset emergency state when panel is closed
   if (isOpen) {
     const btn = document.getElementById('emergencyToggle');
     const chk = document.getElementById('emergencyCheck');
-    if (btn) { btn.classList.remove('active'); }
-    if (chk) { chk.checked = false; }
+    if (btn) btn.classList.remove('active');
+    if (chk) chk.checked = false;
   }
 }
 
@@ -182,7 +231,6 @@ function toggleEmergency() {
   chk.checked = btn.classList.contains('active');
 }
 
-// Auto-open walk-in panel on validation error so the form is visible
 {% if request.query_params.get('walkin_error') %}
 document.addEventListener('DOMContentLoaded', function() {
   var panel = document.getElementById('walkinPanel');

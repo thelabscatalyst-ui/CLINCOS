@@ -238,6 +238,10 @@ a:hover { color: var(--text); }
   box-sizing: border-box;
 }
 
+.form-group textarea {
+  resize: vertical;
+}
+
 .form-group select {
   appearance: none;
   -webkit-appearance: none;
@@ -319,6 +323,11 @@ a:hover { color: var(--text); }
 .btn-danger {
   background: var(--danger);
   color: #fff;
+  border: 1px solid #b91c1c;
+}
+.btn-danger:hover {
+  background: #ef4444;
+  border-color: #991b1b;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1385,8 +1394,61 @@ select.input-sm {
   flex-direction: row;
   align-items: center;
   gap: 12px;
-  margin-bottom: 28px;
+  margin-bottom: 16px;
 }
+
+/* Appointment search bar */
+.appt-search-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.appt-search-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 420px;
+}
+
+.appt-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.appt-search-input {
+  width: 100%;
+  padding: 8px 32px 8px 36px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+  height: 37px;        /* matches btn-sm height */
+  box-sizing: border-box;
+}
+
+.appt-search-input:focus { border-color: var(--primary); }
+.appt-search-input::placeholder { color: var(--text-dim); }
+
+.appt-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 4px;
+  line-height: 1;
+}
+.appt-search-clear:hover { color: var(--text); }
 
 .date-nav-input {
   padding: 8px 12px;
@@ -2749,15 +2811,34 @@ html.light .sub-pro-tag {
 
 .walkin-form {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 10px;
-  align-items: flex-end;
 }
 
-.walkin-form input {
-  flex: 1;
-  min-width: 140px;
+/* Each row inside the walk-in form */
+.walkin-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
+
+.walkin-row .input-sm { flex: 1; }
+.walkin-row .phone-wrap { flex: 1; }   /* phone-wrap added by initPhoneInput */
+.walkin-row .phone-wrap .input-sm { width: 100%; }
+
+.walkin-age   { flex: 0 0 90px  !important; }
+.walkin-gender { flex: 0 0 120px !important; }
+.walkin-notes  { flex: 1 !important; }
+
+.walkin-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.walkin-submit { flex: 1; }
+
+.walkin-field { width: 100%; }
 
 /* ---- Emergency toggle button ---- */
 .btn-emergency-toggle {

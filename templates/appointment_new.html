@@ -57,6 +57,23 @@
                value="{{ form_data.get('patient_phone', '') }}" required>
       </div>
     </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="patient_age">Age</label>
+        <input type="number" id="patient_age" name="patient_age"
+               placeholder="e.g. 35" min="0" max="120"
+               value="{{ form_data.get('patient_age', '') }}">
+      </div>
+      <div class="form-group">
+        <label for="patient_gender">Gender</label>
+        <select id="patient_gender" name="patient_gender">
+          <option value="">— Select —</option>
+          <option value="male"   {% if form_data.get('patient_gender') == 'male'   %}selected{% endif %}>Male</option>
+          <option value="female" {% if form_data.get('patient_gender') == 'female' %}selected{% endif %}>Female</option>
+          <option value="other"  {% if form_data.get('patient_gender') == 'other'  %}selected{% endif %}>Other</option>
+        </select>
+      </div>
+    </div>
 
     <!-- Appointment Details -->
     <p class="form-section-label" style="margin-top: 8px;">Appointment Details</p>

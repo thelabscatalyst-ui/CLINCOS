@@ -184,6 +184,8 @@ class Patient(Base):
     clinic_id = Column(Integer, ForeignKey("clinics.id"), nullable=True, index=True)   # Phase 2
     name = Column(String(100), nullable=False)
     phone = Column(String(15), nullable=False)
+    age = Column(Integer, nullable=True)
+    gender = Column(String(10), nullable=True)   # male | female | other
     language_pref = Column(String(20), default="english")
     notes = Column(Text, nullable=True)
     visit_count = Column(Integer, default=0)

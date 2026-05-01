@@ -264,9 +264,12 @@ def has_open_appointment_on_date(
 
 
 def get_or_create_patient(
-    doctor_id: int, name: str, phone: str, db: Session
+    doctor_id: int, name: str, phone: str, db: Session,
+    age: int | None = None, gender: str | None = None,
 ) -> Patient:
-    """Look up patient by phone for this doctor, or create a new record."""
+    """Look up patient by phone for this doctor, or create a new record.
+    If age/gender are provided they are always written (update existing too).
+    """
     patient = db.query(Patient).filter(
         Patient.doctor_id == doctor_id,
         Patient.phone == phone,
@@ -275,4 +278,8 @@ def get_or_create_patient(
         patient = Patient(doctor_id=doctor_id, name=name, phone=phone)
         db.add(patient)
         db.flush()  # populate patient.id without full commit
+    if age is not None:
+        patient.age = age
+    if gender:
+        patient.gender = gender
     return patient
