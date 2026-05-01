@@ -187,45 +187,35 @@ function copyBookingLink() {
 }
 {% endif %}
 
-/* ── macOS-style dock magnification ── */
+/* ── Dock — vertical pop on hover, width always fixed ── */
 (function () {
   const items   = Array.from(document.querySelectorAll('.dock-item'));
-  const BASE    = 48;   // normal icon box px
-  const NEAR    = 60;   // direct neighbour
-  const HOVERED = 76;   // hovered item
+  const BASE    = 48;   // resting height
+  const NEAR    = 56;   // neighbour height
+  const PEAK    = 72;   // hovered height
 
-  function sizes(hoveredIdx) {
-    return items.map((_, i) => {
-      const d = Math.abs(i - hoveredIdx);
-      return d === 0 ? HOVERED : d === 1 ? NEAR : BASE;
-    });
-  }
-
-  function apply(sz) {
+  function apply(hoveredIdx) {
     items.forEach((item, i) => {
-      const s   = sz[i];
+      const d   = Math.abs(i - hoveredIdx);
+      const h   = d === 0 ? PEAK : d === 1 ? NEAR : BASE;
       const svg = item.querySelector('svg');
-      item.style.width  = s + 'px';
-      item.style.height = s + 'px';
-      if (svg) {
-        const ic = Math.round(s * 0.44);
-        svg.style.width  = ic + 'px';
-        svg.style.height = ic + 'px';
-      }
+      item.style.height       = h + 'px';
+      item.style.borderRadius = (d === 0 ? 18 : 14) + 'px';
+      if (svg) svg.style.transform = d === 0 ? 'scale(1.32)' : d === 1 ? 'scale(1.08)' : 'scale(1)';
     });
   }
 
   function reset() {
     items.forEach(item => {
-      item.style.width  = BASE + 'px';
-      item.style.height = BASE + 'px';
+      item.style.height       = BASE + 'px';
+      item.style.borderRadius = '14px';
       const svg = item.querySelector('svg');
-      if (svg) { svg.style.width = '22px'; svg.style.height = '22px'; }
+      if (svg) svg.style.transform = 'scale(1)';
     });
   }
 
   items.forEach((item, i) => {
-    item.addEventListener('mouseenter', () => apply(sizes(i)));
+    item.addEventListener('mouseenter', () => apply(i));
     item.addEventListener('mouseleave', reset);
   });
 })();
