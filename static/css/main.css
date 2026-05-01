@@ -1492,10 +1492,6 @@ select.input-sm {
   flex: 1;
 }
 
-/* Single-column form rows inside the split layout */
-.appt-new-split .form-row {
-  grid-template-columns: 1fr;
-}
 
 .appt-form-card {
   width: 100%;
