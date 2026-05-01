@@ -1478,8 +1478,8 @@ select.input-sm {
 /* ------------------------------------------------------------------ */
 .appt-new-split {
   display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 28px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 36%);
+  gap: 24px;
   align-items: stretch;
 }
 
@@ -1492,6 +1492,11 @@ select.input-sm {
   flex: 1;
 }
 
+/* Single-column form rows inside the split layout */
+.appt-new-split .form-row {
+  grid-template-columns: 1fr;
+}
+
 .appt-form-card {
   width: 100%;
 }
@@ -1500,8 +1505,9 @@ select.input-sm {
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 52px 40px 48px;
+  padding: 48px 36px;
   text-align: center;
+  position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1531,28 +1537,61 @@ select.input-sm {
 
 .appt-brand-title {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 76px;
+  font-size: clamp(36px, 4vw, 62px);
   font-weight: 900;
-  line-height: 0.95;
-  letter-spacing: -2px;
+  line-height: 1;
+  letter-spacing: -1px;
   color: var(--text);
-  margin-bottom: 28px;
+  margin-bottom: 24px;
+  position: relative;
+  word-break: break-word;
+}
+
+.appt-brand-sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.75;
   position: relative;
 }
 
 .appt-brand-divider {
-  width: 40px;
+  width: 36px;
   height: 1px;
-  background: var(--border-light);
-  margin: 0 auto 28px;
+  background: var(--border);
+  margin: 24px auto;
   position: relative;
 }
 
+.appt-brand-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  position: relative;
+  width: 100%;
+}
+
+.appt-brand-features li {
+  font-size: 13px;
+  color: var(--muted);
+  padding: 5px 0 5px 20px;
+  position: relative;
+}
+
+.appt-brand-features li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--text-dim);
+  font-size: 11px;
+  top: 6px;
+}
+
 .appt-brand-tagline {
-  font-size: 14px;
-  color: var(--text-muted);
+  font-size: 13px;
+  color: var(--muted);
   line-height: 1.7;
-  margin-bottom: 36px;
+  margin-bottom: 28px;
   position: relative;
 }
 
@@ -1570,7 +1609,7 @@ select.input-sm {
   position: relative;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   .appt-new-split {
     grid-template-columns: 1fr;
   }
