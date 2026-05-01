@@ -188,16 +188,16 @@ function copyBookingLink() {
 {% endif %}
 
 /* ── macOS-style dock magnification ──
-   Whole-dock mousemove so expansion is continuous and never pops
-   on per-item transitions.                                         */
+   Items grow TALLER (up/down) on hover — width stays fixed.
+   Icons scale up slightly via transform for a polished feel.       */
 (function () {
   const dock  = document.getElementById('dashDock');
   const items = Array.from(document.querySelectorAll('.dock-item'));
   if (!dock || !items.length) return;
 
-  const BASE   = 48;   // resting height (px) — width is always fixed at 48px
-  const PEAK   = 66;   // max height at cursor centre
-  const RADIUS = 80;   // px influence radius around cursor
+  const BASE   = 48;   // resting height (px) — width is always fixed
+  const PEAK   = 70;   // max height at cursor centre
+  const RADIUS = 90;   // px influence radius around cursor
 
   function applyMag(mouseY) {
     items.forEach(item => {
@@ -210,12 +210,12 @@ function copyBookingLink() {
       const h = Math.round(BASE + (PEAK - BASE) * ratio);
       // WIDTH stays fixed — only height grows
       item.style.height = h + 'px';
+      item.style.borderRadius = Math.round(14 + ratio * 6) + 'px';
       const svg = item.querySelector('svg');
       if (svg) {
-        // icon scales with height but capped so it fits the fixed width
-        const ic = Math.min(Math.round(h * 0.44), 26);
-        svg.style.width  = ic + 'px';
-        svg.style.height = ic + 'px';
+        // icon scales from 1.0 → 1.35 at peak
+        const scale = 1 + ratio * 0.35;
+        svg.style.transform = `scale(${scale.toFixed(3)})`;
       }
     });
   }
@@ -223,8 +223,9 @@ function copyBookingLink() {
   function reset() {
     items.forEach(item => {
       item.style.height = BASE + 'px';
+      item.style.borderRadius = '14px';
       const svg = item.querySelector('svg');
-      if (svg) { svg.style.width = '22px'; svg.style.height = '22px'; }
+      if (svg) { svg.style.transform = 'scale(1)'; }
     });
   }
 
