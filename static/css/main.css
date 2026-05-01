@@ -509,9 +509,19 @@ a:hover { color: var(--text); }
   padding: 32px 60px;
 }
 
-/* Dashboard: shift content right to clear the dock */
-.page-dashboard .main-content {
-  padding-left: 120px;
+/* Dock trigger zone — thin strip always present on left edge */
+.dock-zone {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;   /* invisible trigger strip */
+  z-index: 200;
+  pointer-events: auto;
+}
+
+.dock-zone.dock-open {
+  width: 90px;   /* expand to cover dock so mouse can travel to it */
 }
 
 /* ------------------------------------------------------------------ */
@@ -890,13 +900,16 @@ html.light .logout-btn {
 .quick-label { font-size: 13px; color: var(--text-muted); font-weight: 500; }
 
 /* ------------------------------------------------------------------ */
-/*  Dashboard Dock (macOS-style left sidebar)                           */
+/*  Dock (macOS-style, auto-hide, every page)                           */
 /* ------------------------------------------------------------------ */
 .dash-dock {
-  position: fixed;
-  left: 16px;
+  position: absolute;
+  left: 12px;
   top: 50%;
-  transform: translateY(-50%);
+  /* hidden: slid off to the left */
+  transform: translateY(-50%) translateX(calc(-100% - 16px));
+  opacity: 0;
+  pointer-events: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -907,8 +920,16 @@ html.light .logout-btn {
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 22px;
-  z-index: 200;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28), 0 0 0 0.5px rgba(255,255,255,0.05);
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              opacity 0.25s ease;
+}
+
+/* Visible when dock-zone is open */
+.dock-zone.dock-open .dash-dock {
+  transform: translateY(-50%) translateX(0);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 html.light .dash-dock {
@@ -1020,10 +1041,9 @@ html.light .dock-item:hover {
   transform: translateY(-50%) translateX(0);
 }
 
-/* Hide dock on narrow screens (dock would overlap content) */
-@media (max-width: 960px) {
-  .dash-dock { display: none; }
-  .page-dashboard .main-content { padding-left: 80px; }
+/* Hide dock on narrow screens */
+@media (max-width: 768px) {
+  .dock-zone { display: none; }
 }
 
 /* ------------------------------------------------------------------ */
