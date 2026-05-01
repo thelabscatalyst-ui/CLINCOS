@@ -11,8 +11,10 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 
+from datetime import datetime
+
 from database.connection import get_db
-from database.models import Doctor, Patient, Appointment, AppointmentStatus, PatientNote, NoteFile
+from database.models import Doctor, Patient, Appointment, AppointmentStatus, PatientNote, NoteFile, PinnedPatient
 from services.auth_service import get_paying_doctor, require_pin
 
 router = APIRouter(prefix="/patients", tags=["patients"])
@@ -111,32 +113,122 @@ def _safe_filename(original: str) -> str:
 def patients_list(
     request: Request,
     q: str = Query(default=""),
+    sort: str = Query(default="last_seen"),
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Patient).filter(Patient.doctor_id == doctor.id)
+    # ── Pinned patients (ordered oldest→newest so index 0 = first pinned) ──
+    pins = db.query(PinnedPatient).filter(
+        PinnedPatient.doctor_id == doctor.id
+    ).order_by(PinnedPatient.pinned_at.asc()).all()
+    pinned_ids   = [p.patient_id for p in pins]   # oldest first
+    pinned_set   = set(pinned_ids)
 
+    # ── Name of oldest pin (shown in JS confirm when adding a 4th) ──────
+    oldest_pin_name = None
+    if len(pinned_ids) >= 3:
+        oldest_pin_patient = db.query(Patient).filter(
+            Patient.id == pinned_ids[0]
+        ).first()
+        oldest_pin_name = oldest_pin_patient.name if oldest_pin_patient else None
+
+    # ── Base patient query ───────────────────────────────────────────────
+    base = db.query(Patient).filter(Patient.doctor_id == doctor.id)
     if q.strip():
         term = f"%{q.strip()}%"
-        query = query.filter(
-            or_(Patient.name.ilike(term), Patient.phone.ilike(term))
-        )
+        base = base.filter(or_(Patient.name.ilike(term), Patient.phone.ilike(term)))
 
-    patients = query.order_by(
-        Patient.last_visit.desc(), Patient.created_at.desc()
-    ).all()
+    if sort == "alpha":
+        all_patients = base.order_by(Patient.name.asc()).all()
+    else:
+        all_patients = base.order_by(Patient.last_visit.desc(), Patient.created_at.desc()).all()
+
+    # ── Split: pinned first (in pin order), rest below ───────────────────
+    pinned_map   = {p.id: p for p in all_patients if p.id in pinned_set}
+    pinned_list  = [pinned_map[pid] for pid in pinned_ids if pid in pinned_map]
+    other_list   = [p for p in all_patients if p.id not in pinned_set]
 
     total = db.query(func.count(Patient.id)).filter(
         Patient.doctor_id == doctor.id
     ).scalar()
 
     return templates.TemplateResponse(request, "patients.html", {
-        "doctor":   doctor,
-        "patients": patients,
-        "total":    total,
-        "q":        q,
-        "active":   "patients",
+        "doctor":           doctor,
+        "pinned_patients":  pinned_list,
+        "other_patients":   other_list,
+        "pinned_ids":       pinned_set,
+        "oldest_pin_name":  oldest_pin_name,
+        "pin_count":        len(pinned_ids),
+        "total":            total,
+        "q":                q,
+        "sort":             sort,
+        "active":           "patients",
     })
+
+
+# --------------------------------------------------------------------------- #
+#  Pin / Unpin                                                                  #
+# --------------------------------------------------------------------------- #
+
+@router.post("/{patient_id}/pin", response_class=HTMLResponse)
+def pin_patient(
+    patient_id: int,
+    q: str = Form(default=""),
+    sort: str = Form(default="last_seen"),
+    doctor: Doctor = Depends(get_paying_doctor),
+    db: Session = Depends(get_db),
+):
+    patient = db.query(Patient).filter(
+        Patient.id == patient_id,
+        Patient.doctor_id == doctor.id,
+    ).first()
+    if not patient:
+        return RedirectResponse(url="/patients", status_code=303)
+
+    # Already pinned → no-op
+    existing = db.query(PinnedPatient).filter(
+        PinnedPatient.doctor_id == doctor.id,
+        PinnedPatient.patient_id == patient_id,
+    ).first()
+    if not existing:
+        # If already at 3, remove the oldest (FIFO)
+        pin_count = db.query(func.count(PinnedPatient.id)).filter(
+            PinnedPatient.doctor_id == doctor.id
+        ).scalar()
+        if pin_count >= 3:
+            oldest = db.query(PinnedPatient).filter(
+                PinnedPatient.doctor_id == doctor.id
+            ).order_by(PinnedPatient.pinned_at.asc()).first()
+            if oldest:
+                db.delete(oldest)
+
+        db.add(PinnedPatient(
+            doctor_id=doctor.id,
+            patient_id=patient_id,
+            pinned_at=datetime.utcnow(),
+        ))
+        db.commit()
+
+    back = f"/patients?sort={sort}" + (f"&q={q}" if q.strip() else "")
+    return RedirectResponse(url=back, status_code=303)
+
+
+@router.post("/{patient_id}/unpin", response_class=HTMLResponse)
+def unpin_patient(
+    patient_id: int,
+    q: str = Form(default=""),
+    sort: str = Form(default="last_seen"),
+    doctor: Doctor = Depends(get_paying_doctor),
+    db: Session = Depends(get_db),
+):
+    db.query(PinnedPatient).filter(
+        PinnedPatient.doctor_id == doctor.id,
+        PinnedPatient.patient_id == patient_id,
+    ).delete()
+    db.commit()
+
+    back = f"/patients?sort={sort}" + (f"&q={q}" if q.strip() else "")
+    return RedirectResponse(url=back, status_code=303)
 
 
 # --------------------------------------------------------------------------- #

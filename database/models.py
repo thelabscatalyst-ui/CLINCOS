@@ -169,6 +169,7 @@ class Doctor(Base):
     blocked_times      = relationship("BlockedTime", back_populates="doctor", cascade="all, delete-orphan")
     subscriptions      = relationship("Subscription", back_populates="doctor", cascade="all, delete-orphan")
     clinic_memberships = relationship("ClinicDoctor", back_populates="doctor")
+    pinned_patients    = relationship("PinnedPatient", back_populates="doctor", cascade="all, delete-orphan")
 
 
 # --------------------------------------------------------------------------- #
@@ -345,3 +346,19 @@ class NotificationLog(Base):
     sent_at = Column(DateTime, nullable=True)
 
     appointment = relationship("Appointment", back_populates="notifications")
+
+
+# --------------------------------------------------------------------------- #
+#  PinnedPatient                                                                #
+# --------------------------------------------------------------------------- #
+
+class PinnedPatient(Base):
+    __tablename__ = "pinned_patients"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    doctor_id  = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
+    pinned_at  = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    doctor  = relationship("Doctor", back_populates="pinned_patients")
+    patient = relationship("Patient")

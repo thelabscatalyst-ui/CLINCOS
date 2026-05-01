@@ -1694,11 +1694,28 @@ select.input-sm {
 /* ------------------------------------------------------------------ */
 /*  Patients Page                                                       */
 /* ------------------------------------------------------------------ */
-.patient-search-form { margin-bottom: 20px; }
+/* Toolbar row: search + sort side by side */
+.patient-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.patient-search-form {
+  flex: 1;
+  margin: 0;
+}
+
+.patient-sort-group {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
 
 .patient-search-wrap {
   position: relative;
-  max-width: 400px;
+  max-width: none;
 }
 
 .patient-search-icon {
@@ -1741,9 +1758,9 @@ select.input-sm {
 /* List layout */
 .patient-list-header {
   display: grid;
-  grid-template-columns: 1fr 140px 70px 120px 32px;
+  grid-template-columns: 1fr 140px 70px 120px 32px 36px;
   gap: 16px;
-  padding: 0 16px 10px;
+  padding: 0 8px 10px 16px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.8px;
@@ -1757,25 +1774,97 @@ select.input-sm {
   gap: 8px;
 }
 
+/* Wrapper card — hover lives here */
+.patient-row-wrap {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--glow);
+  transition: var(--transition-pop);
+  overflow: hidden;
+}
+
+.patient-row-wrap:hover {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow: var(--glow-hover);
+  border-color: var(--border-light);
+}
+
+.patient-row-wrap--pinned {
+  border-color: var(--border-light);
+}
+
+/* Link grid — fills the row */
 .patient-row {
   display: grid;
   grid-template-columns: 1fr 140px 70px 120px 32px;
   align-items: center;
   gap: 16px;
   padding: 14px 16px;
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--glow);
+  flex: 1;
   text-decoration: none;
-  transition: var(--transition-pop);
+  background: none;
+  border: none;
+  box-shadow: none;
+  min-width: 0;
 }
 
-.patient-row:hover {
-  transform: translateY(-2px) scale(1.005);
-  box-shadow: var(--glow-hover);
-  border-color: var(--border-light);
-  text-decoration: none;
+.patient-row:hover { text-decoration: none; }
+
+/* Pin button cell */
+.patient-pin-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-left: 1px solid var(--border);
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.patient-pin-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+  line-height: 1;
+}
+
+.patient-pin-btn:hover {
+  color: var(--text);
+  background: var(--bg-3);
+}
+
+.patient-pin-btn--active {
+  color: var(--text);
+}
+
+/* Pinned section label */
+.patient-section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 2px 4px 6px;
+}
+
+/* Divider between pinned and other */
+.patient-pin-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0 4px;
 }
 
 .patient-name  { font-size: 14px; font-weight: 500; color: var(--text); }
@@ -2022,6 +2111,8 @@ select.input-sm {
   .patient-row         { grid-template-columns: 1fr auto 32px; }
   .patient-phone       { display: none; }
   .patient-last        { display: none; }
+  .patient-toolbar     { flex-wrap: wrap; }
+  .patient-sort-group  { width: 100%; justify-content: flex-end; }
   .reports-grid        { grid-template-columns: 1fr; }
   .reports-new-patients{ flex-direction: column; gap: 16px; }
   .report-np-divider   { width: 100%; height: 1px; }

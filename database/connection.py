@@ -146,4 +146,13 @@ def _run_migrations():
             "  reason       VARCHAR(200)"
             ")"
         ))
+        # ── Pinned patients ──────────────────────────────────────────────────
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS pinned_patients ("
+            "  id         INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "  doctor_id  INTEGER NOT NULL REFERENCES doctors(id), "
+            "  patient_id INTEGER NOT NULL REFERENCES patients(id), "
+            "  pinned_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
+            ")"
+        ))
         conn.commit()

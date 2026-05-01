@@ -10,24 +10,39 @@
   </h1>
 </div>
 
-<!-- Search -->
-<form method="get" action="/patients" class="patient-search-form">
-  <div class="patient-search-wrap">
-    <svg class="patient-search-icon" width="16" height="16" viewBox="0 0 24 24"
-         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-    </svg>
-    <input type="text" name="q" value="{{ q }}" placeholder="Search by name or phone…"
-           class="patient-search-input" autofocus>
-    {% if q %}
-    <a href="/patients" class="patient-search-clear">✕</a>
-    {% endif %}
+<!-- Toolbar: search + sort -->
+<div class="patient-toolbar">
+  <form method="get" action="/patients" class="patient-search-form" id="searchForm">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <div class="patient-search-wrap">
+      <svg class="patient-search-icon" width="16" height="16" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" name="q" id="patientSearchInput" value="{{ q }}"
+             placeholder="Search by name or phone…" class="patient-search-input" autofocus>
+      {% if q %}
+      <a href="/patients?sort={{ sort }}" class="patient-search-clear">✕</a>
+      {% endif %}
+    </div>
+  </form>
+
+  <div class="patient-sort-group">
+    <a href="/patients?sort=last_seen{% if q %}&q={{ q }}{% endif %}"
+       class="btn btn-sm {% if sort != 'alpha' %}btn-primary{% else %}btn-secondary{% endif %}">
+      Last Seen
+    </a>
+    <a href="/patients?sort=alpha{% if q %}&q={{ q }}{% endif %}"
+       class="btn btn-sm {% if sort == 'alpha' %}btn-primary{% else %}btn-secondary{% endif %}">
+      A → Z
+    </a>
   </div>
-</form>
+</div>
 
 <!-- Patient List -->
 <div id="patient-results">
-{% if patients %}
+{% set has_patients = pinned_patients or other_patients %}
+{% if has_patients %}
 
 <div class="patient-list-header">
   <span>Name</span>
@@ -35,26 +50,85 @@
   <span>Visits</span>
   <span>Last seen</span>
   <span></span>
+  <span></span>
 </div>
 
 <div class="patient-list">
-  {% for p in patients %}
-  <a href="/patients/{{ p.id }}" class="patient-row">
-    <div class="patient-name">{{ p.name }}</div>
-    <div class="patient-phone">{{ p.phone }}</div>
-    <div class="patient-visits">
-      <span class="badge badge--scheduled">{{ p.visit_count or 0 }}</span>
+
+  <!-- Pinned section -->
+  {% if pinned_patients %}
+  <div class="patient-section-label">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1">
+      <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/>
+      <line x1="12" y1="17" x2="12" y2="22" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    Pinned
+  </div>
+  {% for p in pinned_patients %}
+  <div class="patient-row-wrap patient-row-wrap--pinned">
+    <a href="/patients/{{ p.id }}" class="patient-row">
+      <div class="patient-name">{{ p.name }}</div>
+      <div class="patient-phone">{{ p.phone }}</div>
+      <div class="patient-visits">
+        <span class="badge badge--scheduled">{{ p.visit_count or 0 }}</span>
+      </div>
+      <div class="patient-last">
+        {% if p.last_visit %}{{ p.last_visit.strftime("%d %b %Y") }}
+        {% else %}<span style="color:var(--text-dim);">—</span>{% endif %}
+      </div>
+      <div class="patient-arrow">→</div>
+    </a>
+    <div class="patient-pin-cell">
+      <form method="post" action="/patients/{{ p.id }}/unpin" style="margin:0;">
+        <input type="hidden" name="q"    value="{{ q }}">
+        <input type="hidden" name="sort" value="{{ sort }}">
+        <button type="submit" class="patient-pin-btn patient-pin-btn--active" title="Unpin patient">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1">
+            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/>
+            <line x1="12" y1="17" x2="12" y2="22" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </form>
     </div>
-    <div class="patient-last">
-      {% if p.last_visit %}
-        {{ p.last_visit.strftime("%d %b %Y") }}
-      {% else %}
-        <span style="color:var(--text-dim);">—</span>
-      {% endif %}
-    </div>
-    <div class="patient-arrow">→</div>
-  </a>
+  </div>
   {% endfor %}
+
+  {% if other_patients %}
+  <div class="patient-pin-divider"></div>
+  {% endif %}
+  {% endif %}
+
+  <!-- Other patients -->
+  {% for p in other_patients %}
+  <div class="patient-row-wrap">
+    <a href="/patients/{{ p.id }}" class="patient-row">
+      <div class="patient-name">{{ p.name }}</div>
+      <div class="patient-phone">{{ p.phone }}</div>
+      <div class="patient-visits">
+        <span class="badge badge--scheduled">{{ p.visit_count or 0 }}</span>
+      </div>
+      <div class="patient-last">
+        {% if p.last_visit %}{{ p.last_visit.strftime("%d %b %Y") }}
+        {% else %}<span style="color:var(--text-dim);">—</span>{% endif %}
+      </div>
+      <div class="patient-arrow">→</div>
+    </a>
+    <div class="patient-pin-cell">
+      <form method="post" action="/patients/{{ p.id }}/pin" style="margin:0;">
+        <input type="hidden" name="q"    value="{{ q }}">
+        <input type="hidden" name="sort" value="{{ sort }}">
+        <button type="submit" class="patient-pin-btn" title="Pin patient"
+                {% if pin_count >= 3 and oldest_pin_name %}data-confirm="Pinning this will unpin {{ oldest_pin_name }}. Continue?"{% endif %}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/>
+            <line x1="12" y1="17" x2="12" y2="22"/>
+          </svg>
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+
 </div>
 
 {% elif q %}
@@ -68,7 +142,7 @@
   <div class="empty-title">No patients found</div>
   <div class="empty-sub">No results for "{{ q }}". Try a different name or phone number.</div>
   <div class="empty-actions">
-    <a href="/patients" class="btn btn-secondary btn-sm">Clear search</a>
+    <a href="/patients?sort={{ sort }}" class="btn btn-secondary btn-sm">Clear search</a>
   </div>
 </div>
 
@@ -93,22 +167,35 @@
 
 {% block scripts %}
 <script>
-const searchInput = document.querySelector('.patient-search-input');
+/* ── Live search (preserves sort param) ── */
+const searchInput = document.getElementById('patientSearchInput');
 if (searchInput) {
   let timer;
   searchInput.addEventListener('input', () => {
     clearTimeout(timer);
     timer = setTimeout(async () => {
-      const q = searchInput.value;
-      const url = '/patients' + (q ? '?q=' + encodeURIComponent(q) : '');
+      const q    = searchInput.value;
+      const sort = new URLSearchParams(window.location.search).get('sort') || 'last_seen';
+      const url  = '/patients?sort=' + sort + (q ? '&q=' + encodeURIComponent(q) : '');
       history.pushState({}, '', url);
       const res  = await fetch(url, { headers: { 'X-Requested-With': 'fetch' } });
       const html = await res.text();
       const doc  = new DOMParser().parseFromString(html, 'text/html');
       document.getElementById('patient-results').innerHTML =
         doc.getElementById('patient-results').innerHTML;
-    }, 700);
+      attachPinConfirm();
+    }, 500);
   });
 }
+
+/* ── Pin confirm dialog (4th-pin warning) ── */
+function attachPinConfirm() {
+  document.querySelectorAll('.patient-pin-btn[data-confirm]').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      if (!confirm(this.dataset.confirm)) e.preventDefault();
+    });
+  });
+}
+attachPinConfirm();
 </script>
 {% endblock %}
