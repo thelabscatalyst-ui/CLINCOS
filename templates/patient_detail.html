@@ -26,7 +26,10 @@
       </div>
       <div class="form-group" style="margin-bottom:20px;">
         <label class="form-label">Phone</label>
-        <input type="text" name="phone" value="{{ patient.phone }}" class="input-sm" required style="width:100%;box-sizing:border-box;">
+        <input type="tel" name="phone" value="{{ patient.phone }}" class="input-sm" required
+               pattern="[0-9]{10}" minlength="10" maxlength="10"
+               title="Enter a 10-digit phone number"
+               style="width:100%;box-sizing:border-box;">
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button type="button" class="btn btn-secondary btn-sm" onclick="closeEditModal()">Cancel</button>
@@ -730,6 +733,11 @@ document.getElementById('noteTextarea').addEventListener('keydown', function(e) 
     e.preventDefault();
     saveNote();
   }
+});
+
+/* ── Phone validation in Edit Patient modal ─────────────────────── */
+document.addEventListener('DOMContentLoaded', function() {
+  initPhoneInput(document.querySelector('#editPatientModal input[name="phone"]'));
 });
 </script>
 {% endblock %}

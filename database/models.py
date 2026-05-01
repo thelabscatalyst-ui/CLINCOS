@@ -166,6 +166,7 @@ class Doctor(Base):
     patients           = relationship("Patient", back_populates="doctor", cascade="all, delete-orphan")
     schedules          = relationship("DoctorSchedule", back_populates="doctor", cascade="all, delete-orphan")
     blocked_dates      = relationship("BlockedDate", back_populates="doctor", cascade="all, delete-orphan")
+    blocked_times      = relationship("BlockedTime", back_populates="doctor", cascade="all, delete-orphan")
     subscriptions      = relationship("Subscription", back_populates="doctor", cascade="all, delete-orphan")
     clinic_memberships = relationship("ClinicDoctor", back_populates="doctor")
 
@@ -292,6 +293,20 @@ class BlockedDate(Base):
     reason = Column(String(200), nullable=True)
 
     doctor = relationship("Doctor", back_populates="blocked_dates")
+
+
+class BlockedTime(Base):
+    """Block a specific time range on a date (e.g. 2–3 PM for an emergency)."""
+    __tablename__ = "blocked_times"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    doctor_id  = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    blocked_date = Column(Date, nullable=False)
+    start_time = Column(Time, nullable=False)
+    end_time   = Column(Time, nullable=False)
+    reason     = Column(String(200), nullable=True)
+
+    doctor = relationship("Doctor", back_populates="blocked_times")
 
 
 # --------------------------------------------------------------------------- #

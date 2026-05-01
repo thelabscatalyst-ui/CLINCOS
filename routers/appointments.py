@@ -118,7 +118,7 @@ def available_slots(
         appt_date = date.fromisoformat(date_str)
     except ValueError:
         return JSONResponse({"slots": [], "error": "Invalid date"})
-    slots = get_available_slots(target.id, appt_date, db)
+    slots = get_available_slots(target.id, appt_date, db, filter_past=False)
     return JSONResponse({"slots": slots})
 
 
@@ -165,7 +165,7 @@ def new_appointment_page(
                 form_data["for_doctor_id"] = last_appt.doctor_id
 
     target_id = form_data.get("for_doctor_id", doctor.id)
-    slots = get_available_slots(target_id, initial_date, db)
+    slots = get_available_slots(target_id, initial_date, db, filter_past=False)
 
     return templates.TemplateResponse(request, "appointment_new.html", {
         "doctor": doctor,
@@ -218,7 +218,7 @@ async def create_appointment(
             d = date.fromisoformat(appt_date)
         except (ValueError, TypeError):
             d = today
-        slots = get_available_slots(target.id, d, db)
+        slots = get_available_slots(target.id, d, db, filter_past=False)
         return templates.TemplateResponse(request, "appointment_new.html", {
             "doctor": doctor,
             "clinic_doctors": clinic_doctors,
@@ -243,8 +243,8 @@ async def create_appointment(
     phone = patient_phone.strip()
     if not name:
         return render_error("Patient name is required.")
-    if not phone or len(phone) < 10:
-        return render_error("A valid phone number is required (at least 10 digits).")
+    if not phone or not phone.isdigit() or len(phone) != 10:
+        return render_error("Phone number must be exactly 10 digits.")
 
     # Duplicate open appointment check
     if has_open_appointment_on_date(target.id, phone, appt_date_obj, db):
@@ -324,7 +324,7 @@ async def create_walkin(
     emergency = is_emergency == "on"
 
     # Validate inputs
-    if not name or not phone or len(phone) < 10:
+    if not name or not phone or not phone.isdigit() or len(phone) != 10:
         today = date.today()
         return RedirectResponse(
             url=f"/appointments?filter_date={today.isoformat()}&walkin_error=1",
@@ -448,7 +448,7 @@ def edit_appointment_page(
         return RedirectResponse(url=back, status_code=303)
 
     appt.patient  # lazy-load
-    slots = get_available_slots(doctor.id, appt.appointment_date, db)
+    slots = get_available_slots(doctor.id, appt.appointment_date, db, filter_past=False)
 
     # Always include the current time in the slots list so it shows as selected
     current_time_str = appt.appointment_time.strftime("%H:%M")
@@ -504,7 +504,7 @@ async def edit_appointment(
             d = date.fromisoformat(appt_date)
         except (ValueError, TypeError):
             d = appt.appointment_date
-        slots = get_available_slots(doctor.id, d, db)
+        slots = get_available_slots(doctor.id, d, db, filter_past=False)
         current_str = appt.appointment_time.strftime("%H:%M")
         if current_str not in slots:
             slots = [current_str] + slots

@@ -70,8 +70,9 @@
       </select>
       {% endif %}
       <input type="text" name="patient_name" placeholder="Patient name" required class="input-sm" />
-      <input type="tel" name="patient_phone" placeholder="Phone number" required
-             minlength="10" maxlength="15" class="input-sm" />
+      <input type="tel" id="walkinPhone" name="patient_phone" placeholder="Phone number (10 digits)" required
+             pattern="[0-9]{10}" minlength="10" maxlength="10"
+             title="Enter a 10-digit phone number" class="input-sm" />
       <input type="text" name="patient_notes" placeholder="Notes (optional)" class="input-sm" />
       <input type="checkbox" name="is_emergency" id="emergencyCheck" style="display:none;" />
       <div style="display:flex;gap:8px;">
@@ -188,5 +189,9 @@ document.addEventListener('DOMContentLoaded', function() {
   if (panel) panel.style.display = 'block';
 });
 {% endif %}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initPhoneInput(document.getElementById('walkinPhone'));
+});
 </script>
 {% endblock %}

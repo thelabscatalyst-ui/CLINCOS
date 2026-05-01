@@ -479,9 +479,12 @@ def edit_patient(
         Patient.id == patient_id,
         Patient.doctor_id == doctor.id,
     ).first()
+    phone_clean = phone.strip()
+    if not phone_clean.isdigit() or len(phone_clean) != 10:
+        return RedirectResponse(url=f"/patients/{patient_id}?error=invalid_phone", status_code=303)
     if patient:
         patient.name  = name.strip()
-        patient.phone = phone.strip()
+        patient.phone = phone_clean
         db.commit()
     return RedirectResponse(url=f"/patients/{patient_id}", status_code=303)
 

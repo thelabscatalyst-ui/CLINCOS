@@ -156,7 +156,7 @@ async def clinic_book_appointment(
     phone = patient_phone.strip()
     if not name:
         return render_error("Please enter your full name.")
-    if not phone or len(phone) < 10:
+    if not phone or not phone.isdigit() or len(phone) != 10:
         return render_error("Please enter a valid 10-digit phone number.")
 
     if not _rate_limit_ok(phone, db):
@@ -369,7 +369,7 @@ async def book_appointment(
     phone = patient_phone.strip()
     if not name:
         return render_error("Please enter your full name.")
-    if not phone or len(phone) < 10:
+    if not phone or not phone.isdigit() or len(phone) != 10:
         return render_error("Please enter a valid 10-digit phone number.")
 
     # Rate limit

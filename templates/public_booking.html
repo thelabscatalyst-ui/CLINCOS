@@ -66,6 +66,8 @@
         <label for="patient_phone">Phone Number</label>
         <input type="tel" id="patient_phone" name="patient_phone"
                placeholder="e.g. 9876543210"
+               pattern="[0-9]{10}" minlength="10" maxlength="10"
+               title="Enter a 10-digit phone number"
                value="{{ form_data.get('patient_phone', '') }}" required>
       </div>
 
@@ -163,6 +165,7 @@ dateInput.addEventListener('change', () => {
 
 window.addEventListener('DOMContentLoaded', () => {
   if (dateInput.value) loadSlots(dateInput.value);
+  initPhoneInput(document.getElementById('patient_phone'));
 });
 </script>
 {% endif %}

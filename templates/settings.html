@@ -226,6 +226,54 @@
 </div>
 
 <!-- ───────────────────────────────────────────────────── -->
+<!--  3b. Blocked Times                                     -->
+<!-- ───────────────────────────────────────────────────── -->
+<div class="settings-card">
+  <div class="settings-card-header">
+    <div>
+      <div class="settings-card-title">Blocked Times</div>
+      <div class="settings-card-sub">Block a specific time window on a day — slots in that range won't be bookable</div>
+    </div>
+  </div>
+
+  {% if blocked_times %}
+  <div class="blocked-list">
+    {% for bt in blocked_times %}
+    <div class="blocked-row">
+      <div class="blocked-info">
+        <span class="blocked-date">{{ bt.blocked_date.strftime("%d %b %Y") }}</span>
+        <span class="blocked-reason" style="font-weight:600;">
+          {{ bt.start_time.strftime("%I:%M %p").lstrip("0") }} – {{ bt.end_time.strftime("%I:%M %p").lstrip("0") }}
+        </span>
+        {% if bt.reason %}<span class="blocked-reason">{{ bt.reason }}</span>{% endif %}
+      </div>
+      <form method="POST" action="/doctors/settings/unblocktime/{{ bt.id }}" style="margin:0;">
+        <button type="submit" class="btn-icon-remove" title="Remove">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="settings-empty">No blocked times yet.</p>
+  {% endif %}
+
+  <div class="blocked-add-form">
+    <form method="POST" action="/doctors/settings/blocktime" class="blocked-add-row" style="flex-wrap:wrap;gap:8px;">
+      <input type="date" name="blocked_date" required class="input-sm" style="flex:1;min-width:130px;" />
+      <input type="time" name="start_time"   required class="input-sm" style="flex:1;min-width:110px;" placeholder="From" />
+      <input type="time" name="end_time"     required class="input-sm" style="flex:1;min-width:110px;" placeholder="To" />
+      <input type="text" name="reason" placeholder="Reason (optional)" class="input-sm" style="flex:2;min-width:160px;" />
+      <button type="submit" class="btn btn-secondary btn-sm">Add</button>
+    </form>
+  </div>
+</div>
+
+<!-- ───────────────────────────────────────────────────── -->
 <!--  4. Subscription                                       -->
 <!-- ───────────────────────────────────────────────────── -->
 <div class="settings-card">

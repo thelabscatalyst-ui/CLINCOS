@@ -3,7 +3,7 @@ from typing import List, Tuple
 from sqlalchemy.orm import Session
 
 from database.models import (
-    Appointment, AppointmentStatus, BookedBy, DoctorSchedule, BlockedDate, Patient
+    Appointment, AppointmentStatus, BookedBy, DoctorSchedule, BlockedDate, BlockedTime, Patient
 )
 
 
@@ -19,9 +19,18 @@ def _generate_slots(start: time, end: time, duration_mins: int) -> List[time]:
     return slots
 
 
-def get_available_slots(doctor_id: int, appt_date: date, db: Session) -> List[str]:
+def get_available_slots(
+    doctor_id: int,
+    appt_date: date,
+    db: Session,
+    filter_past: bool = True,
+) -> List[str]:
     """Return list of available HH:MM time slots for a doctor on a given date.
     Merges slots across all active shifts for the day (supports multi-shift days).
+
+    filter_past=True  — public booking: hide slots before current time for today.
+    filter_past=False — doctor/staff booking: show ALL slots for any date so past
+                        appointments can be recorded and pre-clinic bookings work.
     """
     # Check blocked date
     blocked = db.query(BlockedDate).filter(
@@ -74,12 +83,32 @@ def get_available_slots(doctor_id: int, appt_date: date, db: Session) -> List[st
 
     booked_times = {a.appointment_time for a in booked}
 
-    # For today: only show slots that haven't passed yet (includes upcoming shifts)
-    if appt_date == date.today():
+    # Blocked time ranges for this date (e.g. 2–3 PM for a meeting/emergency)
+    blocked_ranges = db.query(BlockedTime).filter(
+        BlockedTime.doctor_id == doctor_id,
+        BlockedTime.blocked_date == appt_date,
+    ).all()
+
+    def _in_blocked_range(slot: time) -> bool:
+        for br in blocked_ranges:
+            if br.start_time <= slot < br.end_time:
+                return True
+        return False
+
+    # For public booking on today: hide slots that have already passed.
+    # For doctor/staff booking: show every available slot regardless of current time
+    # so they can (a) book pre-opening appointments and (b) record past visits.
+    if filter_past and appt_date == date.today():
         now_time = datetime.now().time()
-        available = [s for s in all_slots if s not in booked_times and s > now_time]
+        available = [
+            s for s in all_slots
+            if s not in booked_times and s >= now_time and not _in_blocked_range(s)
+        ]
     else:
-        available = [s for s in all_slots if s not in booked_times]
+        available = [
+            s for s in all_slots
+            if s not in booked_times and not _in_blocked_range(s)
+        ]
 
     return [s.strftime("%H:%M") for s in available]
 

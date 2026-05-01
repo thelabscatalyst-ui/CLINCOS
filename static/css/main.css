@@ -3483,3 +3483,20 @@ html.light .data-table tbody tr:hover td {
 .page-slide-left {
   animation: pageSlideInLeft 0.27s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Phone input — digit counter hint                                    */
+/* ------------------------------------------------------------------ */
+.phone-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.phone-counter {
+  font-size: 11px;
+  margin-top: 4px;
+  color: var(--muted);
+  transition: color 0.15s;
+}
+.phone-counter.ok    { color: var(--success); }
+.phone-counter.bad   { color: var(--danger);  }

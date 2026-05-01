@@ -267,6 +267,8 @@ def reception_create_appointment(
         return _error("Invalid date or time.")
 
     phone = patient_phone.strip()
+    if not phone or not phone.isdigit() or len(phone) != 10:
+        return _error("Phone number must be exactly 10 digits.")
     if has_open_appointment_on_date(selected.id, phone, a_date, db):
         return _error(
             "This patient already has a scheduled appointment on this day. "
@@ -325,8 +327,12 @@ def reception_walkin(
     if not selected:
         return RedirectResponse(url="/clinic/reception", status_code=303)
 
+    phone_walkin = patient_phone.strip()
+    if not phone_walkin or not phone_walkin.isdigit() or len(phone_walkin) != 10:
+        return RedirectResponse(url="/clinic/reception?walkin_error=1", status_code=303)
+
     now = datetime.now()
-    patient = get_or_create_patient(selected.id, patient_name.strip(), patient_phone.strip(), db)
+    patient = get_or_create_patient(selected.id, patient_name.strip(), phone_walkin, db)
 
     appt = Appointment(
         doctor_id        = selected.id,
@@ -630,7 +636,7 @@ def reception_slots(
         appt_date = date.fromisoformat(date_str)
     except ValueError:
         return JSONResponse({"slots": [], "error": "Invalid date"})
-    slots = get_available_slots(doctor_id, appt_date, db)
+    slots = get_available_slots(doctor_id, appt_date, db, filter_past=False)
     return JSONResponse({"slots": slots})
 
 

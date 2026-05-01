@@ -15,7 +15,11 @@
 <div class="alert alert-error">{{ error }}</div>
 {% endif %}
 
-<div class="settings-card appt-form-card">
+<div class="appt-new-split">
+
+  <!-- LEFT: form -->
+  <div>
+  <div class="settings-card appt-form-card">
   <form method="post" action="/appointments">
 
     {% if clinic_doctors %}
@@ -48,6 +52,8 @@
         <label for="patient_phone">Phone Number</label>
         <input type="tel" id="patient_phone" name="patient_phone"
                placeholder="e.g. 9876543210"
+               pattern="[0-9]{10}" minlength="10" maxlength="10"
+               title="Enter a 10-digit phone number"
                value="{{ form_data.get('patient_phone', '') }}" required>
       </div>
     </div>
@@ -59,7 +65,7 @@
         <label for="appt_date">Date</label>
         <input type="date" id="appt_date" name="appt_date"
                value="{{ form_data.get('appt_date', initial_date) }}"
-               min="{{ today }}" required>
+               required>
       </div>
       <div class="form-group">
         <label for="appt_time">Time Slot</label>
@@ -91,25 +97,6 @@
         </select>
       </div>
       <div class="form-group">
-        <label for="duration">Duration</label>
-        <select id="duration" name="duration">
-          {% for d in [15, 20, 30, 45, 60] %}
-          <option value="{{ d }}"
-            {% if (form_data.get('duration', 15) | int) == d %}selected{% endif %}>
-            {{ d }} min
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-    </div>
-
-    <div class="form-row">
-      <div class="form-group">
-        <label for="patient_notes">Notes (optional)</label>
-        <textarea id="patient_notes" name="patient_notes" rows="3"
-                  placeholder="Chief complaint, reason for visit...">{{ form_data.get('patient_notes', '') }}</textarea>
-      </div>
-      <div class="form-group">
         <label for="booked_by_field">Booking Channel</label>
         <select id="booked_by_field" name="booked_by_field">
           <option value="doctor" selected>Doctor</option>
@@ -117,14 +104,41 @@
         </select>
       </div>
     </div>
+    <input type="hidden" name="duration" value="15">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="patient_notes">Notes (optional)</label>
+        <textarea id="patient_notes" name="patient_notes" rows="3"
+                  placeholder="Chief complaint, reason for visit...">{{ form_data.get('patient_notes', '') }}</textarea>
+      </div>
+    </div>
 
     <div class="appt-form-actions">
       <a href="/appointments" class="btn btn-secondary btn-sm">Cancel</a>
       <button type="submit" class="btn btn-primary btn-sm">Book Appointment</button>
     </div>
-w
   </form>
-</div>
+  </div>
+  </div>
+
+  <!-- RIGHT: brand panel -->
+  <div class="appt-brand-panel">
+    <div class="appt-brand-eyebrow">ClinicOS</div>
+    <div class="appt-brand-title">Book an<br>Appointment</div>
+    <div class="appt-brand-sub">
+      Manage your clinic schedule with ease.<br>
+      Every appointment, perfectly organised.
+    </div>
+    <div class="appt-brand-divider"></div>
+    <ul class="appt-brand-features">
+      <li>Instant slot availability</li>
+      <li>WhatsApp confirmations</li>
+      <li>Patient history at a glance</li>
+    </ul>
+  </div>
+
+</div><!-- /.appt-new-split -->
 
 {% endblock %}
 
@@ -175,6 +189,7 @@ dateInput.addEventListener('change', () => {
 
 window.addEventListener('DOMContentLoaded', () => {
   if (dateInput.value) loadSlots(dateInput.value);
+  initPhoneInput(document.getElementById('patient_phone'));
 });
 </script>
 {% endblock %}

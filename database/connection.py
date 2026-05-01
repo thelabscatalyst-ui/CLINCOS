@@ -135,4 +135,15 @@ def _run_migrations():
             "  uploaded_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
             ")"
         ))
+        # ── Blocked time ranges ──────────────────────────────────────────────
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS blocked_times ("
+            "  id           INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "  doctor_id    INTEGER NOT NULL REFERENCES doctors(id), "
+            "  blocked_date DATE    NOT NULL, "
+            "  start_time   TIME    NOT NULL, "
+            "  end_time     TIME    NOT NULL, "
+            "  reason       VARCHAR(200)"
+            ")"
+        ))
         conn.commit()

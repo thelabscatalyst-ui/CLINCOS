@@ -10,7 +10,7 @@ from typing import Optional, List
 from database.connection import get_db
 from database.models import (
     Doctor, Appointment, Patient, AppointmentStatus, BookedBy,
-    DoctorSchedule, BlockedDate,
+    DoctorSchedule, BlockedDate, BlockedTime,
 )
 from services.auth_service import (
     get_current_doctor, get_paying_doctor,
@@ -165,6 +165,12 @@ def settings_page(
         .order_by(BlockedDate.blocked_date)
         .all()
     )
+    blocked_times_list = (
+        db.query(BlockedTime)
+        .filter(BlockedTime.doctor_id == doctor.id)
+        .order_by(BlockedTime.blocked_date, BlockedTime.start_time)
+        .all()
+    )
 
     from datetime import datetime as dt
     from config import settings as cfg
@@ -203,6 +209,7 @@ def settings_page(
         "doctor":               doctor,
         "days_data":            days_data,
         "blocked_dates":        blocked,
+        "blocked_times":        blocked_times_list,
         "saved":                saved == "1",
         "active":               "settings",
         "plan_status":          plan_status,
@@ -335,6 +342,62 @@ def remove_blocked_date(
     record = db.query(BlockedDate).filter(
         BlockedDate.id == block_id,
         BlockedDate.doctor_id == doctor.id,  # security: own records only
+    ).first()
+    if record:
+        db.delete(record)
+        db.commit()
+    return RedirectResponse(url="/doctors/settings", status_code=303)
+
+
+# ------------------------------------------------------------------ #
+#  Settings — Add Blocked Time Range                                   #
+# ------------------------------------------------------------------ #
+
+@router.post("/doctors/settings/blocktime", response_class=HTMLResponse)
+def add_blocked_time(
+    request: Request,
+    blocked_date: str  = Form(...),
+    start_time:   str  = Form(...),
+    end_time:     str  = Form(...),
+    reason:       str  = Form(""),
+    doctor: Doctor     = Depends(require_pin),
+    db: Session        = Depends(get_db),
+):
+    from datetime import date as date_cls, time as time_cls
+    try:
+        d  = date_cls.fromisoformat(blocked_date)
+        st = time_cls.fromisoformat(start_time)
+        et = time_cls.fromisoformat(end_time)
+    except ValueError:
+        return RedirectResponse(url="/doctors/settings?error=invalid_time", status_code=303)
+
+    if st >= et:
+        return RedirectResponse(url="/doctors/settings?error=time_order", status_code=303)
+
+    db.add(BlockedTime(
+        doctor_id    = doctor.id,
+        blocked_date = d,
+        start_time   = st,
+        end_time     = et,
+        reason       = reason.strip() or None,
+    ))
+    db.commit()
+    return RedirectResponse(url="/doctors/settings?saved=1", status_code=303)
+
+
+# ------------------------------------------------------------------ #
+#  Settings — Remove Blocked Time Range                                #
+# ------------------------------------------------------------------ #
+
+@router.post("/doctors/settings/unblocktime/{bt_id}", response_class=HTMLResponse)
+def remove_blocked_time(
+    bt_id:  int,
+    doctor: Doctor  = Depends(require_pin),
+    db: Session     = Depends(get_db),
+):
+    record = db.query(BlockedTime).filter(
+        BlockedTime.id        == bt_id,
+        BlockedTime.doctor_id == doctor.id,
     ).first()
     if record:
         db.delete(record)

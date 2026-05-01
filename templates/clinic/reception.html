@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reception — ClinicOS</title>
-  <link rel="stylesheet" href="/static/css/main.css?v=25" />
+  <link rel="stylesheet" href="/static/css/main.css?v=26" />
   <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
 <body>
@@ -86,7 +86,9 @@
     <form method="POST" action="/clinic/reception/walkin" class="walkin-form">
       <input type="hidden" name="doctor_id" value="{{ selected_doctor.id }}" />
       <input type="text" name="patient_name" placeholder="Patient name" required class="input-sm" />
-      <input type="tel" name="patient_phone" placeholder="Phone number" required minlength="10" maxlength="15" class="input-sm" />
+      <input type="tel" id="receptionWalkinPhone" name="patient_phone" placeholder="Phone number (10 digits)" required
+             pattern="[0-9]{10}" minlength="10" maxlength="10"
+             title="Enter a 10-digit phone number" class="input-sm" />
       <button type="submit" class="btn btn-primary btn-sm">Add Walk-in</button>
     </form>
   </div>
@@ -169,6 +171,10 @@ function toggleWalkin() {
   const panel = document.getElementById('walkinPanel');
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+  initPhoneInput(document.getElementById('receptionWalkinPhone'));
+});
 </script>
 </body>
 </html>
