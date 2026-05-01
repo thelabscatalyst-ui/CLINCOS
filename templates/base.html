@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}ClinicOS{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/main.css?v=39" />
+  <link rel="stylesheet" href="/static/css/main.css?v=40" />
   {% block head %}{% endblock %}
   <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
@@ -240,10 +240,8 @@ function initPhoneInput(inputEl) {
 <script>
 /* ── Dock: auto-hide, reveals on left-edge hover ── */
 (function () {
-  const zone  = document.getElementById('dockZone');
-  const dock  = document.getElementById('dashDock');
-  const items = zone ? Array.from(zone.querySelectorAll('.dock-item')) : [];
-  if (!zone || !dock || !items.length) return;
+  const zone = document.getElementById('dockZone');
+  if (!zone) return;
 
   let hideTimer;
 
@@ -255,41 +253,12 @@ function initPhoneInput(inputEl) {
     hideTimer = setTimeout(() => zone.classList.remove('dock-open'), 220);
   }
 
-  /* Trigger when mouse sweeps within 12 px of left edge */
+  /* Trigger when mouse sweeps within 12px of left edge */
   document.addEventListener('mousemove', e => { if (e.clientX <= 12) show(); });
 
   /* Keep visible while mouse is anywhere inside the zone/dock */
   zone.addEventListener('mouseenter', show);
   zone.addEventListener('mouseleave', scheduleHide);
-
-  /* ── Vertical magnification on whole dock ── */
-  const BASE = 48, PEAK = 72, RADIUS = 88;
-
-  function applyMag(mouseY) {
-    items.forEach(item => {
-      const rect    = item.getBoundingClientRect();
-      const centerY = rect.top + rect.height / 2;
-      const dist    = Math.abs(mouseY - centerY);
-      const ratio   = dist < RADIUS ? 0.5 * (1 + Math.cos(Math.PI * dist / RADIUS)) : 0;
-      const h = Math.round(BASE + (PEAK - BASE) * ratio);
-      item.style.height       = h + 'px';
-      item.style.borderRadius = Math.round(14 + ratio * 4) + 'px';
-      const svg = item.querySelector('svg');
-      if (svg) svg.style.transform = `scale(${(1 + ratio * 0.32).toFixed(3)})`;
-    });
-  }
-
-  function resetMag() {
-    items.forEach(item => {
-      item.style.height       = BASE + 'px';
-      item.style.borderRadius = '14px';
-      const svg = item.querySelector('svg');
-      if (svg) svg.style.transform = 'scale(1)';
-    });
-  }
-
-  dock.addEventListener('mousemove',  e => applyMag(e.clientY));
-  dock.addEventListener('mouseleave', resetMag);
 })();
 </script>
 </body>
