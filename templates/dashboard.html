@@ -187,21 +187,29 @@ function copyBookingLink() {
 }
 {% endif %}
 
-/* ── Dock — vertical pop on hover, width always fixed ── */
+/* ── Dock — vertical magnification tracks cursor across whole dock ── */
 (function () {
-  const items   = Array.from(document.querySelectorAll('.dock-item'));
-  const BASE    = 48;   // resting height
-  const NEAR    = 56;   // neighbour height
-  const PEAK    = 72;   // hovered height
+  const dock  = document.getElementById('dashDock');
+  const items = Array.from(document.querySelectorAll('.dock-item'));
+  if (!dock || !items.length) return;
 
-  function apply(hoveredIdx) {
-    items.forEach((item, i) => {
-      const d   = Math.abs(i - hoveredIdx);
-      const h   = d === 0 ? PEAK : d === 1 ? NEAR : BASE;
-      const svg = item.querySelector('svg');
+  const BASE   = 48;   // resting height (px) — width always fixed
+  const PEAK   = 72;   // tallest at cursor centre
+  const RADIUS = 88;   // influence radius (px)
+
+  function applyMag(mouseY) {
+    items.forEach(item => {
+      const rect    = item.getBoundingClientRect();
+      const centerY = rect.top + rect.height / 2;
+      const dist    = Math.abs(mouseY - centerY);
+      const ratio   = dist < RADIUS
+        ? 0.5 * (1 + Math.cos(Math.PI * dist / RADIUS))
+        : 0;
+      const h = Math.round(BASE + (PEAK - BASE) * ratio);
       item.style.height       = h + 'px';
-      item.style.borderRadius = (d === 0 ? 18 : 14) + 'px';
-      if (svg) svg.style.transform = d === 0 ? 'scale(1.32)' : d === 1 ? 'scale(1.08)' : 'scale(1)';
+      item.style.borderRadius = Math.round(14 + ratio * 4) + 'px';
+      const svg = item.querySelector('svg');
+      if (svg) svg.style.transform = `scale(${(1 + ratio * 0.32).toFixed(3)})`;
     });
   }
 
@@ -214,10 +222,8 @@ function copyBookingLink() {
     });
   }
 
-  items.forEach((item, i) => {
-    item.addEventListener('mouseenter', () => apply(i));
-    item.addEventListener('mouseleave', reset);
-  });
+  dock.addEventListener('mousemove',  e => applyMag(e.clientY));
+  dock.addEventListener('mouseleave', reset);
 })();
 </script>
 {% endblock %}
