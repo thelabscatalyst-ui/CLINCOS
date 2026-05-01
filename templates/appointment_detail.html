@@ -11,10 +11,13 @@
     </h1>
     <div class="page-sub">Appointment #{{ appt.id }}</div>
   </div>
-  <div style="display:flex;gap:8px;">
+  <div style="display:flex;gap:8px;align-items:center;">
     {% if appt.status == AppointmentStatus.scheduled %}
     <a href="/appointments/{{ appt.id }}/edit" class="btn btn-secondary btn-sm">Edit</a>
     {% endif %}
+    <button type="button" class="btn btn-danger btn-sm" onclick="document.getElementById('deleteModal').style.display='flex'">
+      Delete
+    </button>
     {% if is_staff %}
     <a href="/clinic/reception?filter_date={{ appt.appointment_date.isoformat() }}"
        class="btn btn-secondary btn-sm">← Back</a>
@@ -122,4 +125,34 @@
 </div>
 {% endif %}
 
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;">
+  <div class="settings-card" style="width:100%;max-width:380px;margin:0 24px;padding:32px;">
+    <div class="settings-card-title" style="margin-bottom:8px;">Delete Appointment?</div>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:24px;line-height:1.6;">
+      This will permanently remove the appointment for
+      <strong style="color:var(--text);">{{ appt.patient.name }}</strong>
+      on {{ appt.appointment_date.strftime("%d %b %Y") }}
+      at {{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}.
+      This cannot be undone.
+    </p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button type="button" class="btn btn-secondary btn-sm"
+              onclick="document.getElementById('deleteModal').style.display='none'">Cancel</button>
+      <form method="post" action="/appointments/{{ appt.id }}/delete" style="margin:0;">
+        <button type="submit" class="btn btn-danger btn-sm">Yes, Delete</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Close modal on backdrop click */
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
+</script>
 {% endblock %}

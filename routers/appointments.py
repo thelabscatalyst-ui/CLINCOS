@@ -557,3 +557,31 @@ async def edit_appointment(
 
     db.commit()
     return RedirectResponse(url=f"/appointments/{appt_id}", status_code=303)
+
+
+# ------------------------------------------------------------------ #
+#  Delete Appointment — POST                                           #
+# ------------------------------------------------------------------ #
+
+@router.post("/{appt_id}/delete", response_class=HTMLResponse)
+def delete_appointment(
+    appt_id: int,
+    request: Request,
+    doctor: Doctor = Depends(get_appt_doctor),
+    db: Session = Depends(get_db),
+):
+    is_staff = getattr(request.state, "is_staff", False)
+    appt = db.query(Appointment).filter(
+        Appointment.id == appt_id,
+        Appointment.doctor_id == doctor.id,
+    ).first()
+    if not appt:
+        back = "/clinic/reception" if is_staff else "/appointments"
+        return RedirectResponse(url=back, status_code=303)
+
+    appt_date = appt.appointment_date.isoformat()
+    db.delete(appt)
+    db.commit()
+
+    back = f"/clinic/reception?filter_date={appt_date}" if is_staff else f"/appointments?filter_date={appt_date}"
+    return RedirectResponse(url=back, status_code=303)
