@@ -246,6 +246,46 @@
 </div>
 {% endif %}
 
+<!-- ── Billing History ── -->
+{% if bills %}
+<div class="section-header" style="margin-top:28px;">
+  <h2 class="section-title">Billing History</h2>
+  <span class="section-link">{{ bills | length }} bill{{ 's' if bills|length != 1 else '' }}</span>
+</div>
+<div class="bill-history-list">
+  {% for bill in bills %}
+  <div class="bill-history-row">
+    <div class="bill-history-left">
+      <div class="bill-history-date">{{ bill.paid_at.strftime("%d %b %Y") if bill.paid_at else bill.created_at.strftime("%d %b %Y") }}</div>
+      <div class="bill-history-mode">
+        <span class="badge-channel badge-channel--{{ bill.payment_mode.value if bill.payment_mode else 'free' }}">
+          {{ bill.payment_mode.value.title() if bill.payment_mode else 'Free' }}
+        </span>
+      </div>
+    </div>
+    <div class="bill-history-center">
+      {% if bill.notes %}
+      <div class="bill-history-notes">{{ bill.notes }}</div>
+      {% endif %}
+      {% if bill.discount and bill.discount > 0 %}
+      <div class="bill-history-discount">Discount ₹{{ "{:,.0f}".format(bill.discount) }}</div>
+      {% endif %}
+    </div>
+    <div class="bill-history-right">
+      <div class="bill-history-amount">₹{{ "{:,.0f}".format(bill.total) }}</div>
+      <a href="/bills/{{ bill.id }}" class="bill-history-link">View</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<div class="bill-history-summary">
+  <span style="color:var(--muted);font-size:13px;">Total collected</span>
+  <span style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;">
+    ₹{{ "{:,.0f}".format(bills | sum(attribute='total')) }}
+  </span>
+</div>
+{% endif %}
+
 <!-- Remove Patient -->
 <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
   <form method="post" action="/patients/{{ patient.id }}/delete" id="deletePatientForm">

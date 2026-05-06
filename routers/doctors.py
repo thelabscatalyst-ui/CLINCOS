@@ -10,7 +10,7 @@ from typing import Optional, List
 from database.connection import get_db
 from database.models import (
     Doctor, Appointment, Patient, AppointmentStatus, BookedBy,
-    DoctorSchedule, BlockedDate, BlockedTime,
+    DoctorSchedule, BlockedDate, BlockedTime, PriceCatalog,
 )
 from services.auth_service import (
     get_current_doctor, get_paying_doctor,
@@ -205,6 +205,13 @@ def settings_page(
         ClinicDoctor.is_active == True,
     ).first() is not None
 
+    price_catalog = (
+        db.query(PriceCatalog)
+        .filter(PriceCatalog.doctor_id == doctor.id, PriceCatalog.is_active == True)
+        .order_by(PriceCatalog.sort_order, PriceCatalog.name)
+        .all()
+    )
+
     return templates.TemplateResponse(request, "settings.html", {
         "doctor":               doctor,
         "days_data":            days_data,
@@ -218,6 +225,7 @@ def settings_page(
         "pin_error":            pin_error_msg,
         "pin_required":         getattr(request.state, "pin_required", False),
         "is_clinic_owner":      is_clinic_owner,
+        "price_catalog":        price_catalog,
     })
 
 

@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Expenses — ClinicOS{% endblock %}
+
+{% block content %}
+
+<!-- ── Page Header ───────────────────────────────────────────────────────── -->
+<div class="page-header">
+  <div style="display:flex;align-items:center;gap:20px;">
+    <div>
+      <h1 class="page-title">Expenses</h1>
+      <div class="page-sub">Tracking + Recurring Rules</div>
+    </div>
+    <!-- Month nav -->
+    <div class="expense-month-nav">
+      <a href="/expenses?month={{ prev_month }}&year={{ prev_year }}" class="btn btn-secondary btn-sm">‹</a>
+      <span class="expense-month-label">{{ sel_month_name }} {{ sel_year }}</span>
+      {% if not is_current_month %}
+      <a href="/expenses?month={{ next_month }}&year={{ next_year }}" class="btn btn-secondary btn-sm">›</a>
+      {% else %}
+      <button type="button" class="btn btn-secondary btn-sm" disabled style="opacity:.3;">›</button>
+      {% endif %}
+    </div>
+  </div>
+  <a href="/income" class="btn btn-secondary btn-sm">← Income</a>
+</div>
+
+<!-- ── KPI Strip ─────────────────────────────────────────────────────────── -->
+<div class="expense-kpi-grid">
+
+  <div class="expense-kpi-card">
+    <div class="expense-kpi-label">Expenses · {{ sel_month_name }}</div>
+    <div class="expense-kpi-val">₹{{ "{:,.0f}".format(month_expense) }}</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+      Year total ₹{{ "{:,.0f}".format(year_expense) }}
+    </div>
+  </div>
+
+  <div class="expense-kpi-card">
+    <div class="expense-kpi-label">Income · {{ sel_month_name }}</div>
+    <div class="expense-kpi-val">₹{{ "{:,.0f}".format(month_income) }}</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+      Year total ₹{{ "{:,.0f}".format(year_income) }}
+    </div>
+  </div>
+
+  <div class="expense-kpi-card">
+    <div class="expense-kpi-label">Net P&L · {{ sel_month_name }}</div>
+    <div class="expense-kpi-val {% if pnl >= 0 %}pnl-positive{% else %}pnl-negative{% endif %}">
+      {% if pnl >= 0 %}₹{{ "{:,.0f}".format(pnl) }}{% else %}−₹{{ "{:,.0f}".format(pnl|abs) }}{% endif %}
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+      Income minus expenses
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Main Grid: List + Sidebar ─────────────────────────────────────────── -->
+<div class="expense-page-grid">
+
+  <!-- Left: Add form + Expense list -->
+  <div>
+
+    <!-- Add Expense -->
+    <div class="add-expense-card">
+      <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:14px;">
+        Add Expense
+      </div>
+      <form method="post" action="/expenses">
+        <div class="add-expense-grid">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Category</label>
+            <select name="category" class="form-input form-select">
+              {% for cat in ExpenseCategory %}
+              <option value="{{ cat.value }}">{{ cat.value.title() }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Amount (₹)</label>
+            <input type="number" name="amount" class="form-input" placeholder="0" min="1" step="1" required>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Description</label>
+            <input type="text" name="description" class="form-input" placeholder="e.g. Clinic rent May">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Date</label>
+            <input type="date" name="expense_date" class="form-input"
+                   value="{{ today.isoformat() }}" max="{{ today.isoformat() }}">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:4px;">
+          <button type="submit" class="btn btn-primary btn-sm">+ Add Expense</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Expense List -->
+    <div class="expense-list-card">
+      <div class="expense-list-header">
+        <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">
+          {{ sel_month_name }} {{ sel_year }}
+          <span style="margin-left:8px;font-size:12px;font-weight:400;color:var(--dim);">{{ expenses|length }} entries</span>
+        </div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;">
+          ₹{{ "{:,.0f}".format(month_expense) }}
+        </div>
+      </div>
+
+      {% if expenses %}
+        {% for exp in expenses %}
+        <div class="expense-row">
+          <span class="expense-cat-badge">{{ exp.category.value }}</span>
+          <span class="expense-desc">
+            {{ exp.description or exp.category.value.title() }}
+            {% if exp.recurring_id %}
+            <span style="font-size:10px;color:var(--muted);margin-left:6px;">↻ auto</span>
+            {% endif %}
+          </span>
+          <span class="expense-date">{{ exp.expense_date.strftime("%-d %b") }}</span>
+          <span class="expense-amount">₹{{ "{:,.0f}".format(exp.amount|float) }}</span>
+          <form method="post" action="/expenses/{{ exp.id }}/delete" style="margin:0;"
+                onsubmit="return confirm('Delete this expense?')">
+            <button type="submit" class="expense-del-btn" title="Delete">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+
+        <!-- Total row -->
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0 2px;margin-top:8px;border-top:1px solid var(--border);">
+          <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">Total</span>
+          <span style="font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;">
+            ₹{{ "{:,.0f}".format(month_expense) }}
+          </span>
+        </div>
+
+      {% else %}
+        <div class="income-empty-state">No expenses recorded for {{ sel_month_name }} {{ sel_year }}</div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- Right: Category summary + Recurring rules -->
+  <div>
+
+    <!-- Category Breakdown -->
+    {% if cat_totals %}
+    <div class="cat-summary-card">
+      <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:14px;">
+        By Category
+      </div>
+      {% set sorted_cats = cat_totals.items() | sort(attribute=1, reverse=True) %}
+      {% for cat, amt in sorted_cats %}
+      <div class="income-bar-row" style="margin-bottom:10px;">
+        <span class="income-bar-label">{{ cat.title() }}</span>
+        <div class="income-bar-track">
+          <div class="income-bar-fill"
+               style="width:{{ ((amt / month_expense) * 100)|round|int if month_expense > 0 else 0 }}%;opacity:.4;"></div>
+        </div>
+        <span class="income-bar-amount">₹{{ "{:,.0f}".format(amt) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Recurring Rules -->
+    <div class="recurring-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">
+          Recurring Expenses
+        </div>
+        <button type="button" class="btn btn-secondary btn-xs"
+                onclick="document.getElementById('addRecurringPanel').style.display='block';this.style.display='none';">
+          + Add Rule
+        </button>
+      </div>
+
+      <!-- Add recurring form (hidden by default) -->
+      <div id="addRecurringPanel" style="display:none;margin-bottom:16px;padding:14px;background:var(--bg-3);border-radius:var(--radius-sm);border:1px solid var(--border);">
+        <form method="post" action="/expenses/recurring">
+          <div class="form-group">
+            <label class="form-label">Label</label>
+            <input type="text" name="label" class="form-input" placeholder="e.g. Clinic Rent" required>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select name="category" class="form-input form-select">
+                {% for cat in ExpenseCategory %}
+                <option value="{{ cat.value }}">{{ cat.value.title() }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Amount (₹)</label>
+              <input type="number" name="amount" class="form-input" placeholder="0" min="1" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Day of Month (1–28)</label>
+            <input type="number" name="day_of_month" class="form-input" placeholder="1" min="1" max="28" value="1">
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+            <button type="button" class="btn btn-secondary btn-xs"
+                    onclick="document.getElementById('addRecurringPanel').style.display='none';document.querySelector('.recurring-card .btn-xs').style.display='';">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary btn-xs">Save Rule</button>
+          </div>
+        </form>
+      </div>
+
+      {% if recurring_rules %}
+        {% for rule in recurring_rules %}
+        <div class="recurring-row {% if not rule.is_active %}recurring-inactive{% endif %}">
+          <div style="flex:1;min-width:0;">
+            <div class="recurring-label">{{ rule.label }}</div>
+            <div class="recurring-meta">
+              {{ rule.category.value.title() }} · {{ rule.day_of_month }}{{ 'st' if rule.day_of_month == 1 else ('nd' if rule.day_of_month == 2 else ('rd' if rule.day_of_month == 3 else 'th')) }} of month
+              {% if not rule.is_active %}<span style="margin-left:6px;color:var(--dim);">paused</span>{% endif %}
+            </div>
+          </div>
+          <span class="recurring-amount">₹{{ "{:,.0f}".format(rule.amount|float) }}</span>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <form method="post" action="/expenses/recurring/{{ rule.id }}/toggle" style="margin:0;">
+              <button type="submit" class="btn btn-secondary btn-xs" title="{{ 'Pause' if rule.is_active else 'Resume' }}">
+                {{ '⏸' if rule.is_active else '▶' }}
+              </button>
+            </form>
+            <form method="post" action="/expenses/recurring/{{ rule.id }}/delete" style="margin:0;"
+                  onsubmit="return confirm('Delete this recurring rule?')">
+              <button type="submit" class="btn btn-secondary btn-xs" style="color:var(--danger);">✕</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="income-empty-state">No recurring rules yet.<br>
+          <span style="font-size:12px;">Add rent, salaries, utilities — they auto-create each month.</span>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

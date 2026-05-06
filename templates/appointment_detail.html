@@ -125,6 +125,149 @@
 </div>
 {% endif %}
 
+<!-- ── Billing Section ── -->
+{% if bill %}
+<div class="settings-card">
+  <div class="settings-card-header" style="margin-bottom:0;">
+    <div>
+      <div class="settings-card-title">Billing</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="badge-channel badge-channel--{{ bill.payment_mode.value if bill.payment_mode else 'free' }}">
+        {{ bill.payment_mode.value.title() if bill.payment_mode else 'Free' }}
+      </span>
+      <button type="button" class="btn btn-secondary btn-sm"
+              onclick="openEditBill()">Edit Payment</button>
+    </div>
+  </div>
+
+  <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+
+  <!-- Items -->
+  {% if bill.items %}
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+    {% for item in bill.items %}
+    <div style="display:flex;justify-content:space-between;font-size:14px;">
+      <span style="color:var(--text);">{{ item.description }}</span>
+      <span style="color:var(--text);">₹{{ "{:,.0f}".format(item.unit_price) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if bill.discount and bill.discount > 0 %}
+  <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:8px;">
+    <span>Discount</span><span>− ₹{{ "{:,.0f}".format(bill.discount) }}</span>
+  </div>
+  {% endif %}
+
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);">
+    <span style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);">Total Paid</span>
+    <span style="font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;">₹{{ "{:,.0f}".format(bill.total) }}</span>
+  </div>
+
+  {% if bill.notes %}
+  <div style="margin-top:12px;font-size:13px;color:var(--muted);">{{ bill.notes }}</div>
+  {% endif %}
+</div>
+
+<!-- Edit Bill Modal -->
+<div class="modal-backdrop" id="editBillModal" onclick="if(event.target===this)closeEditBill()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Edit Payment</div>
+        <div class="modal-sub">{{ appt.patient.name }}</div>
+      </div>
+      <button type="button" class="modal-close" onclick="closeEditBill()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    {% if price_catalog %}
+    <div class="bill-pinned-row">
+      {% for item in price_catalog if item.is_pinned %}
+      <button type="button" class="bill-quick-btn"
+              onclick="addEditItem('{{ item.name }}', {{ item.default_price }})">
+        {{ item.name }} — ₹{{ "{:,.0f}".format(item.default_price) }}
+      </button>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/bills/{{ bill.id }}/edit">
+      <div class="bill-items-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span class="form-label" style="margin:0;">Items / Services</span>
+          <button type="button" class="btn btn-secondary btn-xs" onclick="addEditItem()">+ Add Item</button>
+        </div>
+        <div id="editBillItemsList">
+          {% if bill.items %}
+            {% for item in bill.items %}
+            <div class="bill-item-row">
+              <input type="text" name="item_name" class="form-input" style="flex:1;" value="{{ item.description }}">
+              <input type="number" name="item_price" class="form-input bill-item-price" style="width:110px;"
+                     value="{{ item.unit_price|int }}" oninput="updateEditTotal()">
+              <button type="button" class="bill-item-remove" onclick="removeEditItem(this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="bill-item-row">
+              <input type="text" name="item_name" class="form-input" style="flex:1;" placeholder="Consultation" value="Consultation">
+              <input type="number" name="item_price" class="form-input bill-item-price" style="width:110px;"
+                     value="{{ bill.subtotal|int }}" oninput="updateEditTotal()">
+              <button type="button" class="bill-item-remove" onclick="removeEditItem(this)" style="display:none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="bill-fields" style="margin-top:14px;">
+        <div class="form-group">
+          <label class="form-label">Discount (₹)</label>
+          <input type="number" id="editDiscount" name="discount" class="form-input"
+                 min="0" step="1" value="{{ bill.discount|int }}" oninput="updateEditTotal()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Payment Mode</label>
+          <select name="payment_mode" class="form-input form-select">
+            <option value="cash" {% if bill.payment_mode and bill.payment_mode.value == 'cash' %}selected{% endif %}>Cash</option>
+            <option value="upi"  {% if bill.payment_mode and bill.payment_mode.value == 'upi' %}selected{% endif %}>UPI</option>
+            <option value="card" {% if bill.payment_mode and bill.payment_mode.value == 'card' %}selected{% endif %}>Card</option>
+            <option value="insurance" {% if bill.payment_mode and bill.payment_mode.value == 'insurance' %}selected{% endif %}>Insurance</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:span 2;">
+          <label class="form-label">Notes (optional)</label>
+          <input type="text" name="notes" class="form-input"
+                 placeholder="e.g. follow-up in 7 days" value="{{ bill.notes or '' }}">
+        </div>
+      </div>
+
+      <div class="bill-total-row">
+        <span class="bill-total-label">Total</span>
+        <span class="bill-total-amount" id="editBillTotal">₹{{ "{:,.0f}".format(bill.total) }}</span>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeEditBill()">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
 <!-- Delete Confirmation Modal -->
 <div id="deleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;">
   <div class="settings-card" style="width:100%;max-width:380px;margin:0 24px;padding:32px;">
@@ -150,9 +293,59 @@
 
 {% block scripts %}
 <script>
-/* Close modal on backdrop click */
+/* ── Delete modal ── */
 document.getElementById('deleteModal').addEventListener('click', function(e) {
   if (e.target === this) this.style.display = 'none';
+});
+
+/* ── Edit Bill modal ── */
+function openEditBill() {
+  document.getElementById('editBillModal').classList.add('open');
+  updateEditTotal();
+}
+
+function closeEditBill() {
+  document.getElementById('editBillModal').classList.remove('open');
+}
+
+function addEditItem(name, price) {
+  const list = document.getElementById('editBillItemsList');
+  const row  = document.createElement('div');
+  row.className = 'bill-item-row';
+  row.innerHTML =
+    '<input type="text" name="item_name" class="form-input" style="flex:1;" value="' + (name || '') + '" placeholder="Service / item">' +
+    '<input type="number" name="item_price" class="form-input bill-item-price" style="width:110px;" value="' + (price || '') + '" placeholder="0" oninput="updateEditTotal()">' +
+    '<button type="button" class="bill-item-remove" onclick="removeEditItem(this)">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+        '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' +
+      '</svg>' +
+    '</button>';
+  list.appendChild(row);
+  updateEditTotal();
+}
+
+function removeEditItem(btn) {
+  const list = document.getElementById('editBillItemsList');
+  if (list.querySelectorAll('.bill-item-row').length > 1) {
+    btn.closest('.bill-item-row').remove();
+    updateEditTotal();
+  }
+}
+
+function updateEditTotal() {
+  let subtotal = 0;
+  document.querySelectorAll('#editBillItemsList .bill-item-price').forEach(function(el) {
+    subtotal += parseFloat(el.value) || 0;
+  });
+  const discount  = parseFloat(document.getElementById('editDiscount').value) || 0;
+  const total     = Math.max(0, subtotal - discount);
+  const formatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+  document.getElementById('editBillTotal').textContent = '₹' + formatter.format(total);
+}
+
+/* Run once on load so total reflects pre-filled values */
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('editBillTotal')) updateEditTotal();
 });
 </script>
 {% endblock %}

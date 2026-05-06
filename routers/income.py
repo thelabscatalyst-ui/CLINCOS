@@ -1,0 +1,624 @@
+"""
+routers/income.py — Income Dashboard + Expense Tracker
+
+Routes:
+  GET  /income                         KPI strip, 30-day chart, breakdowns, pending
+  GET  /expenses                       Expense list + add form + recurring rules
+  POST /expenses                       Add a one-off expense
+  POST /expenses/{id}/delete           Delete expense
+  POST /expenses/recurring             Add recurring rule
+  POST /expenses/recurring/{id}/toggle Toggle active/inactive
+  POST /expenses/recurring/{id}/delete Delete recurring rule
+"""
+
+from calendar import monthrange
+from collections import defaultdict
+from datetime import date, datetime, timedelta
+
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from database.connection import get_db
+from database.models import (
+    Appointment,
+    Bill,
+    Doctor,
+    Expense,
+    ExpenseCategory,
+    Patient,
+    PaymentMode,
+    RecurringExpense,
+)
+from services.auth_service import get_paying_doctor
+
+router    = APIRouter(tags=["income"])
+templates = Jinja2Templates(directory="templates")
+
+
+# ── small helpers ──────────────────────────────────────────────────────────── #
+
+def _f(val) -> float:
+    """Safe float cast from Decimal / None."""
+    return float(val or 0)
+
+
+def _month_range(year: int, month: int):
+    _, last = monthrange(year, month)
+    return date(year, month, 1), date(year, month, last)
+
+
+def _dt_start(d: date) -> datetime:
+    return datetime.combine(d, datetime.min.time())
+
+
+def _dt_end(d: date) -> datetime:
+    return datetime.combine(d, datetime.max.time())
+
+
+# ── recurring-expense auto-fire ────────────────────────────────────────────── #
+
+def _fire_due_recurring(doctor_id: int, db: Session) -> None:
+    """
+    Create Expense rows for every RecurringExpense that is due today or overdue
+    and has not yet been created this calendar month.  Called on page load.
+    """
+    today = date.today()
+    rules = (
+        db.query(RecurringExpense)
+        .filter(
+            RecurringExpense.doctor_id == doctor_id,
+            RecurringExpense.is_active == True,
+        )
+        .all()
+    )
+    dirty = False
+    for rule in rules:
+        due_day         = min(rule.day_of_month, 28)
+        due_this_month  = date(today.year, today.month, due_day)
+        if today < due_this_month:
+            continue
+        already = (
+            db.query(Expense)
+            .filter(
+                Expense.recurring_id == rule.id,
+                Expense.expense_date >= date(today.year, today.month, 1),
+            )
+            .first()
+        )
+        if not already:
+            db.add(Expense(
+                doctor_id    = rule.doctor_id,
+                clinic_id    = rule.clinic_id,
+                category     = rule.category,
+                amount       = rule.amount,
+                expense_date = due_this_month,
+                description  = rule.label + " (auto)",
+                recurring_id = rule.id,
+            ))
+            dirty = True
+    if dirty:
+        db.commit()
+
+
+# ── income sum helper ──────────────────────────────────────────────────────── #
+
+def _income_sum(doctor_id: int, start: date, end: date, db: Session) -> float:
+    row = (
+        db.query(func.sum(Bill.total))
+        .filter(
+            Bill.doctor_id == doctor_id,
+            Bill.paid_at   >= _dt_start(start),
+            Bill.paid_at   <= _dt_end(end),
+            Bill.payment_mode != PaymentMode.free,
+        )
+        .scalar()
+    )
+    return _f(row)
+
+
+def _expense_sum(doctor_id: int, start: date, end: date, db: Session) -> float:
+    row = (
+        db.query(func.sum(Expense.amount))
+        .filter(
+            Expense.doctor_id    == doctor_id,
+            Expense.expense_date >= start,
+            Expense.expense_date <= end,
+        )
+        .scalar()
+    )
+    return _f(row)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  GET /income  — dashboard
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/income", response_class=HTMLResponse)
+async def income_dashboard(
+    request: Request,
+    db:      Session = Depends(get_db),
+    doctor:  Doctor  = Depends(get_paying_doctor),
+):
+    _fire_due_recurring(doctor.id, db)
+
+    today      = date.today()
+    this_year  = today.year
+    this_month = today.month
+
+    lm_date   = today.replace(day=1) - timedelta(days=1)
+    lm_month  = lm_date.month
+    lm_year   = lm_date.year
+
+    m_first,  m_last  = _month_range(this_year,  this_month)
+    lm_first, lm_last = _month_range(lm_year, lm_month)
+
+    # ── KPI: income ───────────────────────────────────────────────────── #
+    today_income      = _income_sum(doctor.id, today,  today,  db)
+    month_income      = _income_sum(doctor.id, m_first, m_last, db)
+    last_month_income = _income_sum(doctor.id, lm_first, lm_last, db)
+    year_income       = _income_sum(doctor.id, date(this_year,1,1), date(this_year,12,31), db)
+
+    mom_pct = (
+        ((month_income - last_month_income) / last_month_income * 100)
+        if last_month_income > 0 else 0.0
+    )
+
+    # ── KPI: expenses ─────────────────────────────────────────────────── #
+    month_expense      = _expense_sum(doctor.id, m_first, m_last, db)
+    last_month_expense = _expense_sum(doctor.id, lm_first, lm_last, db)
+    year_expense       = _expense_sum(doctor.id, date(this_year,1,1), date(this_year,12,31), db)
+
+    pnl_month      = month_income      - month_expense
+    pnl_last_month = last_month_income - last_month_expense
+
+    # ── Pending collections ───────────────────────────────────────────── #
+    pending_bills = (
+        db.query(Bill)
+        .filter(
+            Bill.doctor_id    == doctor.id,
+            Bill.paid_amount  == 0,
+            Bill.total        > 0,
+            Bill.payment_mode != PaymentMode.free,
+        )
+        .order_by(Bill.created_at.desc())
+        .all()
+    )
+    pending_amount = sum(_f(b.total) for b in pending_bills)
+
+    # ── 30-day daily revenue ──────────────────────────────────────────── #
+    chart_start = today - timedelta(days=29)
+    bills_30d = (
+        db.query(Bill)
+        .filter(
+            Bill.doctor_id == doctor.id,
+            Bill.paid_at   >= _dt_start(chart_start),
+            Bill.paid_at   <= _dt_end(today),
+            Bill.payment_mode != PaymentMode.free,
+        )
+        .all()
+    )
+    daily_map: dict[str, float] = defaultdict(float)
+    for b in bills_30d:
+        if b.paid_at:
+            daily_map[b.paid_at.strftime("%Y-%m-%d")] += _f(b.total)
+
+    chart_days = []
+    for i in range(30):
+        d = chart_start + timedelta(days=i)
+        chart_days.append({
+            "date":   d.strftime("%d %b"),
+            "key":    d.strftime("%Y-%m-%d"),
+            "amount": daily_map.get(d.strftime("%Y-%m-%d"), 0.0),
+            "is_today": d == today,
+        })
+
+    # ── Payment mode breakdown (this month) ──────────────────────────── #
+    mode_rows = (
+        db.query(Bill.payment_mode, func.sum(Bill.total).label("t"))
+        .filter(
+            Bill.doctor_id == doctor.id,
+            Bill.paid_at   >= _dt_start(m_first),
+            Bill.paid_at   <= _dt_end(m_last),
+        )
+        .group_by(Bill.payment_mode)
+        .all()
+    )
+    mode_breakdown = sorted(
+        [
+            {
+                "label":  (m.value.title() if m else "Unknown"),
+                "amount": _f(t),
+                "pct":    round(_f(t) / month_income * 100) if month_income > 0 else 0,
+            }
+            for m, t in mode_rows
+        ],
+        key=lambda x: x["amount"], reverse=True,
+    )
+
+    # ── Visit-type breakdown (bill → visit → appointment) this month ─── #
+    bills_month = (
+        db.query(Bill)
+        .filter(
+            Bill.doctor_id == doctor.id,
+            Bill.paid_at   >= _dt_start(m_first),
+            Bill.paid_at   <= _dt_end(m_last),
+            Bill.payment_mode != PaymentMode.free,
+        )
+        .all()
+    )
+    type_map: dict[str, float] = defaultdict(float)
+    for b in bills_month:
+        label = "Walk-in"
+        if b.visit and b.visit.appointment_id:
+            appt = db.query(Appointment).filter(
+                Appointment.id == b.visit.appointment_id
+            ).first()
+            if appt:
+                label = appt.appointment_type.value.replace("_", " ").title()
+        type_map[label] += _f(b.total)
+
+    type_total = sum(type_map.values()) or 1
+    type_breakdown = sorted(
+        [
+            {"label": k, "amount": v,
+             "pct": round(v / type_total * 100)}
+            for k, v in type_map.items()
+        ],
+        key=lambda x: x["amount"], reverse=True,
+    )
+
+    # ── Day-of-week breakdown (last 90 days) ─────────────────────────── #
+    bills_90d = (
+        db.query(Bill)
+        .filter(
+            Bill.doctor_id == doctor.id,
+            Bill.paid_at   >= _dt_start(today - timedelta(days=89)),
+            Bill.paid_at   <= _dt_end(today),
+            Bill.payment_mode != PaymentMode.free,
+        )
+        .all()
+    )
+    dow_names   = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    dow_totals  = [0.0] * 7
+    for b in bills_90d:
+        if b.paid_at:
+            dow_totals[b.paid_at.weekday()] += _f(b.total)
+    max_dow = max(dow_totals) or 1
+    dow_breakdown = [
+        {
+            "label":  dow_names[i],
+            "amount": dow_totals[i],
+            "pct":    round(dow_totals[i] / max_dow * 100),
+        }
+        for i in range(7)
+    ]
+
+    # ── Expense breakdown by category (this month) ───────────────────── #
+    exp_rows = (
+        db.query(Expense.category, func.sum(Expense.amount).label("t"))
+        .filter(
+            Expense.doctor_id    == doctor.id,
+            Expense.expense_date >= m_first,
+            Expense.expense_date <= m_last,
+        )
+        .group_by(Expense.category)
+        .all()
+    )
+    exp_breakdown = sorted(
+        [
+            {
+                "label":  (c.value.title() if c else "Misc"),
+                "amount": _f(t),
+                "pct":    round(_f(t) / month_expense * 100) if month_expense > 0 else 0,
+            }
+            for c, t in exp_rows
+        ],
+        key=lambda x: x["amount"], reverse=True,
+    )
+
+    # ── Top patients this month ───────────────────────────────────────── #
+    top_pts = (
+        db.query(Patient, func.sum(Bill.total).label("total"))
+        .join(Bill, Bill.patient_id == Patient.id)
+        .filter(
+            Bill.doctor_id == doctor.id,
+            Bill.paid_at   >= _dt_start(m_first),
+            Bill.paid_at   <= _dt_end(m_last),
+            Bill.payment_mode != PaymentMode.free,
+        )
+        .group_by(Patient.id)
+        .order_by(func.sum(Bill.total).desc())
+        .limit(5)
+        .all()
+    )
+
+    # ── Recent bills ──────────────────────────────────────────────────── #
+    recent_bills = (
+        db.query(Bill)
+        .filter(Bill.doctor_id == doctor.id)
+        .order_by(Bill.paid_at.desc().nullslast(), Bill.created_at.desc())
+        .limit(12)
+        .all()
+    )
+
+    return templates.TemplateResponse(request, "income.html", {
+        "active":             "income",
+        "doctor":             doctor,
+        "today":              today,
+        # income KPIs
+        "today_income":       today_income,
+        "month_income":       month_income,
+        "last_month_income":  last_month_income,
+        "year_income":        year_income,
+        "mom_pct":            mom_pct,
+        # expense KPIs
+        "month_expense":      month_expense,
+        "last_month_expense": last_month_expense,
+        "year_expense":       year_expense,
+        # P&L
+        "pnl_month":          pnl_month,
+        "pnl_last_month":     pnl_last_month,
+        # pending
+        "pending_bills":      pending_bills,
+        "pending_amount":     pending_amount,
+        # chart
+        "chart_days":         chart_days,
+        # breakdowns
+        "mode_breakdown":     mode_breakdown,
+        "type_breakdown":     type_breakdown,
+        "dow_breakdown":      dow_breakdown,
+        "exp_breakdown":      exp_breakdown,
+        # tables
+        "top_patients":       top_pts,
+        "recent_bills":       recent_bills,
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  GET /expenses  — tracker page
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/expenses", response_class=HTMLResponse)
+async def expenses_page(
+    request: Request,
+    month:   int = 0,
+    year:    int = 0,
+    db:      Session = Depends(get_db),
+    doctor:  Doctor  = Depends(get_paying_doctor),
+):
+    _fire_due_recurring(doctor.id, db)
+
+    today = date.today()
+    if not month: month = today.month
+    if not year:  year  = today.year
+
+    m_first, m_last = _month_range(year, month)
+    prev_d = m_first - timedelta(days=1)
+    next_d = m_last  + timedelta(days=1)
+
+    expenses = (
+        db.query(Expense)
+        .filter(
+            Expense.doctor_id    == doctor.id,
+            Expense.expense_date >= m_first,
+            Expense.expense_date <= m_last,
+        )
+        .order_by(Expense.expense_date.desc(), Expense.created_at.desc())
+        .all()
+    )
+
+    month_expense = sum(_f(e.amount) for e in expenses)
+
+    # Income this month (for inline P&L)
+    month_income = _income_sum(doctor.id, m_first, m_last, db)
+    pnl          = month_income - month_expense
+
+    # Year totals
+    year_expense = _expense_sum(doctor.id, date(year,1,1), date(year,12,31), db)
+    year_income  = _income_sum (doctor.id, date(year,1,1), date(year,12,31), db)
+
+    # Category totals for the bar breakdown
+    cat_totals: dict[str, float] = defaultdict(float)
+    for e in expenses:
+        cat_totals[e.category.value] += _f(e.amount)
+
+    recurring_rules = (
+        db.query(RecurringExpense)
+        .filter(RecurringExpense.doctor_id == doctor.id)
+        .order_by(RecurringExpense.is_active.desc(), RecurringExpense.created_at)
+        .all()
+    )
+
+    month_names = [
+        "January","February","March","April","May","June",
+        "July","August","September","October","November","December",
+    ]
+
+    return templates.TemplateResponse(request, "expenses.html", {
+        "active":           "expenses",
+        "doctor":           doctor,
+        "today":            today,
+        "sel_month":        month,
+        "sel_year":         year,
+        "sel_month_name":   month_names[month - 1],
+        "prev_month":       prev_d.month,
+        "prev_year":        prev_d.year,
+        "next_month":       next_d.month,
+        "next_year":        next_d.year,
+        "is_current_month": (month == today.month and year == today.year),
+        "expenses":         expenses,
+        "month_expense":    month_expense,
+        "month_income":     month_income,
+        "year_expense":     year_expense,
+        "year_income":      year_income,
+        "pnl":              pnl,
+        "cat_totals":       dict(cat_totals),
+        "ExpenseCategory":  ExpenseCategory,
+        "recurring_rules":  recurring_rules,
+        "month_names":      month_names,
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  POST /expenses  — add one-off expense
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/expenses")
+async def add_expense(
+    request: Request,
+    db:      Session = Depends(get_db),
+    doctor:  Doctor  = Depends(get_paying_doctor),
+):
+    form = await request.form()
+
+    try:
+        amount = float(form.get("amount") or 0)
+    except ValueError:
+        amount = 0.0
+
+    try:
+        category = ExpenseCategory(form.get("category", "misc"))
+    except ValueError:
+        category = ExpenseCategory.misc
+
+    description = (form.get("description") or "").strip() or None
+
+    try:
+        expense_date = date.fromisoformat(str(form.get("expense_date", "")))
+    except ValueError:
+        expense_date = date.today()
+
+    if amount > 0:
+        db.add(Expense(
+            doctor_id    = doctor.id,
+            category     = category,
+            amount       = amount,
+            expense_date = expense_date,
+            description  = description,
+        ))
+        db.commit()
+
+    return RedirectResponse(
+        f"/expenses?month={expense_date.month}&year={expense_date.year}",
+        status_code=303,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  POST /expenses/{id}/delete
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/expenses/{expense_id}/delete")
+async def delete_expense(
+    expense_id: int,
+    request:    Request,
+    db:         Session = Depends(get_db),
+    doctor:     Doctor  = Depends(get_paying_doctor),
+):
+    exp = db.query(Expense).filter(
+        Expense.id        == expense_id,
+        Expense.doctor_id == doctor.id,
+    ).first()
+    redirect_month = date.today().month
+    redirect_year  = date.today().year
+    if exp:
+        redirect_month = exp.expense_date.month
+        redirect_year  = exp.expense_date.year
+        db.delete(exp)
+        db.commit()
+    return RedirectResponse(
+        f"/expenses?month={redirect_month}&year={redirect_year}",
+        status_code=303,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  POST /expenses/recurring  — add rule
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/expenses/recurring")
+async def add_recurring(
+    request: Request,
+    db:      Session = Depends(get_db),
+    doctor:  Doctor  = Depends(get_paying_doctor),
+):
+    form = await request.form()
+
+    try:
+        amount = float(form.get("amount") or 0)
+    except ValueError:
+        amount = 0.0
+
+    try:
+        category = ExpenseCategory(form.get("category", "misc"))
+    except ValueError:
+        category = ExpenseCategory.misc
+
+    label = (form.get("label") or "").strip()
+
+    try:
+        day_of_month = max(1, min(28, int(form.get("day_of_month") or 1)))
+    except ValueError:
+        day_of_month = 1
+
+    if amount > 0 and label:
+        db.add(RecurringExpense(
+            doctor_id    = doctor.id,
+            category     = category,
+            amount       = amount,
+            label        = label,
+            day_of_month = day_of_month,
+            is_active    = True,
+        ))
+        db.commit()
+
+    return RedirectResponse("/expenses", status_code=303)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  POST /expenses/recurring/{id}/toggle
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/expenses/recurring/{rule_id}/toggle")
+async def toggle_recurring(
+    rule_id: int,
+    request: Request,
+    db:      Session = Depends(get_db),
+    doctor:  Doctor  = Depends(get_paying_doctor),
+):
+    rule = db.query(RecurringExpense).filter(
+        RecurringExpense.id        == rule_id,
+        RecurringExpense.doctor_id == doctor.id,
+    ).first()
+    if rule:
+        rule.is_active = not rule.is_active
+        db.commit()
+    return RedirectResponse("/expenses", status_code=303)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  POST /expenses/recurring/{id}/delete
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/expenses/recurring/{rule_id}/delete")
+async def delete_recurring(
+    rule_id: int,
+    request: Request,
+    db:      Session = Depends(get_db),
+    doctor:  Doctor  = Depends(get_paying_doctor),
+):
+    rule = db.query(RecurringExpense).filter(
+        RecurringExpense.id        == rule_id,
+        RecurringExpense.doctor_id == doctor.id,
+    ).first()
+    if rule:
+        # Detach child expense rows so deleting the rule doesn't cascade them
+        db.query(Expense).filter(Expense.recurring_id == rule_id).update(
+            {"recurring_id": None}
+        )
+        db.delete(rule)
+        db.commit()
+    return RedirectResponse("/expenses", status_code=303)

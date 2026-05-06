@@ -433,6 +433,55 @@
 <!-- ───────────────────────────────────────────────────── -->
 <!--  6. PIN Protection                                     -->
 <!-- ───────────────────────────────────────────────────── -->
+<!-- ── Price Catalog ── -->
+<div class="settings-card">
+  <div class="settings-card-header" style="margin-bottom:20px;">
+    <div>
+      <div class="settings-card-title">Price Catalog</div>
+      <div class="settings-card-sub">Pre-set consultation fees — they appear as quick-fill buttons in the billing modal</div>
+    </div>
+  </div>
+
+  {% if price_catalog %}
+  <div class="catalog-list">
+    {% for item in price_catalog %}
+    <div class="catalog-row">
+      <div class="catalog-info">
+        <span class="catalog-name">{{ item.name }}</span>
+        {% if item.is_pinned %}
+        <span class="catalog-pin-badge">Quick button</span>
+        {% endif %}
+      </div>
+      <div class="catalog-price">₹{{ "{:,.0f}".format(item.default_price) }}</div>
+      <div class="catalog-actions">
+        <form method="POST" action="/price-catalog/{{ item.id }}/pin" style="display:inline;">
+          <button type="submit" class="btn btn-secondary btn-xs" title="{{ 'Unpin' if item.is_pinned else 'Pin as quick button' }}">
+            {{ '★' if item.is_pinned else '☆' }}
+          </button>
+        </form>
+        <form method="POST" action="/price-catalog/{{ item.id }}/delete" style="display:inline;"
+              onsubmit="return confirm('Remove {{ item.name }}?')">
+          <button type="submit" class="btn btn-xs" style="color:var(--danger);border:1px solid rgba(248,113,113,.3);background:rgba(248,113,113,.07);">Remove</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:var(--muted);font-size:13px;margin-bottom:16px;">No items yet. Add your consultation fees below.</p>
+  {% endif %}
+
+  <form method="POST" action="/price-catalog" class="catalog-add-form">
+    <input type="text" name="name" class="form-input" placeholder="e.g. New Patient Consultation" required style="flex:1;">
+    <input type="number" name="price" class="form-input" placeholder="₹ Amount" min="0" step="1" required style="width:130px;">
+    <label class="catalog-pin-label">
+      <input type="checkbox" name="pinned" value="true"> Quick button
+    </label>
+    <button type="submit" class="btn btn-secondary btn-sm">Add</button>
+  </form>
+</div>
+
+<!-- ── PIN Protection ── -->
 <div class="settings-card">
   <div class="settings-card-header" style="margin-bottom:20px;">
     <div>

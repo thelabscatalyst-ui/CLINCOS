@@ -1,0 +1,395 @@
+"""
+routers/billing_ops.py — Visit billing + price catalog
+
+Routes:
+  GET  /visits/{id}/bill-prefill    JSON prefill data for the bill modal
+  POST /visits/{id}/bill            Create bill + close visit
+  GET  /bills/{id}                  Bill detail page
+  GET  /price-catalog               JSON list of catalog items for doctor
+  POST /price-catalog               Add a catalog item
+  POST /price-catalog/{id}/delete   Remove a catalog item
+  POST /price-catalog/{id}/pin      Toggle pinned (quick button in modal)
+"""
+
+from datetime import datetime
+from typing import Optional
+
+from fastapi import APIRouter, Request, Depends, Form
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+
+from database.connection import get_db
+from database.models import (
+    Doctor, Patient, Visit, VisitStatus, Bill, BillItem,
+    PriceCatalog, PaymentMode, ClinicDoctor, Appointment,
+)
+from services.auth_service import get_paying_doctor
+import services.visit_service as vs
+
+router = APIRouter(tags=["billing_ops"])
+templates = Jinja2Templates(directory="templates")
+
+
+# ── helpers ──────────────────────────────────────────────────────────────── #
+
+def _get_primary_clinic(doctor: Doctor, db: Session):
+    m = db.query(ClinicDoctor).filter(
+        ClinicDoctor.doctor_id == doctor.id,
+        ClinicDoctor.is_active == True,
+    ).first()
+    return m.clinic if m else None
+
+
+def _get_visit(visit_id: int, doctor_id: int, db: Session) -> Optional[Visit]:
+    return db.query(Visit).filter(
+        Visit.id == visit_id,
+        Visit.doctor_id == doctor_id,
+    ).first()
+
+
+def _auto_complete_appointment(db: Session, visit: Visit):
+    from database.models import AppointmentStatus
+    if visit.appointment_id:
+        appt = db.query(Appointment).filter(Appointment.id == visit.appointment_id).first()
+        if appt and appt.status == AppointmentStatus.scheduled:
+            appt.status = AppointmentStatus.completed
+
+
+# ── Bill prefill JSON ─────────────────────────────────────────────────────── #
+
+@router.get("/visits/{visit_id}/bill-prefill", response_class=JSONResponse)
+async def bill_prefill(
+    visit_id: int,
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    visit = _get_visit(visit_id, doctor.id, db)
+    if not visit:
+        return JSONResponse({"error": "not found"}, status_code=404)
+
+    # Pinned catalog items as quick buttons
+    pinned = (
+        db.query(PriceCatalog)
+        .filter(
+            PriceCatalog.doctor_id == doctor.id,
+            PriceCatalog.is_active == True,
+            PriceCatalog.is_pinned == True,
+        )
+        .order_by(PriceCatalog.sort_order, PriceCatalog.name)
+        .all()
+    )
+
+    # All active catalog items for the dropdown
+    all_items = (
+        db.query(PriceCatalog)
+        .filter(
+            PriceCatalog.doctor_id == doctor.id,
+            PriceCatalog.is_active == True,
+        )
+        .order_by(PriceCatalog.sort_order, PriceCatalog.name)
+        .all()
+    )
+
+    # Guess default fee from appointment type if available
+    default_fee = 0.0
+    if visit.appointment_id:
+        appt = db.query(Appointment).filter(Appointment.id == visit.appointment_id).first()
+        if appt:
+            # Try to find a matching catalog item by appointment type name
+            type_name = appt.appointment_type.value.replace("_", " ").title()
+            match = next((i for i in all_items if type_name.lower() in i.name.lower()), None)
+            if match:
+                default_fee = float(match.default_price)
+
+    return JSONResponse({
+        "visit_id":    visit.id,
+        "patient_name": visit.patient.name,
+        "default_fee": default_fee,
+        "pinned": [{"id": i.id, "name": i.name, "price": float(i.default_price)} for i in pinned],
+        "catalog": [{"id": i.id, "name": i.name, "price": float(i.default_price)} for i in all_items],
+    })
+
+
+# ── Create bill + close visit ─────────────────────────────────────────────── #
+
+@router.post("/visits/{visit_id}/bill")
+async def create_bill(
+    visit_id: int,
+    request: Request,
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    form = await request.form()
+
+    visit = _get_visit(visit_id, doctor.id, db)
+    if not visit or visit.status != VisitStatus.billing_pending:
+        return RedirectResponse("/appointments", status_code=303)
+
+    primary_clinic = _get_primary_clinic(doctor, db)
+
+    try:
+        fee = float(form.get("fee") or 0)
+    except ValueError:
+        fee = 0.0
+    try:
+        discount = float(form.get("discount") or 0)
+    except ValueError:
+        discount = 0.0
+
+    payment_mode_str = form.get("payment_mode", "cash")
+    notes = (form.get("notes") or "").strip()
+
+    # Collect line items — item_name[] and item_price[]
+    item_names  = form.getlist("item_name")
+    item_prices_raw = form.getlist("item_price")
+
+    # Build item list, calculate subtotal from items if provided
+    items = []
+    items_subtotal = 0.0
+    for name, price_raw in zip(item_names, item_prices_raw):
+        name = name.strip()
+        if not name:
+            continue
+        try:
+            price = float(price_raw)
+        except (ValueError, TypeError):
+            price = 0.0
+        items.append((name, price))
+        items_subtotal += price
+
+    # If items were added use their sum, otherwise use the single fee field
+    subtotal = items_subtotal if items else fee
+    disc     = min(discount, subtotal)
+    total    = max(0.0, subtotal - disc)
+
+    try:
+        mode = PaymentMode(payment_mode_str)
+    except ValueError:
+        mode = PaymentMode.cash
+
+    bill = Bill(
+        visit_id     = visit.id,
+        doctor_id    = doctor.id,
+        clinic_id    = primary_clinic.id if primary_clinic else None,
+        patient_id   = visit.patient_id,
+        subtotal     = subtotal,
+        discount     = disc,
+        gst_amount   = 0,
+        total        = total,
+        paid_amount  = total,
+        payment_mode = mode,
+        paid_at      = datetime.now(),
+        notes        = notes or None,
+        created_by   = doctor.id,
+    )
+    db.add(bill)
+    db.flush()
+
+    for name, price in items:
+        db.add(BillItem(
+            bill_id     = bill.id,
+            description = name,
+            quantity    = 1,
+            unit_price  = price,
+            total       = price,
+        ))
+
+    _auto_complete_appointment(db, visit)
+    vs.close_visit(db, visit, bill.id)
+    return RedirectResponse("/appointments", status_code=303)
+
+
+# ── Edit bill ────────────────────────────────────────────────────────────── #
+
+@router.post("/bills/{bill_id}/edit")
+async def edit_bill(
+    bill_id: int,
+    request: Request,
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    bill = db.query(Bill).filter(
+        Bill.id == bill_id,
+        Bill.doctor_id == doctor.id,
+    ).first()
+    if not bill:
+        return RedirectResponse("/appointments", status_code=303)
+
+    form = await request.form()
+
+    try:
+        discount = float(form.get("discount") or 0)
+    except ValueError:
+        discount = 0.0
+
+    payment_mode_str = form.get("payment_mode", "cash")
+    notes = (form.get("notes") or "").strip()
+
+    item_names      = form.getlist("item_name")
+    item_prices_raw = form.getlist("item_price")
+
+    items = []
+    items_subtotal = 0.0
+    for name, price_raw in zip(item_names, item_prices_raw):
+        name = name.strip()
+        if not name:
+            continue
+        try:
+            price = float(price_raw)
+        except (ValueError, TypeError):
+            price = 0.0
+        items.append((name, price))
+        items_subtotal += price
+
+    subtotal = items_subtotal if items else float(bill.subtotal)
+    disc     = min(discount, subtotal)
+    total    = max(0.0, subtotal - disc)
+
+    try:
+        mode = PaymentMode(payment_mode_str)
+    except ValueError:
+        mode = PaymentMode.cash
+
+    bill.subtotal     = subtotal
+    bill.discount     = disc
+    bill.total        = total
+    bill.paid_amount  = total
+    bill.payment_mode = mode
+    bill.notes        = notes or None
+
+    # Replace all items
+    for item in list(bill.items):
+        db.delete(item)
+    db.flush()
+    for name, price in items:
+        db.add(BillItem(
+            bill_id     = bill.id,
+            description = name,
+            quantity    = 1,
+            unit_price  = price,
+            total       = price,
+        ))
+
+    db.commit()
+
+    # Redirect back to appointment detail if we know the appt
+    appt_id = bill.visit.appointment_id if bill.visit else None
+    if appt_id:
+        return RedirectResponse(f"/appointments/{appt_id}", status_code=303)
+    return RedirectResponse(f"/bills/{bill_id}", status_code=303)
+
+
+# ── Mark bill as paid (from pending-collections) ─────────────────────────── #
+
+@router.post("/bills/{bill_id}/mark-paid")
+async def mark_bill_paid(
+    bill_id: int,
+    request: Request,
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    bill = db.query(Bill).filter(
+        Bill.id == bill_id,
+        Bill.doctor_id == doctor.id,
+    ).first()
+    if bill and bill.paid_amount == 0:
+        bill.paid_amount  = bill.total
+        bill.payment_mode = bill.payment_mode or PaymentMode.cash
+        bill.paid_at      = datetime.now()
+        db.commit()
+    return RedirectResponse("/income", status_code=303)
+
+
+# ── Bill detail page ──────────────────────────────────────────────────────── #
+
+@router.get("/bills/{bill_id}", response_class=HTMLResponse)
+async def bill_detail(
+    bill_id: int,
+    request: Request,
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    bill = db.query(Bill).filter(
+        Bill.id == bill_id,
+        Bill.doctor_id == doctor.id,
+    ).first()
+    if not bill:
+        return RedirectResponse("/appointments", status_code=303)
+
+    return templates.TemplateResponse(request, "bill_detail.html", {
+        "active": "appointments",
+        "doctor": doctor,
+        "bill":   bill,
+    })
+
+
+# ── Price catalog CRUD ────────────────────────────────────────────────────── #
+
+@router.get("/price-catalog", response_class=JSONResponse)
+async def get_catalog(
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    items = (
+        db.query(PriceCatalog)
+        .filter(PriceCatalog.doctor_id == doctor.id, PriceCatalog.is_active == True)
+        .order_by(PriceCatalog.sort_order, PriceCatalog.name)
+        .all()
+    )
+    return [{"id": i.id, "name": i.name, "price": float(i.default_price), "pinned": i.is_pinned} for i in items]
+
+
+@router.post("/price-catalog")
+async def add_catalog_item(
+    request: Request,
+    name: str   = Form(...),
+    price: float = Form(...),
+    pinned: bool = Form(False),
+    db: Session  = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    item = PriceCatalog(
+        doctor_id     = doctor.id,
+        name          = name.strip(),
+        default_price = price,
+        is_pinned     = pinned,
+        is_active     = True,
+    )
+    db.add(item)
+    db.commit()
+    return RedirectResponse("/doctors/settings?tab=catalog", status_code=303)
+
+
+@router.post("/price-catalog/{item_id}/delete")
+async def delete_catalog_item(
+    item_id: int,
+    request: Request,
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    item = db.query(PriceCatalog).filter(
+        PriceCatalog.id == item_id,
+        PriceCatalog.doctor_id == doctor.id,
+    ).first()
+    if item:
+        item.is_active = False
+        db.commit()
+    return RedirectResponse("/doctors/settings?tab=catalog", status_code=303)
+
+
+@router.post("/price-catalog/{item_id}/pin")
+async def toggle_pin(
+    item_id: int,
+    request: Request,
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    item = db.query(PriceCatalog).filter(
+        PriceCatalog.id == item_id,
+        PriceCatalog.doctor_id == doctor.id,
+    ).first()
+    if item:
+        item.is_pinned = not item.is_pinned
+        db.commit()
+    return RedirectResponse("/doctors/settings?tab=catalog", status_code=303)

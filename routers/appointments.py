@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from database.connection import get_db
 from database.models import (
     Doctor, Patient, Appointment, AppointmentStatus, AppointmentType, BookedBy,
-    ClinicDoctor, Clinic, Visit, VisitStatus,
+    ClinicDoctor, Clinic, Visit, VisitStatus, Bill, PriceCatalog,
 )
 from services.auth_service import get_paying_doctor, get_appt_doctor
 from services.appointment_service import (
@@ -466,13 +466,28 @@ def appointment_detail(
 
     appt.patient  # lazy-load
 
+    # Load linked visit + bill if any
+    visit = db.query(Visit).filter(Visit.appointment_id == appt.id).first()
+    bill  = db.query(Bill).filter(Bill.visit_id == visit.id).first() if visit else None
+
+    # Price catalog for the edit-bill modal
+    price_catalog = (
+        db.query(PriceCatalog)
+        .filter(PriceCatalog.doctor_id == doctor.id, PriceCatalog.is_active == True)
+        .order_by(PriceCatalog.sort_order, PriceCatalog.name)
+        .all()
+    )
+
     is_staff = getattr(request.state, "is_staff", False)
     return templates.TemplateResponse(request, "appointment_detail.html", {
-        "doctor": doctor,
-        "appt": appt,
-        "active": "appointments",
+        "doctor":        doctor,
+        "appt":          appt,
+        "visit":         visit,
+        "bill":          bill,
+        "price_catalog": price_catalog,
+        "active":        "appointments",
         "AppointmentStatus": AppointmentStatus,
-        "is_staff": is_staff,
+        "is_staff":      is_staff,
     })
 
 

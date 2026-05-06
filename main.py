@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from database.connection import create_tables
-from routers import auth, appointments, doctors, patients, public, admin, clinic, visits
+from routers import auth, appointments, doctors, patients, public, admin, clinic, visits, billing_ops, income
 from services.scheduler_service import start_scheduler, stop_scheduler
 from services.auth_service import PlanExpired, PinRequired
 
@@ -36,6 +36,8 @@ app.include_router(public.router)
 app.include_router(admin.router)
 app.include_router(clinic.router)
 app.include_router(visits.router)
+app.include_router(billing_ops.router)
+app.include_router(income.router)
 
 
 @app.exception_handler(401)

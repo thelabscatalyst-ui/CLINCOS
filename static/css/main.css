@@ -4332,3 +4332,813 @@ html.light .dock-item--active .dock-icon {
   background: rgba(0,0,0,0.07);
   border-color: rgba(0,0,0,0.15);
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   MODAL — shared base (used by bill modal + future modals)
+══════════════════════════════════════════════════════════════════ */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-backdrop.open {
+  display: flex;
+}
+.modal-box {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.45);
+  width: 100%;
+  max-width: 460px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.modal-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+}
+.modal-close:hover { color: var(--text); }
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   BILL MODAL specific
+══════════════════════════════════════════════════════════════════ */
+.bill-pinned-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bill-quick-btn {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: var(--transition-pop);
+}
+.bill-quick-btn:hover {
+  border-color: var(--border-light);
+  transform: translateY(-1px);
+}
+.bill-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.bill-fields .form-group:nth-child(3),
+.bill-fields .form-group:nth-child(4) {
+  grid-column: span 1;
+}
+.bill-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.bill-total-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.bill-total-amount {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Collect payment button */
+.btn-collect {
+  background: rgba(74,222,128,0.1);
+  border: 1px solid rgba(74,222,128,0.35);
+  color: var(--success);
+  font-weight: 600;
+}
+.btn-collect:hover {
+  background: rgba(74,222,128,0.18);
+  transform: translateY(-1px);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PRICE CATALOG (settings)
+══════════════════════════════════════════════════════════════════ */
+.catalog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.catalog-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.catalog-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.catalog-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+.catalog-pin-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1px 8px;
+}
+.catalog-price {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 70px;
+  text-align: right;
+}
+.catalog-actions {
+  display: flex;
+  gap: 6px;
+}
+.catalog-add-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.catalog-pin-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   BILL HISTORY (patient detail)
+══════════════════════════════════════════════════════════════════ */
+.bill-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.bill-history-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 18px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--glow);
+  transition: var(--transition-pop);
+}
+.bill-history-row:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--glow-hover);
+}
+.bill-history-left {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 90px;
+}
+.bill-history-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.bill-history-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.bill-history-notes {
+  font-size: 12px;
+  color: var(--muted);
+}
+.bill-history-discount {
+  font-size: 11px;
+  color: var(--dim);
+}
+.bill-history-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+.bill-history-amount {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.bill-history-link {
+  font-size: 11px;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1px;
+}
+.bill-history-link:hover { color: var(--text); }
+.bill-history-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   BILL DETAIL PAGE
+══════════════════════════════════════════════════════════════════ */
+.bill-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 20px;
+  align-items: start;
+}
+.bill-detail-parties {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.bill-detail-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bill-detail-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--text);
+}
+.bill-detail-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bill-info-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bill-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.bill-info-label {
+  color: var(--muted);
+}
+.bill-info-val {
+  font-weight: 500;
+  color: var(--text);
+}
+@media (max-width: 760px) {
+  .bill-detail-grid { grid-template-columns: 1fr; }
+}
+
+/* Bill item rows inside modal */
+.bill-items-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.bill-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.bill-item-remove {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.bill-item-remove:hover {
+  color: var(--danger);
+  border-color: rgba(248,113,113,.4);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Income Dashboard  (v59)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* KPI strip */
+.income-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.income-kpi-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: var(--glow);
+  transition: var(--transition-pop);
+}
+.income-kpi-card:hover { transform: translateY(-2px) scale(1.01); }
+.income-kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--muted);
+}
+.income-kpi-amount {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+.income-kpi-amount.pnl-positive { color: #4ade80; }
+.income-kpi-amount.pnl-negative { color: #f87171; }
+.income-kpi-sub { font-size: 12px; color: var(--muted); }
+.income-kpi-sub.positive { color: #4ade80; }
+.income-kpi-sub.negative { color: #f87171; }
+
+/* 30-day chart card */
+.income-chart-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--glow);
+  margin-bottom: 24px;
+}
+.income-chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.income-chart-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.income-chart-peak {
+  font-size: 12px;
+  color: var(--muted);
+}
+.income-chart-wrap {
+  position: relative;
+  width: 100%;
+}
+#revenueChart {
+  width: 100%;
+  height: 160px;
+  display: block;
+  overflow: visible;
+}
+.income-chart-tooltip {
+  position: absolute;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  line-height: 1.5;
+}
+.income-chart-labels {
+  position: relative;
+  height: 20px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Breakdown grids */
+.income-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.income-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.income-breakdown-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  box-shadow: var(--glow);
+}
+.income-breakdown-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+/* Bar rows (used in all breakdown cards) */
+.income-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.income-bar-row:last-child { margin-bottom: 0; }
+.income-bar-label {
+  font-size: 12px;
+  color: var(--text);
+  min-width: 72px;
+  flex-shrink: 0;
+}
+.income-bar-track {
+  flex: 1;
+  height: 5px;
+  background: var(--bg-3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.income-bar-fill {
+  height: 100%;
+  background: var(--text);
+  border-radius: 3px;
+  opacity: 0.45;
+  transition: width 0.5s ease;
+}
+.income-bar-pct {
+  font-size: 11px;
+  color: var(--dim);
+  min-width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.income-bar-amount {
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 64px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.income-empty-state {
+  font-size: 13px;
+  color: var(--dim);
+  padding: 12px 0;
+  text-align: center;
+}
+
+/* Pending collections */
+.pending-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  box-shadow: var(--glow);
+  margin-bottom: 24px;
+}
+.pending-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.pending-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.pending-row:last-child { border-bottom: none; }
+.pending-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.pending-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.pending-amount {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #f87171;
+  flex-shrink: 0;
+  min-width: 70px;
+  text-align: right;
+}
+.pending-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* Recent transactions */
+.txn-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  box-shadow: var(--glow);
+  margin-bottom: 24px;
+}
+.txn-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.txn-row:last-child { border-bottom: none; }
+.txn-token {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+  min-width: 36px;
+  flex-shrink: 0;
+}
+.txn-name { flex: 1; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.txn-type { color: var(--muted); font-size: 12px; min-width: 50px; flex-shrink: 0; }
+.txn-date { color: var(--muted); font-size: 12px; min-width: 60px; text-align: right; flex-shrink: 0; }
+.txn-mode { flex-shrink: 0; }
+.txn-amount {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 1rem;
+  min-width: 70px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.txn-amount.free { color: var(--muted); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 400; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Expense Tracker
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.expense-month-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.expense-month-label {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  min-width: 150px;
+  text-align: center;
+}
+
+.expense-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.expense-kpi-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  box-shadow: var(--glow);
+}
+.expense-kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.expense-kpi-val {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.expense-kpi-val.pnl-positive { color: #4ade80; }
+.expense-kpi-val.pnl-negative { color: #f87171; }
+
+.expense-page-grid {
+  display: grid;
+  grid-template-columns: 1fr 310px;
+  gap: 24px;
+  align-items: start;
+}
+
+/* Add expense */
+.add-expense-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  box-shadow: var(--glow);
+  margin-bottom: 20px;
+}
+.add-expense-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Expense list */
+.expense-list-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  box-shadow: var(--glow);
+}
+.expense-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.expense-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.expense-row:last-child { border-bottom: none; }
+.expense-cat-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.expense-desc {
+  flex: 1;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.expense-date { color: var(--muted); font-size: 12px; min-width: 52px; text-align: right; flex-shrink: 0; }
+.expense-amount {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 1rem;
+  min-width: 70px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.expense-del-btn {
+  background: none;
+  border: none;
+  color: var(--dim);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+.expense-del-btn:hover { color: var(--danger); }
+
+/* Category summary sidebar */
+.cat-summary-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  box-shadow: var(--glow);
+  margin-bottom: 20px;
+}
+
+/* Recurring rules */
+.recurring-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  box-shadow: var(--glow);
+}
+.recurring-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.recurring-row:last-child { border-bottom: none; }
+.recurring-label { font-weight: 500; color: var(--text); }
+.recurring-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.recurring-amount {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  min-width: 60px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.recurring-inactive { opacity: 0.40; }
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .income-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 900px) {
+  .income-grid-3 { grid-template-columns: 1fr; }
+  .income-grid-2 { grid-template-columns: 1fr; }
+  .expense-page-grid { grid-template-columns: 1fr; }
+  .expense-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .income-kpi-grid { grid-template-columns: 1fr; }
+  .expense-kpi-grid { grid-template-columns: 1fr; }
+  .add-expense-grid { grid-template-columns: 1fr; }
+}

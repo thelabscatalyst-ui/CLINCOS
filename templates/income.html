@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+{% block title %}Income — ClinicOS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Income</h1>
+    <div class="page-sub">{{ today.strftime("%B %Y") }}</div>
+  </div>
+  <a href="/expenses" class="btn btn-secondary btn-sm">Expense Tracker →</a>
+</div>
+
+<!-- ── KPI Strip ──────────────────────────────────────────────────────────── -->
+<div class="income-kpi-grid">
+
+  <div class="income-kpi-card">
+    <div class="income-kpi-label">Today</div>
+    <div class="income-kpi-amount">₹{{ "{:,.0f}".format(today_income) }}</div>
+    <div class="income-kpi-sub">
+      {% if today_income == 0 %}No collections yet{% else %}Collected today{% endif %}
+    </div>
+  </div>
+
+  <div class="income-kpi-card">
+    <div class="income-kpi-label">This Month</div>
+    <div class="income-kpi-amount">₹{{ "{:,.0f}".format(month_income) }}</div>
+    <div class="income-kpi-sub {% if mom_pct >= 0 %}positive{% else %}negative{% endif %}">
+      {% if mom_pct > 0 %}▲ {{ "{:.1f}".format(mom_pct) }}% vs last month
+      {% elif mom_pct < 0 %}▼ {{ "{:.1f}".format(mom_pct|abs) }}% vs last month
+      {% else %}same as last month{% endif %}
+    </div>
+  </div>
+
+  <div class="income-kpi-card">
+    <div class="income-kpi-label">This Year</div>
+    <div class="income-kpi-amount">₹{{ "{:,.0f}".format(year_income) }}</div>
+    <div class="income-kpi-sub">Avg ₹{{ "{:,.0f}".format((year_income / today.month)|round|int) }}/month</div>
+  </div>
+
+  <div class="income-kpi-card income-kpi-card--pnl">
+    <div class="income-kpi-label">Net Profit · This Month</div>
+    <div class="income-kpi-amount {% if pnl_month >= 0 %}pnl-positive{% else %}pnl-negative{% endif %}">
+      {% if pnl_month >= 0 %}₹{{ "{:,.0f}".format(pnl_month) }}{% else %}−₹{{ "{:,.0f}".format(pnl_month|abs) }}{% endif %}
+    </div>
+    <div class="income-kpi-sub">
+      Income ₹{{ "{:,.0f}".format(month_income) }} · Expenses ₹{{ "{:,.0f}".format(month_expense) }}
+    </div>
+  </div>
+
+</div>
+
+<!-- ── 30-Day Revenue Chart ───────────────────────────────────────────────── -->
+<div class="income-chart-card">
+  <div class="income-chart-header">
+    <div>
+      <div class="income-chart-title">30-Day Revenue</div>
+      <div class="income-chart-peak" id="chartPeakLabel"></div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Last 30 days</div>
+      <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;">
+        ₹{{ "{:,.0f}".format(chart_days | sum(attribute='amount')) }}
+      </div>
+    </div>
+  </div>
+  <div class="income-chart-wrap">
+    <svg id="revenueChart" preserveAspectRatio="none"></svg>
+    <div class="income-chart-tooltip" id="chartTooltip" style="display:none;"></div>
+  </div>
+  <div class="income-chart-labels" id="chartLabels"></div>
+</div>
+
+<!-- ── Breakdowns ─────────────────────────────────────────────────────────── -->
+<div class="income-grid-3">
+
+  <!-- Payment Mode -->
+  <div class="income-breakdown-card">
+    <div class="income-breakdown-title">Payment Mode · This Month</div>
+    {% if mode_breakdown %}
+      {% for row in mode_breakdown %}
+      <div class="income-bar-row">
+        <span class="income-bar-label">{{ row.label }}</span>
+        <div class="income-bar-track">
+          <div class="income-bar-fill" style="width:{{ row.pct }}%;"></div>
+        </div>
+        <span class="income-bar-pct">{{ row.pct }}%</span>
+        <span class="income-bar-amount">₹{{ "{:,.0f}".format(row.amount) }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="income-empty-state">No collections this month</div>
+    {% endif %}
+  </div>
+
+  <!-- Visit Type -->
+  <div class="income-breakdown-card">
+    <div class="income-breakdown-title">Visit Type · This Month</div>
+    {% if type_breakdown %}
+      {% for row in type_breakdown %}
+      <div class="income-bar-row">
+        <span class="income-bar-label">{{ row.label }}</span>
+        <div class="income-bar-track">
+          <div class="income-bar-fill" style="width:{{ row.pct }}%;"></div>
+        </div>
+        <span class="income-bar-pct">{{ row.pct }}%</span>
+        <span class="income-bar-amount">₹{{ "{:,.0f}".format(row.amount) }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="income-empty-state">No data</div>
+    {% endif %}
+  </div>
+
+  <!-- Day of Week -->
+  <div class="income-breakdown-card">
+    <div class="income-breakdown-title">By Day · Last 90 Days</div>
+    {% for row in dow_breakdown %}
+    <div class="income-bar-row">
+      <span class="income-bar-label">{{ row.label }}</span>
+      <div class="income-bar-track">
+        <div class="income-bar-fill" style="width:{{ row.pct }}%;"></div>
+      </div>
+      <span class="income-bar-amount">₹{{ "{:,.0f}".format(row.amount) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<!-- ── Expenses Breakdown + Top Patients ─────────────────────────────────── -->
+<div class="income-grid-2">
+
+  <!-- Expense categories this month -->
+  <div class="income-breakdown-card">
+    <div class="income-breakdown-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>Expenses by Category · This Month</span>
+      <a href="/expenses" style="font-size:11px;color:var(--muted);text-decoration:none;">View all →</a>
+    </div>
+    {% if exp_breakdown %}
+      {% for row in exp_breakdown %}
+      <div class="income-bar-row">
+        <span class="income-bar-label">{{ row.label }}</span>
+        <div class="income-bar-track">
+          <div class="income-bar-fill" style="width:{{ row.pct }}%;opacity:.35;"></div>
+        </div>
+        <span class="income-bar-pct">{{ row.pct }}%</span>
+        <span class="income-bar-amount">₹{{ "{:,.0f}".format(row.amount) }}</span>
+      </div>
+      {% endfor %}
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:13px;">
+        <span style="color:var(--muted);">Total Expenses</span>
+        <span style="font-family:'Playfair Display',serif;font-weight:700;">₹{{ "{:,.0f}".format(month_expense) }}</span>
+      </div>
+    {% else %}
+      <div class="income-empty-state">No expenses recorded this month</div>
+    {% endif %}
+  </div>
+
+  <!-- Top patients this month -->
+  <div class="income-breakdown-card">
+    <div class="income-breakdown-title">Top Patients · This Month</div>
+    {% if top_patients %}
+      {% set max_pt = top_patients[0][1] | float %}
+      {% for patient, total in top_patients %}
+      <div class="income-bar-row">
+        <span class="income-bar-label" style="min-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ patient.name }}</span>
+        <div class="income-bar-track">
+          <div class="income-bar-fill" style="width:{{ ((total|float) / max_pt * 100)|round|int }}%;"></div>
+        </div>
+        <span class="income-bar-amount">₹{{ "{:,.0f}".format(total|float) }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="income-empty-state">No billing data this month</div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ── Pending Collections ───────────────────────────────────────────────── -->
+{% if pending_bills %}
+<div class="pending-card">
+  <div class="pending-card-header">
+    <div>
+      <div class="income-breakdown-title" style="margin-bottom:2px;">Pending Collections</div>
+      <div style="font-size:12px;color:var(--muted);">{{ pending_bills|length }} unpaid bill{{ 's' if pending_bills|length != 1 }}</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Total Due</div>
+      <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:#f87171;">₹{{ "{:,.0f}".format(pending_amount) }}</div>
+    </div>
+  </div>
+
+  {% for b in pending_bills %}
+  <div class="pending-row">
+    <div style="flex:1;">
+      <div class="pending-name">{{ b.visit.patient.name if b.visit else "—" }}</div>
+      <div class="pending-date">
+        Token #{{ b.visit.token_number if b.visit else "—" }}
+        · {{ b.created_at.strftime("%d %b %Y") if b.created_at else "" }}
+        {% if b.visit and b.visit.appointment_id %}
+          · via appointment
+        {% endif %}
+      </div>
+    </div>
+    <div class="pending-amount">₹{{ "{:,.0f}".format(b.total|float) }}</div>
+    <div class="pending-actions">
+      {% if b.visit %}
+      <a href="/appointments/{{ b.visit.appointment_id }}" class="btn btn-secondary btn-xs"
+         {% if not b.visit.appointment_id %}style="display:none"{% endif %}>
+        View
+      </a>
+      {% endif %}
+      <form method="post" action="/bills/{{ b.id }}/mark-paid" style="margin:0;">
+        <button type="submit" class="btn btn-primary btn-xs">Mark Paid</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ── Recent Transactions ───────────────────────────────────────────────── -->
+<div class="txn-card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div class="income-breakdown-title" style="margin:0;">Recent Transactions</div>
+  </div>
+
+  {% if recent_bills %}
+    {% for b in recent_bills %}
+    <div class="txn-row">
+      <span class="txn-token">
+        #{{ b.visit.token_number if b.visit else "—" }}
+      </span>
+      <span class="txn-name">
+        {{ b.visit.patient.name if b.visit and b.visit.patient else "—" }}
+      </span>
+      <span class="txn-type">
+        {% if b.visit and b.visit.appointment_id %}Booked{% else %}Walk-in{% endif %}
+      </span>
+      <span class="txn-date">
+        {{ b.paid_at.strftime("%-d %b") if b.paid_at else b.created_at.strftime("%-d %b") if b.created_at else "—" }}
+      </span>
+      <span class="txn-mode">
+        <span class="badge-channel badge-channel--{{ b.payment_mode.value if b.payment_mode else 'walkin' }}">
+          {{ b.payment_mode.value.title() if b.payment_mode else "—" }}
+        </span>
+      </span>
+      <span class="txn-amount {% if b.payment_mode and b.payment_mode.value == 'free' %}free{% endif %}">
+        {% if b.payment_mode and b.payment_mode.value == 'free' %}Free
+        {% else %}₹{{ "{:,.0f}".format(b.total|float) }}{% endif %}
+      </span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="income-empty-state">No transactions yet</div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── 30-Day Revenue SVG Line Chart ──────────────────────────────────────── */
+(function () {
+  const data  = {{ chart_days | tojson }};
+  const svg   = document.getElementById('revenueChart');
+  const tip   = document.getElementById('chartTooltip');
+  const W     = svg.parentElement.offsetWidth;
+  const H     = 160;
+  const PAD   = { top: 16, right: 8, bottom: 4, left: 4 };
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.style.height = H + 'px';
+
+  const amounts = data.map(d => d.amount);
+  const maxVal  = Math.max(...amounts, 1);
+
+  const x = (i) => PAD.left + (i / (data.length - 1)) * (W - PAD.left - PAD.right);
+  const y = (v) => PAD.top + (1 - v / maxVal) * (H - PAD.top - PAD.bottom);
+
+  // Gridlines
+  [0.25, 0.5, 0.75, 1].forEach(pct => {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    const yPos = PAD.top + (1 - pct) * (H - PAD.top - PAD.bottom);
+    line.setAttribute('x1', PAD.left);
+    line.setAttribute('x2', W - PAD.right);
+    line.setAttribute('y1', yPos);
+    line.setAttribute('y2', yPos);
+    line.setAttribute('stroke', 'var(--border)');
+    line.setAttribute('stroke-width', '1');
+    svg.appendChild(line);
+  });
+
+  // Area gradient fill
+  const defs   = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const grad   = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+  grad.setAttribute('id', 'revGrad');
+  grad.setAttribute('x1', '0'); grad.setAttribute('y1', '0');
+  grad.setAttribute('x2', '0'); grad.setAttribute('y2', '1');
+  const s1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  s1.setAttribute('offset', '0%');   s1.setAttribute('stop-color', 'var(--text)'); s1.setAttribute('stop-opacity', '0.12');
+  const s2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  s2.setAttribute('offset', '100%'); s2.setAttribute('stop-color', 'var(--text)'); s2.setAttribute('stop-opacity', '0.01');
+  grad.appendChild(s1); grad.appendChild(s2);
+  defs.appendChild(grad);
+  svg.appendChild(defs);
+
+  // Area polygon
+  let areaPoints = `${x(0)},${H - PAD.bottom} `;
+  data.forEach((d, i) => { areaPoints += `${x(i)},${y(d.amount)} `; });
+  areaPoints += `${x(data.length - 1)},${H - PAD.bottom}`;
+  const area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  area.setAttribute('points', areaPoints);
+  area.setAttribute('fill', 'url(#revGrad)');
+  svg.appendChild(area);
+
+  // Line polyline
+  const pts = data.map((d, i) => `${x(i)},${y(d.amount)}`).join(' ');
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  line.setAttribute('points', pts);
+  line.setAttribute('fill', 'none');
+  line.setAttribute('stroke', 'var(--text)');
+  line.setAttribute('stroke-width', '1.8');
+  line.setAttribute('stroke-linecap', 'round');
+  line.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(line);
+
+  // Today marker
+  const todayIdx = data.findIndex(d => d.is_today);
+  if (todayIdx >= 0 && data[todayIdx].amount > 0) {
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', x(todayIdx));
+    circle.setAttribute('cy', y(data[todayIdx].amount));
+    circle.setAttribute('r', '4');
+    circle.setAttribute('fill', 'var(--text)');
+    svg.appendChild(circle);
+  }
+
+  // Invisible hit areas for tooltip
+  data.forEach((d, i) => {
+    const colW = W / data.length;
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', i * colW);
+    rect.setAttribute('y', 0);
+    rect.setAttribute('width', colW);
+    rect.setAttribute('height', H);
+    rect.setAttribute('fill', 'transparent');
+    rect.setAttribute('class', 'chart-hit');
+    rect.addEventListener('mouseenter', (e) => {
+      const fmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+      tip.innerHTML = `<strong>${d.date}</strong><br>₹${fmt.format(d.amount)}`;
+      tip.style.display = 'block';
+      const svgRect = svg.parentElement.getBoundingClientRect();
+      let left = x(i) - 50;
+      left = Math.max(0, Math.min(left, W - 110));
+      tip.style.left  = left + 'px';
+      tip.style.top   = (y(d.amount) - 52) + 'px';
+    });
+    rect.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    svg.appendChild(rect);
+  });
+
+  // X-axis labels (every 7 days)
+  const labelEl = document.getElementById('chartLabels');
+  data.forEach((d, i) => {
+    if (i % 7 === 0 || i === data.length - 1) {
+      const span = document.createElement('span');
+      span.textContent = d.date;
+      span.style.position = 'absolute';
+      span.style.left = x(i) + 'px';
+      span.style.transform = 'translateX(-50%)';
+      labelEl.appendChild(span);
+    }
+  });
+
+  // Peak label
+  const peakIdx = amounts.indexOf(Math.max(...amounts));
+  if (amounts[peakIdx] > 0) {
+    const fmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+    document.getElementById('chartPeakLabel').textContent =
+      `Peak: ${data[peakIdx].date} — ₹${fmt.format(amounts[peakIdx])}`;
+  }
+})();
+</script>
+{% endblock %}

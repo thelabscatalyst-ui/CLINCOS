@@ -190,6 +190,10 @@
           <span class="badge badge--billing_pending">Billing</span>
         </div>
         <div class="visit-actions">
+          <button type="button" class="btn btn-xs btn-collect"
+                  onclick="openBillModal({{ visit.id }}, '{{ visit.patient.name }}')">
+            Collect Payment
+          </button>
           <form method="POST" action="/visits/{{ visit.id }}/close-free" style="display:inline;">
             <button type="submit" class="btn btn-secondary btn-xs">Mark Free</button>
           </form>
@@ -383,6 +387,81 @@
 
 </div><!-- /schedule-section -->
 
+<!-- ── Bill Modal ── -->
+<div class="modal-backdrop" id="billModal" onclick="if(event.target===this)closeBillModal()">
+  <div class="modal-box">
+
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Collect Payment</div>
+        <div class="modal-sub" id="billPatientName"></div>
+      </div>
+      <button type="button" class="modal-close" onclick="closeBillModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Pinned quick-fill buttons from catalog -->
+    <div id="pinnedItems" class="bill-pinned-row"></div>
+
+    <form method="POST" id="billForm">
+      <input type="hidden" id="billVisitId">
+
+      <!-- Line items -->
+      <div class="bill-items-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span class="form-label" style="margin:0;">Items / Services</span>
+          <button type="button" class="btn btn-secondary btn-xs" onclick="addBillItem()">+ Add Item</button>
+        </div>
+        <div id="billItemsList">
+          <!-- One default consultation row -->
+          <div class="bill-item-row" id="billItemRow0">
+            <input type="text" name="item_name" class="form-input" placeholder="Consultation" style="flex:1;" value="Consultation">
+            <input type="number" name="item_price" id="billFee" class="form-input bill-item-price" placeholder="₹" min="0" step="1" style="width:110px;" oninput="updateTotal()" required>
+            <button type="button" class="bill-item-remove" onclick="removeBillItem(this)" style="display:none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Discount + payment mode + notes -->
+      <div class="bill-fields" style="margin-top:14px;">
+        <div class="form-group">
+          <label class="form-label">Discount (₹)</label>
+          <input type="number" id="billDiscount" name="discount" class="form-input" min="0" step="1" value="0" oninput="updateTotal()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Payment Mode</label>
+          <select id="billMode" name="payment_mode" class="form-input form-select">
+            <option value="cash">Cash</option>
+            <option value="upi">UPI</option>
+            <option value="card">Card</option>
+            <option value="insurance">Insurance</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:span 2;">
+          <label class="form-label">Notes (optional)</label>
+          <input type="text" id="billNotes" name="notes" class="form-input" placeholder="e.g. follow-up in 7 days">
+        </div>
+      </div>
+
+      <div class="bill-total-row">
+        <span class="bill-total-label">Total</span>
+        <span class="bill-total-amount" id="billTotal">₹0</span>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeBillModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Save & Close Visit</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -432,5 +511,101 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /* Auto-refresh removed — page reloads on every action anyway */
+
+/* ── Bill Modal ── */
+let billItemCount = 1;
+
+function openBillModal(visitId, patientName) {
+  document.getElementById('billPatientName').textContent = patientName;
+  document.getElementById('billVisitId').value = visitId;
+  document.getElementById('billDiscount').value = '0';
+  document.getElementById('billMode').value = 'cash';
+  document.getElementById('billNotes').value = '';
+  document.getElementById('billTotal').textContent = '₹0';
+  billItemCount = 1;
+  document.getElementById('billItemsList').innerHTML =
+    '<div class="bill-item-row" id="billItemRow0">' +
+    '<input type="text" name="item_name" class="form-input" placeholder="Consultation" style="flex:1;" value="Consultation">' +
+    '<input type="number" name="item_price" class="form-input bill-item-price" placeholder="₹" min="0" step="1" style="width:110px;" oninput="updateTotal()">' +
+    '<button type="button" class="bill-item-remove" onclick="removeBillItem(this)" style="display:none;">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+    '</button></div>';
+  document.getElementById('billModal').classList.add('open');
+
+  fetch('/visits/' + visitId + '/bill-prefill')
+    .then(r => r.json())
+    .then(data => {
+      const pinned = document.getElementById('pinnedItems');
+      pinned.innerHTML = '';
+      data.pinned.forEach(item => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bill-quick-btn';
+        btn.textContent = item.name + ' — ₹' + item.price;
+        btn.onclick = () => addBillItem(item.name, item.price);
+        pinned.appendChild(btn);
+      });
+      if (data.default_fee > 0) {
+        const fp = document.querySelector('#billItemsList .bill-item-price');
+        if (fp) { fp.value = data.default_fee; updateTotal(); }
+      }
+    });
+
+  setTimeout(() => {
+    const fp = document.querySelector('#billItemsList .bill-item-price');
+    if (fp) fp.focus();
+  }, 120);
+}
+
+function addBillItem(name, price) {
+  name = name || '';
+  price = price || '';
+  const list = document.getElementById('billItemsList');
+  const idx  = billItemCount++;
+  const row  = document.createElement('div');
+  row.className = 'bill-item-row';
+  row.innerHTML =
+    '<input type="text" name="item_name" class="form-input" placeholder="e.g. Lab Test" style="flex:1;" value="' + name + '">' +
+    '<input type="number" name="item_price" class="form-input bill-item-price" placeholder="₹" min="0" step="1" style="width:110px;" value="' + price + '" oninput="updateTotal()">' +
+    '<button type="button" class="bill-item-remove" onclick="removeBillItem(this)">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+    '</button>';
+  list.appendChild(row);
+  row.querySelector('.bill-item-price').focus();
+  document.querySelectorAll('#billItemsList .bill-item-remove').forEach(b => b.style.display = 'flex');
+  updateTotal();
+}
+
+function removeBillItem(btn) {
+  const rows = document.querySelectorAll('#billItemsList .bill-item-row');
+  if (rows.length <= 1) return;
+  btn.closest('.bill-item-row').remove();
+  const remaining = document.querySelectorAll('#billItemsList .bill-item-row');
+  if (remaining.length === 1) remaining[0].querySelector('.bill-item-remove').style.display = 'none';
+  updateTotal();
+}
+
+function closeBillModal() {
+  document.getElementById('billModal').classList.remove('open');
+}
+
+function updateTotal() {
+  let subtotal = 0;
+  document.querySelectorAll('#billItemsList .bill-item-price').forEach(i => {
+    subtotal += parseFloat(i.value) || 0;
+  });
+  const disc  = parseFloat(document.getElementById('billDiscount').value) || 0;
+  const total = Math.max(0, subtotal - disc);
+  document.getElementById('billTotal').textContent = '₹' + total.toLocaleString('en-IN');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBillModal(); });
+
+document.getElementById('billForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const visitId = document.getElementById('billVisitId').value;
+  this.action = '/visits/' + visitId + '/bill';
+  this.submit();
+});
 </script>
 {% endblock %}

@@ -14,7 +14,7 @@ from sqlalchemy import func, or_
 from datetime import datetime
 
 from database.connection import get_db
-from database.models import Doctor, Patient, Appointment, AppointmentStatus, PatientNote, NoteFile, PinnedPatient
+from database.models import Doctor, Patient, Appointment, AppointmentStatus, PatientNote, NoteFile, PinnedPatient, Bill
 from services.auth_service import get_paying_doctor, require_pin
 
 router = APIRouter(prefix="/patients", tags=["patients"])
@@ -289,6 +289,13 @@ def patient_detail(
     upcoming  = sum(1 for a in appointments if a.status == AppointmentStatus.scheduled
                     and a.appointment_date >= date.today())
 
+    bills = (
+        db.query(Bill)
+        .filter(Bill.patient_id == patient.id, Bill.doctor_id == doctor.id)
+        .order_by(Bill.created_at.desc())
+        .all()
+    )
+
     return templates.TemplateResponse(request, "patient_detail.html", {
         "doctor":       doctor,
         "patient":      patient,
@@ -296,6 +303,7 @@ def patient_detail(
         "notes_data":   _notes_data(raw_notes),
         "completed":    completed,
         "upcoming":     upcoming,
+        "bills":        bills,
         "active":       "patients",
         "pin_required": getattr(request.state, "pin_required", False),
     })
