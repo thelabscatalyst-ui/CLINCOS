@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}Today's Queue — ClinicOS{% endblock %}
+
+{% block content %}
+
+<!-- Page Header -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Today's Queue</h1>
+    <div class="page-date">
+      {{ today.strftime("%A, %d %B %Y") }}
+      {% if not is_today %}
+        <span style="color:var(--warning);margin-left:8px;">· Viewing past date</span>
+      {% endif %}
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <span class="badge badge--scheduled" style="font-size:0.78rem;padding:4px 10px;">
+      {{ total_today }} total · {{ done_count }} done
+    </span>
+    {% if is_today %}
+    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleCheckinPanel()">+ Walk-in</button>
+    <a href="/appointments/new" class="btn btn-primary btn-sm">+ Book Appt</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Walk-in Quick Panel -->
+{% if is_today %}
+<div id="checkinPanel" class="walkin-panel" style="display:none;">
+  <form method="POST" action="/visits/check-in" class="walkin-form">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+      <div class="form-group" style="flex:1;min-width:180px;margin:0;">
+        <label class="form-label">Patient Name</label>
+        <input type="text" name="name" class="form-control" placeholder="Full name" required autocomplete="off">
+      </div>
+      <div class="form-group" style="flex:1;min-width:150px;margin:0;">
+        <label class="form-label">Phone</label>
+        <input type="text" name="phone" class="form-control" placeholder="10-digit number" required maxlength="10">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding-bottom:2px;">
+        <input type="checkbox" name="is_emergency" value="true" id="emergencyCheck" style="width:16px;height:16px;">
+        <label for="emergencyCheck" style="font-size:0.85rem;color:var(--danger);font-weight:500;cursor:pointer;">🚨 Emergency</label>
+      </div>
+      <div style="display:flex;gap:8px;padding-bottom:2px;">
+        <button type="submit" class="btn btn-primary btn-sm">Check In</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleCheckinPanel()">Cancel</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+<!-- Expected (Scheduled, Not Arrived) -->
+{% if scheduled_today %}
+<div class="section-header" style="margin-top:24px;">
+  <h2 class="section-title" style="font-size:0.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">
+    Expected Today ({{ scheduled_today|length }})
+  </h2>
+</div>
+<div class="appt-list" style="margin-bottom:4px;">
+  {% for appt in scheduled_today %}
+  <div class="appt-row" style="opacity:0.7;">
+    <div class="appt-time">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</div>
+    <div class="appt-info">
+      <div class="appt-name">{{ appt.patient.name }}</div>
+      <div class="appt-meta">{{ appt.appointment_type.value.replace("_"," ").title() }} · Booked</div>
+    </div>
+    <div class="appt-actions">
+      {% if is_today %}
+      <form method="POST" action="/visits/check-in-appt/{{ appt.id }}" style="display:inline;">
+        <button type="submit" class="btn btn-secondary btn-xs">Check In</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- NOW SERVING -->
+{% if serving %}
+<div class="section-header" style="margin-top:28px;">
+  <h2 class="section-title" style="color:var(--text);">Now Serving</h2>
+</div>
+<div class="visit-serving-card {% if serving.is_emergency %}visit-emergency{% endif %}">
+  <div class="visit-token">
+    #{{ serving.token_number }}
+    {% if serving.is_emergency %}<span class="emergency-badge">🚨</span>{% endif %}
+  </div>
+  <div class="visit-info">
+    <div class="visit-name">{{ serving.patient.name }}</div>
+    <div class="visit-meta">
+      {{ serving.check_in_time.strftime("%I:%M %p") if serving.check_in_time else "" }}
+      · {% if serving.source.value == 'appointment' %}Booked{% else %}{{ serving.source.value.replace("_"," ").title() }}{% endif %}
+    </div>
+  </div>
+  <div class="visit-status-badge">
+    {% if serving.status.value == 'billing_pending' %}
+      <span class="badge badge--no_show" style="background:rgba(251,191,36,.15);color:#fbbf24;">Billing</span>
+    {% else %}
+      <span class="badge" style="background:rgba(34,197,94,.15);color:#22c55e;">Serving</span>
+    {% endif %}
+  </div>
+  {% if is_today %}
+  <div class="visit-actions">
+    {% if serving.status.value == 'serving' %}
+    <form method="POST" action="/visits/{{ serving.id }}/done" style="display:inline;">
+      <button type="submit" class="btn btn-primary btn-sm">Done →</button>
+    </form>
+    {% endif %}
+    <div class="visit-more-btn" onclick="toggleMenu('menu-serving')">⋮</div>
+    <div class="visit-menu" id="menu-serving">
+      <form method="POST" action="/visits/{{ serving.id }}/skip">
+        <button type="submit" class="visit-menu-item">Skip</button>
+      </form>
+      <form method="POST" action="/visits/{{ serving.id }}/cancel">
+        <button type="submit" class="visit-menu-item danger">Cancel</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% else %}
+{% if is_today and waiting %}
+<div class="section-header" style="margin-top:28px;">
+  <h2 class="section-title">Ready to Start</h2>
+</div>
+<div class="empty-state" style="padding:16px 20px;margin-bottom:8px;">
+  <div class="empty-title" style="font-size:0.95rem;">No patient being served</div>
+  <div class="empty-sub">Call the first patient from the Waiting list below.</div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- WAITING -->
+{% if waiting %}
+<div class="section-header" style="margin-top:28px;">
+  <h2 class="section-title">Waiting <span class="section-count">({{ waiting|length }})</span></h2>
+</div>
+<div class="visit-list">
+  {% for visit in waiting %}
+  <div class="visit-row {% if visit.is_emergency %}visit-emergency{% endif %}">
+    <div class="visit-token-sm">#{{ visit.token_number }}{% if visit.is_emergency %} 🚨{% endif %}</div>
+    <div class="visit-info">
+      <div class="visit-name">{{ visit.patient.name }}</div>
+      <div class="visit-meta">
+        {{ visit.check_in_time.strftime("%I:%M %p") if visit.check_in_time else "" }}
+        · {% if visit.source.value == 'appointment' %}Booked{% else %}Walk-in{% endif %}
+      </div>
+    </div>
+    {% if is_today %}
+    <div class="visit-actions">
+      <form method="POST" action="/visits/{{ visit.id }}/call" style="display:inline;">
+        <button type="submit" class="btn btn-secondary btn-xs">Call</button>
+      </form>
+      <div class="visit-more-btn" onclick="toggleMenu('menu-{{ visit.id }}')">⋮</div>
+      <div class="visit-menu" id="menu-{{ visit.id }}">
+        {% if not visit.is_emergency %}
+        <form method="POST" action="/visits/{{ visit.id }}/emergency">
+          <button type="submit" class="visit-menu-item">🚨 Mark Emergency</button>
+        </form>
+        {% endif %}
+        <form method="POST" action="/visits/{{ visit.id }}/skip">
+          <button type="submit" class="visit-menu-item">Skip to End</button>
+        </form>
+        <form method="POST" action="/visits/{{ visit.id }}/cancel">
+          <button type="submit" class="visit-menu-item danger">Cancel</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% elif not serving %}
+<div class="section-header" style="margin-top:28px;">
+  <h2 class="section-title">Waiting</h2>
+</div>
+<div class="empty-state">
+  <div class="empty-icon">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M4 20c0-4.4 3.58-8 8-8s8 3.6 8 8"/>
+    </svg>
+  </div>
+  <div class="empty-title">Queue is empty</div>
+  <div class="empty-sub">Add a walk-in or check in an arriving patient.</div>
+  {% if is_today %}
+  <div class="empty-actions">
+    <button type="button" class="btn btn-primary btn-sm" onclick="toggleCheckinPanel()">+ Walk-in</button>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- CLOSED TODAY -->
+{% if closed %}
+<div class="section-header" style="margin-top:36px;">
+  <h2 class="section-title">Closed Today <span class="section-count">({{ closed|length }})</span></h2>
+  <a href="#" class="section-link" id="toggleClosedBtn" onclick="toggleClosed(event)">Show all</a>
+</div>
+<div class="visit-list" id="closedList">
+  {% for visit in closed[:3] %}
+  <div class="visit-row visit-row--closed" data-closed-row>
+    <div class="visit-token-sm">#{{ visit.token_number }}</div>
+    <div class="visit-info">
+      <div class="visit-name">{{ visit.patient.name }}</div>
+      <div class="visit-meta">
+        {% if visit.complete_time %}{{ visit.complete_time.strftime("%I:%M %p") }} · {% endif %}
+        {{ visit.status.value.replace("_"," ").title() }}
+      </div>
+    </div>
+    <div class="visit-status-badge">
+      {% if visit.status.value == 'done' %}
+        {% if visit.bill %}
+          <span style="color:var(--muted);font-size:0.82rem;">
+            {% if visit.bill.payment_mode and visit.bill.payment_mode.value != 'free' %}
+              {{ visit.bill.payment_mode.value.upper() }} ₹{{ visit.bill.total|int }}
+            {% else %}
+              Free
+            {% endif %}
+          </span>
+        {% endif %}
+      {% else %}
+        <span class="badge badge--{{ visit.status.value }}" style="font-size:0.75rem;">
+          {{ visit.status.value.replace("_"," ").title() }}
+        </span>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  {% if closed|length > 3 %}
+  <div id="closedExtra" style="display:none;">
+    {% for visit in closed[3:] %}
+    <div class="visit-row visit-row--closed">
+      <div class="visit-token-sm">#{{ visit.token_number }}</div>
+      <div class="visit-info">
+        <div class="visit-name">{{ visit.patient.name }}</div>
+        <div class="visit-meta">
+          {% if visit.complete_time %}{{ visit.complete_time.strftime("%I:%M %p") }} · {% endif %}
+          {{ visit.status.value.replace("_"," ").title() }}
+        </div>
+      </div>
+      <div class="visit-status-badge">
+        {% if visit.status.value == 'done' and visit.bill %}
+          <span style="color:var(--muted);font-size:0.82rem;">
+            {% if visit.bill.payment_mode and visit.bill.payment_mode.value != 'free' %}
+              {{ visit.bill.payment_mode.value.upper() }} ₹{{ visit.bill.total|int }}
+            {% else %}
+              Free
+            {% endif %}
+          </span>
+        {% elif visit.status.value != 'done' %}
+          <span class="badge badge--{{ visit.status.value }}" style="font-size:0.75rem;">
+            {{ visit.status.value.replace("_"," ").title() }}
+          </span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleCheckinPanel() {
+  const p = document.getElementById('checkinPanel');
+  if (!p) return;
+  const isHidden = p.style.display === 'none' || p.style.display === '';
+  p.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) p.querySelector('input[name="name"]').focus();
+}
+
+function toggleMenu(id) {
+  // Close all open menus first
+  document.querySelectorAll('.visit-menu').forEach(m => {
+    if (m.id !== id) m.classList.remove('open');
+  });
+  document.getElementById(id)?.classList.toggle('open');
+}
+
+// Close menus when clicking outside
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.visit-more-btn') && !e.target.closest('.visit-menu')) {
+    document.querySelectorAll('.visit-menu').forEach(m => m.classList.remove('open'));
+  }
+});
+
+function toggleClosed(e) {
+  e.preventDefault();
+  const extra = document.getElementById('closedExtra');
+  const btn   = document.getElementById('toggleClosedBtn');
+  if (!extra) return;
+  const isHidden = extra.style.display === 'none' || extra.style.display === '';
+  extra.style.display = isHidden ? 'block' : 'none';
+  btn.textContent = isHidden ? 'Show less' : 'Show all';
+}
+
+// Auto-refresh queue every 30s when viewing today
+{% if is_today %}
+setTimeout(() => location.reload(), 30000);
+{% endif %}
+</script>
+{% endblock %}

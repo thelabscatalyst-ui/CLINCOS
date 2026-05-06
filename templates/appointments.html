@@ -7,36 +7,33 @@
 {% set is_other = vd.id != doctor.id %}
 {% set doc_param = "&doctor_id=" ~ vd.id if is_other else "" %}
 
+<!-- ─── Page Header ─────────────────────────────────────────────── -->
 <div class="page-header">
-  <h1 class="page-title">
-    {% if is_other %}
-      Dr. {{ vd.name }} — Appointments
-    {% else %}
-      Appointments
-    {% endif %}
-    <span class="page-date">
-      · {{ view_date.strftime("%d %b %Y") }}
-      {% if view_date == today %}
-        <span class="badge badge--scheduled" style="font-size:10px;vertical-align:middle;margin-left:4px;">Today</span>
-      {% endif %}
-    </span>
-  </h1>
+  <div>
+    <h1 class="page-title">
+      {% if is_other %}Dr. {{ vd.name }} —{% endif %} Appointments
+    </h1>
+    <div class="page-date">
+      {{ view_date.strftime("%A, %d %B %Y") }}
+      {% if is_today %}<span class="badge badge--scheduled" style="font-size:10px;vertical-align:middle;margin-left:6px;">Today</span>{% endif %}
+    </div>
+  </div>
   <div style="display:flex;gap:8px;align-items:center;">
     {% if is_other %}
-    <a href="/appointments" class="btn btn-secondary btn-sm">My Appointments</a>
+    <a href="/appointments" class="btn btn-secondary btn-sm">My View</a>
     {% endif %}
-    {% if view_date == today %}
-    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleWalkin()">Walk-in</button>
+    {% if is_today %}
+    <button type="button" class="btn btn-secondary btn-sm" id="walkinToggleBtn" onclick="toggleWalkin()">+ Walk-in</button>
     {% endif %}
     <a href="/appointments/new?prefill_date={{ view_date.isoformat() }}" class="btn btn-primary btn-sm">+ New</a>
   </div>
 </div>
 
+<!-- ─── Clinic Doctor Selector ──────────────────────────────────── -->
 {% if clinic_doctors %}
-<!-- Doctor selector strip -->
-<div class="card" style="margin-bottom:20px;padding:16px 20px;">
-  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-    <span style="color:var(--muted);font-size:13px;">Viewing:</span>
+<div class="card" style="margin-bottom:20px;padding:14px 20px;">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span style="color:var(--muted);font-size:12px;letter-spacing:.04em;text-transform:uppercase;">Doctor</span>
     {% for doc in clinic_doctors %}
     <a href="/appointments?doctor_id={{ doc.id }}&filter_date={{ view_date.isoformat() }}"
        class="btn btn-sm {% if doc.id == vd.id %}btn-primary{% else %}btn-secondary{% endif %}">
@@ -48,43 +45,32 @@
 {% endif %}
 
 {% if request.query_params.get('walkin_error') %}
-<div class="alert alert-error" style="margin-bottom:16px;">
-  Walk-in requires a valid name and 10-digit phone number.
-</div>
+<div class="alert alert-error" style="margin-bottom:16px;">Walk-in requires a valid name and 10-digit phone number.</div>
 {% endif %}
 
-<!-- Walk-in quick form (today only) -->
-{% if view_date == today %}
+<!-- ─── Walk-in Panel ────────────────────────────────────────────── -->
+{% if is_today %}
 <div id="walkinPanel" class="walkin-panel" style="display:none;">
   <div class="walkin-panel-inner">
-    <div class="walkin-panel-title">Walk-in Patient</div>
+    <div class="walkin-panel-title">Walk-in — enters queue immediately</div>
     <form method="POST" action="/appointments/walkin" class="walkin-form">
       {% if clinic_doctors %}
-      <select name="for_doctor_id" class="input-sm walkin-field">
+      <select name="for_doctor_id" class="input-sm walkin-field" style="margin-bottom:10px;">
         {% for doc in clinic_doctors %}
-        <option value="{{ doc.id }}" {% if doc.id == vd.id %}selected{% endif %}>
-          Dr. {{ doc.name }}
-        </option>
+        <option value="{{ doc.id }}" {% if doc.id == vd.id %}selected{% endif %}>Dr. {{ doc.name }}</option>
         {% endfor %}
       </select>
       {% endif %}
-
-      <!-- Row 1: Name + Phone -->
       <div class="walkin-row">
-        <input type="text" name="patient_name" placeholder="Patient name" required class="input-sm" />
+        <input type="text"  name="patient_name"  placeholder="Patient name"    required class="input-sm" />
         <div class="walkin-phone-wrap">
-          <input type="tel" id="walkinPhone" name="patient_phone"
-                 placeholder="Phone (10 digits)" required
-                 pattern="[0-9]{10}" minlength="10" maxlength="10"
-                 title="Enter a 10-digit phone number" class="input-sm" />
+          <input type="tel" id="walkinPhone" name="patient_phone" placeholder="Phone (10 digits)" required
+                 pattern="[0-9]{10}" minlength="10" maxlength="10" class="input-sm" />
         </div>
       </div>
-
-      <!-- Row 2: Age + Gender + Notes -->
       <div class="walkin-row">
-        <input type="number" name="patient_age" placeholder="Age" min="0" max="120"
-               class="input-sm walkin-age" />
-        <select name="patient_gender" class="input-sm walkin-gender">
+        <input type="number" name="patient_age"    placeholder="Age"    min="0" max="120" class="input-sm walkin-age" />
+        <select              name="patient_gender"                                          class="input-sm walkin-gender">
           <option value="">Gender</option>
           <option value="male">Male</option>
           <option value="female">Female</option>
@@ -92,89 +78,282 @@
         </select>
         <input type="text" name="patient_notes" placeholder="Notes (optional)" class="input-sm walkin-notes" />
       </div>
-
       <input type="checkbox" name="is_emergency" id="emergencyCheck" style="display:none;" />
-
-      <!-- Row 3: Emergency toggle + Submit -->
       <div class="walkin-actions">
         <button type="button" class="btn-emergency-toggle" id="emergencyToggle" onclick="toggleEmergency()">Emergency</button>
-        <button type="submit" class="btn btn-primary btn-sm walkin-submit">Add Walk-in</button>
+        <button type="submit" class="btn btn-primary btn-sm walkin-submit">Add to Queue</button>
       </div>
     </form>
   </div>
 </div>
 {% endif %}
 
-<!-- Date Navigation -->
-<div class="date-nav">
-  <a href="/appointments?filter_date={{ prev_date }}{{ doc_param }}" class="btn btn-secondary btn-sm">← Previous</a>
-  <form method="get" action="/appointments" style="display:contents;">
-    {% if is_other %}<input type="hidden" name="doctor_id" value="{{ vd.id }}">{% endif %}
-    <input type="date" name="filter_date" value="{{ view_date.isoformat() }}"
-           class="date-nav-input" onchange="this.form.submit()">
-  </form>
-  {% if view_date != today %}
-  <a href="/appointments?{{ 'doctor_id=' ~ vd.id if is_other else '' }}" class="btn btn-secondary btn-sm">Today</a>
-  {% endif %}
-  <a href="/appointments?filter_date={{ next_date }}{{ doc_param }}" class="btn btn-secondary btn-sm">Next →</a>
-</div>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  LIVE QUEUE  (today only)                                       -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+{% if is_today %}
+<div class="queue-section">
 
-<!-- Search bar -->
-<form method="get" action="/appointments" class="appt-search-form">
-  <input type="hidden" name="filter_date" value="{{ view_date.isoformat() }}">
-  {% if is_other %}<input type="hidden" name="doctor_id" value="{{ vd.id }}">{% endif %}
-  <div class="appt-search-wrap">
-    <svg class="appt-search-icon" width="15" height="15" viewBox="0 0 24 24"
-         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-    </svg>
-    <input type="text" name="q" value="{{ q }}" placeholder="Search by patient name…"
-           class="appt-search-input" id="apptSearchInput">
-    {% if q %}
-    <a href="/appointments?filter_date={{ view_date.isoformat() }}{{ doc_param }}" class="appt-search-clear">✕</a>
-    {% endif %}
+  <!-- Now Serving -->
+  {% if serving %}
+  <div class="queue-block">
+    <div class="queue-block-label">Now Serving</div>
+    <div class="visit-serving-card {% if serving.is_emergency %}visit-emergency{% endif %}">
+      <div class="visit-token">#{{ serving.token_number }}{% if serving.is_emergency %} <span class="emergency-badge">🚨</span>{% endif %}</div>
+      <div class="visit-info">
+        <div class="visit-name">{{ serving.patient.name }}</div>
+        <div class="visit-meta">
+          {{ serving.check_in_time.strftime("%I:%M %p").lstrip("0") if serving.check_in_time else "" }}
+          · {% if serving.source.value == 'appointment' %}Booked{% else %}Walk-in{% endif %}
+        </div>
+      </div>
+      <div class="visit-status-badge">
+        {% if serving.status.value == 'billing_pending' %}
+          <span class="badge badge--billing_pending">Billing</span>
+        {% else %}
+          <span class="badge badge--serving">Serving</span>
+        {% endif %}
+      </div>
+      <div class="visit-actions">
+        {% if serving.status.value == 'serving' %}
+        <form method="POST" action="/visits/{{ serving.id }}/done" style="display:inline;">
+          <button type="submit" class="btn btn-primary btn-sm">Done →</button>
+        </form>
+        {% endif %}
+        <div class="visit-more-btn" onclick="toggleMenu('menu-s{{ serving.id }}')">⋮</div>
+        <div class="visit-menu" id="menu-s{{ serving.id }}">
+          <form method="POST" action="/visits/{{ serving.id }}/skip">
+            <button type="submit" class="visit-menu-item">Skip</button>
+          </form>
+          <form method="POST" action="/visits/{{ serving.id }}/cancel">
+            <button type="submit" class="visit-menu-item danger">Cancel Visit</button>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
-  <button type="submit" class="btn btn-secondary btn-sm">Search</button>
-</form>
+  {% endif %}
+
+  <!-- Waiting -->
+  {% if waiting %}
+  <div class="queue-block">
+    <div class="queue-block-label">Waiting <span class="section-count">({{ waiting|length }})</span></div>
+    <div class="visit-list">
+      {% for visit in waiting %}
+      <div class="visit-row {% if visit.is_emergency %}visit-emergency{% endif %}">
+        <div class="visit-token-sm">#{{ visit.token_number }}{% if visit.is_emergency %} 🚨{% endif %}</div>
+        <div class="visit-info">
+          <div class="visit-name">{{ visit.patient.name }}</div>
+          <div class="visit-meta">
+            {{ visit.check_in_time.strftime("%I:%M %p").lstrip("0") if visit.check_in_time else "" }}
+            · {% if visit.source.value == 'appointment' %}Booked{% else %}Walk-in{% endif %}
+          </div>
+        </div>
+        <div class="visit-actions">
+          <form method="POST" action="/visits/{{ visit.id }}/call" style="display:inline;">
+            <button type="submit" class="btn btn-secondary btn-xs">Call</button>
+          </form>
+          <div class="visit-more-btn" onclick="toggleMenu('menu-w{{ visit.id }}')">⋮</div>
+          <div class="visit-menu" id="menu-w{{ visit.id }}">
+            {% if not visit.is_emergency %}
+            <form method="POST" action="/visits/{{ visit.id }}/emergency">
+              <button type="submit" class="visit-menu-item">🚨 Mark Emergency</button>
+            </form>
+            {% endif %}
+            <form method="POST" action="/visits/{{ visit.id }}/skip">
+              <button type="submit" class="visit-menu-item">Skip to End</button>
+            </form>
+            <form method="POST" action="/visits/{{ visit.id }}/cancel">
+              <button type="submit" class="visit-menu-item danger">Cancel</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Billing Pending -->
+  {% if billing_pending %}
+  <div class="queue-block">
+    <div class="queue-block-label" style="color:var(--warning);">Pending Billing <span class="section-count">({{ billing_pending|length }})</span></div>
+    <div class="visit-list">
+      {% for visit in billing_pending %}
+      <div class="visit-row" style="border-color:rgba(251,191,36,.25);">
+        <div class="visit-token-sm">#{{ visit.token_number }}</div>
+        <div class="visit-info">
+          <div class="visit-name">{{ visit.patient.name }}</div>
+          <div class="visit-meta">Consultation done · Awaiting payment</div>
+        </div>
+        <div class="visit-status-badge">
+          <span class="badge badge--billing_pending">Billing</span>
+        </div>
+        <div class="visit-actions">
+          <form method="POST" action="/visits/{{ visit.id }}/close-free" style="display:inline;">
+            <button type="submit" class="btn btn-secondary btn-xs">Mark Free</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Empty queue state -->
+  {% if not serving and not waiting and not billing_pending %}
+  <div class="queue-empty">
+    <div style="font-size:1.15rem;font-weight:600;color:var(--text);">Queue is empty</div>
+    <div style="font-size:0.95rem;color:var(--muted);margin-top:6px;">Add a walk-in or check in a patient below.</div>
+  </div>
+  {% endif %}
+
+</div><!-- /queue-section -->
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  SCHEDULE                                                       -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="schedule-section">
+
+<div class="schedule-section-header">
+  <div class="schedule-label">Schedule</div>
+
+  <!-- Date Nav + Search in one row -->
+  <div class="appt-controls-row" style="margin-bottom:0;margin-top:0;">
+    <div class="date-nav">
+      <a href="/appointments?filter_date={{ prev_date }}{{ doc_param }}" class="btn btn-secondary btn-sm">←</a>
+      <form method="get" action="/appointments" style="display:contents;">
+        {% if is_other %}<input type="hidden" name="doctor_id" value="{{ vd.id }}">{% endif %}
+        <input type="date" name="filter_date" value="{{ view_date.isoformat() }}" class="date-nav-input" onchange="this.form.submit()">
+      </form>
+      {% if not is_today %}
+      <a href="/appointments?{{ 'doctor_id=' ~ vd.id if is_other else '' }}" class="btn btn-secondary btn-sm">Today</a>
+      {% endif %}
+      <a href="/appointments?filter_date={{ next_date }}{{ doc_param }}" class="btn btn-secondary btn-sm">→</a>
+    </div>
+    <form method="get" action="/appointments" class="appt-search-form">
+      <input type="hidden" name="filter_date" value="{{ view_date.isoformat() }}">
+      {% if is_other %}<input type="hidden" name="doctor_id" value="{{ vd.id }}">{% endif %}
+      <div class="appt-search-wrap">
+        <svg class="appt-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" name="q" value="{{ q }}" placeholder="Search patient…" class="appt-search-input" id="apptSearchInput">
+        {% if q %}<a href="/appointments?filter_date={{ view_date.isoformat() }}{{ doc_param }}" class="appt-search-clear">✕</a>{% endif %}
+      </div>
+      <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+    </form>
+  </div>
+</div>
 
 <!-- Appointment List -->
 {% if appointments %}
-<div class="appt-list">
-  {% for appt in appointments %}
-  <div class="appt-row {% if appt.is_emergency %}appt-row--emergency{% elif appt.status.value == 'completed' %}appt-row--done{% elif appt.status.value == 'no_show' %}appt-row--noshow{% endif %}">
-    <div class="appt-time">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</div>
-    <div class="appt-info">
-      <div class="appt-name">
-        {{ appt.patient.name }}
-        {% if appt.is_emergency %}<span class="badge badge--emergency" style="margin-left:6px;font-size:10px;vertical-align:middle;">Emergency</span>{% endif %}
-      </div>
-      <div class="appt-meta">
-        {{ appt.appointment_type.value.replace("_", " ").title() }}
-        · {{ appt.duration_mins }} min
-        · {{ appt.patient.phone }}
-        {% if appt.patient.age %}· {{ appt.patient.age }}y{% endif %}
-        {% if appt.patient.gender %}· {{ appt.patient.gender.title() }}{% endif %}
-        {% if appt.booked_by.value == 'walk_in' and not appt.is_emergency %}
-        · <span class="badge-channel badge-channel--walkin">Walk-in</span>
-        {% elif appt.booked_by.value in ('staff_shared', 'staff') %}
-        · <span class="badge-channel badge-channel--staff">Reception</span>
-        {% elif appt.booked_by.value == 'doctor' %}
-        · <span class="badge-channel badge-channel--doctor">Doctor</span>
-        {% elif appt.booked_by.value == 'patient' %}
-        · <span class="badge-channel badge-channel--patient">Patient</span>
-        {% endif %}
-      </div>
+
+{# Split into booked vs walk-in groups #}
+{% set booked_appts = appointments | selectattr("booked_by.value", "ne", "walk_in") | list %}
+{% set walkin_appts = appointments | selectattr("booked_by.value", "equalto", "walk_in") | list %}
+
+{# Reusable macro for a single appointment row #}
+{% macro appt_row(appt) %}
+  {% set visit = visit_map.get(appt.id) if visit_map else none %}
+  {% if visit %}
+    {% if visit.status.value == 'serving' %}{% set eff_status = 'serving' %}
+    {% elif visit.status.value == 'waiting' %}{% set eff_status = 'in_queue' %}
+    {% elif visit.status.value == 'billing_pending' %}{% set eff_status = 'billing_pending' %}
+    {% elif visit.status.value == 'done' %}{% set eff_status = 'completed' %}
+    {% elif visit.status.value == 'cancelled' %}{% set eff_status = 'cancelled' %}
+    {% elif visit.status.value == 'no_show' %}{% set eff_status = 'no_show' %}
+    {% else %}{% set eff_status = appt.status.value %}{% endif %}
+  {% else %}{% set eff_status = appt.status.value %}{% endif %}
+
+  <div class="appt-row
+    {% if eff_status == 'serving' %}appt-row--serving
+    {% elif eff_status == 'completed' %}appt-row--done
+    {% elif eff_status == 'no_show' %}appt-row--noshow
+    {% elif appt.is_emergency %}appt-row--emergency
+    {% endif %}"
+    onclick="window.location='/appointments/{{ appt.id }}'" style="cursor:pointer;">
+
+    <div class="appt-left">
+      {% if visit and visit.token_number %}
+      <div class="appt-token-num">#{{ visit.token_number }}</div>
+      <div class="appt-left-divider"></div>
+      {% endif %}
+      <div class="appt-time">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</div>
+      {% if is_today and not visit and appt.status.value == 'scheduled' %}
+      <form method="POST" action="/visits/check-in-appt/{{ appt.id }}" style="display:inline;" onclick="event.stopPropagation();">
+        <button type="submit" class="btn btn-xs" style="color:var(--success);border:1px solid rgba(74,222,128,.35);background:rgba(74,222,128,.07);">Check In</button>
+      </form>
+      {% endif %}
     </div>
-    <div class="appt-status">
-      <span class="badge badge--{{ appt.status.value }}">
-        {{ appt.status.value.replace("_", " ").title() }}
-      </span>
-    </div>
-    <div class="appt-actions">
-      <a href="/appointments/{{ appt.id }}" class="btn btn-secondary btn-xs">View</a>
+
+    <div class="appt-right">
+      <div class="appt-patient">
+        <div class="appt-name-line">
+          <span class="appt-meta">{{ appt.appointment_type.value.replace("_"," ").title() }}</span>
+          {% if appt.patient.age %}<span class="appt-meta-sep">·</span><span class="appt-meta">{{ appt.patient.age }}y</span>{% endif %}
+          {% if appt.patient.gender %}<span class="appt-meta-sep">·</span><span class="appt-meta">{{ appt.patient.gender.title() }}</span>{% endif %}
+          <span class="appt-meta-sep">·</span>
+          <span class="appt-name">{{ appt.patient.name }}</span>
+        </div>
+        <div class="appt-tags">
+          <span class="badge-channel badge-channel--{{ eff_status }}">
+            {% if eff_status == 'in_queue' %}In Queue
+            {% elif eff_status == 'billing_pending' %}Billing
+            {% else %}{{ eff_status.replace("_"," ").title() }}{% endif %}
+          </span>
+          {% if appt.is_emergency %}<span class="badge-channel badge-channel--emergency">Emergency</span>{% endif %}
+          {% if appt.booked_by.value == 'walk_in' and not appt.is_emergency %}
+            <span class="badge-channel badge-channel--walkin">Walk-in</span>
+          {% elif appt.booked_by.value in ('staff_shared','staff') %}
+            <span class="badge-channel badge-channel--staff">Reception</span>
+          {% elif appt.booked_by.value == 'doctor' %}
+            <span class="badge-channel badge-channel--doctor">Doctor</span>
+          {% elif appt.booked_by.value == 'patient' %}
+            <span class="badge-channel badge-channel--patient">Patient</span>
+          {% endif %}
+        </div>
+      </div>
     </div>
   </div>
-  {% endfor %}
+{% endmacro %}
+
+<div class="appt-split-grid">
+
+  <!-- ── Walk-ins column ── -->
+  <div class="appt-col">
+    <div class="appt-col-header">
+      <span class="appt-col-label">Walk-ins</span>
+      {% if walkin_appts %}<span class="appt-group-count">{{ walkin_appts | length }}</span>{% endif %}
+    </div>
+    <div class="appt-col-body">
+      {% if walkin_appts %}
+        {% for appt in walkin_appts %}{{ appt_row(appt) }}{% endfor %}
+      {% else %}
+        <div class="appt-col-empty">No walk-ins today</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Vertical divider ── -->
+  <div class="appt-col-divider"></div>
+
+  <!-- ── Booked Appointments column ── -->
+  <div class="appt-col">
+    <div class="appt-col-header">
+      <span class="appt-col-label">Appointments</span>
+      {% if booked_appts %}<span class="appt-group-count">{{ booked_appts | length }}</span>{% endif %}
+    </div>
+    <div class="appt-col-body">
+      {% if booked_appts %}
+        {% for appt in booked_appts %}{{ appt_row(appt) }}{% endfor %}
+      {% else %}
+        <div class="appt-col-empty">No appointments booked</div>
+      {% endif %}
+    </div>
+  </div>
+
 </div>
 
 {% elif q %}
@@ -189,12 +368,9 @@
 {% else %}
 <div class="empty-state">
   <div class="empty-icon">
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="4" width="18" height="18" rx="2"/>
-      <line x1="16" y1="2" x2="16" y2="6"/>
-      <line x1="8" y1="2" x2="8" y2="6"/>
-      <line x1="3" y1="10" x2="21" y2="10"/>
+      <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
     </svg>
   </div>
   <div class="empty-title">No appointments on this day</div>
@@ -205,21 +381,25 @@
 </div>
 {% endif %}
 
+</div><!-- /schedule-section -->
+
 {% endblock %}
 
 {% block scripts %}
 <script>
 function toggleWalkin() {
   const panel = document.getElementById('walkinPanel');
+  const btn   = document.getElementById('walkinToggleBtn');
   if (!panel) return;
   const isOpen = panel.style.display !== 'none';
   panel.style.display = isOpen ? 'none' : 'block';
-  if (!isOpen) panel.querySelector('input[name="patient_name"]').focus();
-  if (isOpen) {
-    const btn = document.getElementById('emergencyToggle');
-    const chk = document.getElementById('emergencyCheck');
-    if (btn) btn.classList.remove('active');
-    if (chk) chk.checked = false;
+  if (!isOpen) {
+    panel.querySelector('input[name="patient_name"]').focus();
+    btn.textContent = '✕ Close';
+  } else {
+    btn.textContent = '+ Walk-in';
+    document.getElementById('emergencyToggle')?.classList.remove('active');
+    document.getElementById('emergencyCheck').checked = false;
   }
 }
 
@@ -231,15 +411,26 @@ function toggleEmergency() {
   chk.checked = btn.classList.contains('active');
 }
 
+function toggleMenu(id) {
+  document.querySelectorAll('.visit-menu').forEach(m => { if (m.id !== id) m.classList.remove('open'); });
+  document.getElementById(id)?.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.visit-more-btn') && !e.target.closest('.visit-menu'))
+    document.querySelectorAll('.visit-menu').forEach(m => m.classList.remove('open'));
+});
+
 {% if request.query_params.get('walkin_error') %}
 document.addEventListener('DOMContentLoaded', function() {
   var panel = document.getElementById('walkinPanel');
-  if (panel) panel.style.display = 'block';
+  if (panel) { panel.style.display = 'block'; document.getElementById('walkinToggleBtn').textContent = '✕ Close'; }
 });
 {% endif %}
 
 document.addEventListener('DOMContentLoaded', function() {
   initPhoneInput(document.getElementById('walkinPhone'));
 });
+
+/* Auto-refresh removed — page reloads on every action anyway */
 </script>
 {% endblock %}

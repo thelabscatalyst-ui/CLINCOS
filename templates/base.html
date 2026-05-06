@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}ClinicOS{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/main.css?v=40" />
+  <link rel="stylesheet" href="/static/css/main.css?v=55" />
   {% block head %}{% endblock %}
   <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
@@ -14,15 +14,18 @@
 <nav class="navbar">
   <a href="/dashboard" class="navbar-brand">ClinicOS</a>
   <div style="display:flex;align-items:center;gap:0;">
-    <ul class="navbar-nav">
-      <li><a href="/dashboard" class="{% if active == 'dashboard' %}active{% endif %}">Dashboard</a></li>
-      <li><a href="/appointments" class="{% if active == 'appointments' %}active{% endif %}">Appointments</a></li>
-      <li><a href="/calendar" class="{% if active == 'calendar' %}active{% endif %}">Calendar</a></li>
-      <li><a href="/patients" class="{% if active == 'patients' %}active{% endif %}">Patients</a></li>
-      <li><a href="/reports" class="{% if active == 'reports' %}active{% endif %}">Reports</a></li>
-      <li><a href="/doctors/settings" class="{% if active == 'settings' %}active{% endif %}">Settings</a></li>
-    </ul>
     <div class="navbar-controls">
+      <!-- Settings -->
+      <a href="/doctors/settings" class="logout-btn" title="Settings" style="color:var(--muted);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4"  y1="6"  x2="20" y2="6"/>
+          <circle cx="9"  cy="6"  r="2.5" fill="var(--bg-1)" stroke="currentColor" stroke-width="2"/>
+          <line x1="4"  y1="13" x2="20" y2="13"/>
+          <circle cx="15" cy="13" r="2.5" fill="var(--bg-1)" stroke="currentColor" stroke-width="2"/>
+          <line x1="4"  y1="20" x2="20" y2="20"/>
+          <circle cx="10" cy="20" r="2.5" fill="var(--bg-1)" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      </a>
       <!-- Theme toggle -->
       <button type="button" class="theme-toggle" id="themeToggle" title="Toggle theme" onclick="toggleTheme()">
         <svg id="themeIconSun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
@@ -101,7 +104,31 @@
 <div class="dock-zone" id="dockZone">
   <nav class="dash-dock" id="dashDock" aria-label="Quick actions">
 
-    <a href="/patients" class="dock-item">
+    <a href="/dashboard" class="dock-item {% if active == 'dashboard' %}dock-item--active{% endif %}">
+      <div class="dock-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        </svg>
+      </div>
+      <span class="dock-tooltip">Dashboard</span>
+    </a>
+
+    <a href="/visits/today" class="dock-item {% if active == 'visits' %}dock-item--active{% endif %}">
+      <div class="dock-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <polyline points="12 7 12 12 15.5 15.5"/>
+        </svg>
+      </div>
+      <span class="dock-tooltip">Today's Queue</span>
+    </a>
+
+    <a href="/patients" class="dock-item {% if active == 'patients' %}dock-item--active{% endif %}">
       <div class="dock-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -112,7 +139,7 @@
       <span class="dock-tooltip">Patients</span>
     </a>
 
-    <a href="/calendar" class="dock-item">
+    <a href="/calendar" class="dock-item {% if active == 'calendar' %}dock-item--active{% endif %}">
       <div class="dock-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -124,7 +151,7 @@
       <span class="dock-tooltip">Calendar</span>
     </a>
 
-    <a href="/reports" class="dock-item">
+    <a href="/reports" class="dock-item {% if active == 'reports' %}dock-item--active{% endif %}">
       <div class="dock-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -132,21 +159,6 @@
         </svg>
       </div>
       <span class="dock-tooltip">Reports</span>
-    </a>
-
-    <a href="/doctors/settings" class="dock-item">
-      <div class="dock-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4"  y1="6"  x2="20" y2="6"/>
-          <circle cx="9"  cy="6"  r="2.5" fill="var(--bg-2)" stroke="currentColor" stroke-width="1.6"/>
-          <line x1="4"  y1="13" x2="20" y2="13"/>
-          <circle cx="15" cy="13" r="2.5" fill="var(--bg-2)" stroke="currentColor" stroke-width="1.6"/>
-          <line x1="4"  y1="20" x2="20" y2="20"/>
-          <circle cx="10" cy="20" r="2.5" fill="var(--bg-2)" stroke="currentColor" stroke-width="1.6"/>
-        </svg>
-      </div>
-      <span class="dock-tooltip">Settings</span>
     </a>
 
   </nav>

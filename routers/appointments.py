@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from database.connection import get_db
 from database.models import (
     Doctor, Patient, Appointment, AppointmentStatus, AppointmentType, BookedBy,
-    ClinicDoctor, Clinic,
+    ClinicDoctor, Clinic, Visit, VisitStatus,
 )
 from services.auth_service import get_paying_doctor, get_appt_doctor
 from services.appointment_service import (
@@ -16,6 +16,7 @@ from services.appointment_service import (
     get_or_create_patient, has_open_appointment_on_date,
 )
 from services.notification_service import notify_appointment_confirmed
+import services.visit_service as vs
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 templates = Jinja2Templates(directory="templates")
@@ -102,11 +103,35 @@ def appointments_list(
 
     appointments = (
         appt_query
-        .order_by(done_last, Appointment.created_at.desc())
+        .order_by(done_last, Appointment.appointment_time.asc(), Appointment.created_at.desc())
         .all()
     )
     for a in appointments:
         a.patient  # ensure lazy-load
+
+    # ── Queue data (today only) ───────────────────────────────────────
+    visit_map = {}   # appt_id → Visit (for status badges on schedule rows)
+    serving = None
+    waiting = []
+    billing_pending = []
+
+    if view_date == today:
+        day_visits = (
+            db.query(Visit)
+            .filter(Visit.doctor_id == viewing_doctor.id, Visit.visit_date == today)
+            .order_by(Visit.is_emergency.desc(), Visit.queue_position.asc())
+            .all()
+        )
+        for v in day_visits:
+            _ = v.patient   # eager-load
+            if v.appointment_id:
+                visit_map[v.appointment_id] = v
+            if v.status == VisitStatus.serving:
+                serving = v
+            elif v.status == VisitStatus.waiting:
+                waiting.append(v)
+            elif v.status == VisitStatus.billing_pending:
+                billing_pending.append(v)
 
     return templates.TemplateResponse(request, "appointments.html", {
         "doctor": doctor,
@@ -119,6 +144,12 @@ def appointments_list(
         "next_date": (view_date + timedelta(days=1)).isoformat(),
         "q": q,
         "active": "appointments",
+        # queue
+        "visit_map":        visit_map,
+        "serving":          serving,
+        "waiting":          waiting,
+        "billing_pending":  billing_pending,
+        "is_today":         view_date == today,
     })
 
 
@@ -138,7 +169,7 @@ def available_slots(
         appt_date = date.fromisoformat(date_str)
     except ValueError:
         return JSONResponse({"slots": [], "error": "Invalid date"})
-    slots = get_available_slots(target.id, appt_date, db, filter_past=False)
+    slots = get_available_slots(target.id, appt_date, db, filter_past=True)
     return JSONResponse({"slots": slots})
 
 
@@ -185,7 +216,7 @@ def new_appointment_page(
                 form_data["for_doctor_id"] = last_appt.doctor_id
 
     target_id = form_data.get("for_doctor_id", doctor.id)
-    slots = get_available_slots(target_id, initial_date, db, filter_past=False)
+    slots = get_available_slots(target_id, initial_date, db, filter_past=True)
 
     return templates.TemplateResponse(request, "appointment_new.html", {
         "doctor": doctor,
@@ -242,7 +273,7 @@ async def create_appointment(
             d = date.fromisoformat(appt_date)
         except (ValueError, TypeError):
             d = today
-        slots = get_available_slots(target.id, d, db, filter_past=False)
+        slots = get_available_slots(target.id, d, db, filter_past=True)
         return templates.TemplateResponse(request, "appointment_new.html", {
             "doctor": doctor,
             "clinic_doctors": clinic_doctors,
@@ -393,8 +424,25 @@ async def create_walkin(
     db.commit()
     db.refresh(appt)
 
+    # Auto-check-in walk-in to the live queue immediately
+    membership = db.query(ClinicDoctor).filter(
+        ClinicDoctor.doctor_id == target.id,
+        ClinicDoctor.is_active == True,
+    ).first()
+    clinic_id = membership.clinic_id if membership else None
+
+    vs.check_in(
+        db,
+        doctor_id      = target.id,
+        patient_id     = patient.id,
+        clinic_id      = clinic_id,
+        appointment_id = appt.id,
+        is_emergency   = emergency,
+        created_by     = doctor.id,
+    )
+
     # Walk-ins / emergencies skip WhatsApp — patient is on-site
-    return RedirectResponse(url=f"/appointments/{appt.id}", status_code=303)
+    return RedirectResponse(url=f"/appointments?filter_date={appt_date.isoformat()}", status_code=303)
 
 
 # ------------------------------------------------------------------ #

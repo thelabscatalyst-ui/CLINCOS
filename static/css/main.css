@@ -288,6 +288,11 @@ a:hover { color: var(--text); }
   transition: var(--transition-pop);
   text-decoration: none;
   box-shadow: var(--glow-btn);
+  box-sizing: border-box;
+  line-height: 1;
+  vertical-align: middle;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .btn:hover {
@@ -628,7 +633,7 @@ a:hover { color: var(--text); }
 /*  Button Size Variants                                                */
 /* ------------------------------------------------------------------ */
 .btn-sm {
-  padding: 8px 18px;
+  padding: 11px 20px;
   font-size: 13px;
   font-weight: 600;
   border-radius: var(--radius-sm);
@@ -724,15 +729,86 @@ a:hover { color: var(--text); }
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 16px;
+}
+
+/* Two-column split grid */
+.appt-split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 0 24px;
+  align-items: start;
+}
+
+.appt-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.appt-col-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
+.appt-col-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.appt-group-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dim);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1px 8px;
+}
+
+.appt-col-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.appt-col-empty {
+  font-size: 13px;
+  color: var(--dim);
+  padding: 20px 0;
+  text-align: center;
+}
+
+/* Vertical divider between columns */
+.appt-col-divider {
+  width: 1px;
+  background: var(--border);
+  align-self: stretch;
+  margin-top: 0;
+}
+
+/* Responsive: stack on small screens */
+@media (max-width: 800px) {
+  .appt-split-grid {
+    grid-template-columns: 1fr;
+  }
+  .appt-col-divider {
+    height: 1px;
+    width: 100%;
+  }
 }
 
 .appt-row {
-  display: grid;
-  grid-template-columns: 80px 1fr auto auto;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
-  padding: 14px 16px;
+  padding: 15px 18px;
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -741,31 +817,112 @@ a:hover { color: var(--text); }
 }
 
 .appt-row:hover {
-  transform: translateY(-2px) scale(1.01);
+  transform: translateY(-2px) scale(1.005);
   box-shadow: var(--glow-hover);
   border-color: var(--border-light);
 }
 
-.appt-row--done  { opacity: 0.5; }
-.appt-row--noshow { opacity: 0.4; }
+.appt-row--done   { opacity: 0.48; }
+.appt-row--noshow { opacity: 0.38; }
+
+/* Left cluster: token · time · action buttons */
+.appt-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Token number (#1, #2 …) */
+.appt-token-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+  min-width: 32px;
+}
+
+/* Divider line between token and time */
+.appt-left-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* Right cluster: badge · patient name + meta */
+.appt-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+  min-width: 0;
+}
 
 .appt-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  padding: 5px 11px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  letter-spacing: 0.02em;
+}
+
+html.light .appt-time {
+  border-color: #c8c8cc;
+}
+
+html:not(.light) .appt-time {
+  border-color: #333;
+}
+
+/* Patient block — two lines */
+.appt-patient {
+  text-align: right;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Line 1: meta · name — all same size, left-to-right */
+.appt-name-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.appt-name {
   font-size: 13px;
   font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.appt-meta-sep {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 0 5px;
+}
+.appt-meta {
+  font-size: 13px;
   color: var(--text-muted);
   white-space: nowrap;
 }
 
-.appt-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
-}
-
-.appt-meta {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 2px;
+/* Line 2: tags row — right-aligned, gap between each pill */
+.appt-tags {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1543,14 +1700,22 @@ select.input-sm {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Appointments Page — Date Navigation                                 */
+/*  Appointments Page — Controls Row (date nav + search, same line)    */
 /* ------------------------------------------------------------------ */
+.appt-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
 .date-nav {
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  flex-shrink: 0;
 }
 
 /* Appointment search bar */
@@ -1558,13 +1723,14 @@ select.input-sm {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 20px;
+  flex: 1;
+  min-width: 0;
 }
 
 .appt-search-wrap {
   position: relative;
   flex: 1;
-  max-width: 420px;
+  min-width: 0;
 }
 
 .appt-search-icon {
@@ -2312,11 +2478,14 @@ select.input-sm {
   .form-row            { grid-template-columns: 1fr; }
   .stats-row           { grid-template-columns: 1fr 1fr; }
   .quick-actions       { grid-template-columns: 1fr 1fr; }
-  .appt-row            { grid-template-columns: 70px 1fr auto; }
-  .appt-actions        { display: none; }
+  .appt-row            { flex-wrap: wrap; gap: 8px; }
+  .appt-right          { flex: 1; justify-content: flex-start; }
+  .appt-patient        { text-align: left; }
   .page-header         { flex-direction: column; }
   .appt-detail-grid    { grid-template-columns: 1fr; }
   .appt-status-actions { flex-direction: column; }
+  .appt-controls-row   { flex-direction: column; align-items: stretch; }
+  .appt-search-form    { width: 100%; }
   .date-nav            { flex-wrap: wrap; gap: 8px; }
   .date-nav-input      { width: 130px; }
   .cal-day             { min-height: 60px; padding: 6px 8px; }
@@ -3098,6 +3267,49 @@ html.light .badge--emergency {
   border: 1px solid rgba(160, 160, 160, 0.2);
 }
 
+/* ── Status tags in appt-row — same pill as channel badges ────────── */
+.badge-channel--scheduled {
+  background: rgba(160,160,160,0.10);
+  color: #888;
+  border: 1px solid rgba(160,160,160,0.18);
+}
+.badge-channel--completed {
+  background: rgba(34,197,94,0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34,197,94,0.22);
+}
+.badge-channel--cancelled {
+  background: rgba(248,113,113,0.12);
+  color: #f87171;
+  border: 1px solid rgba(248,113,113,0.22);
+}
+.badge-channel--no_show {
+  background: rgba(251,191,36,0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(251,191,36,0.22);
+}
+.badge-channel--in_queue {
+  background: rgba(96,165,250,0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(96,165,250,0.22);
+}
+.badge-channel--serving {
+  background: rgba(34,197,94,0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34,197,94,0.28);
+}
+.badge-channel--billing_pending,
+.badge-channel--billing {
+  background: rgba(251,191,36,0.13);
+  color: #fbbf24;
+  border: 1px solid rgba(251,191,36,0.25);
+}
+.badge-channel--emergency {
+  background: rgba(248,113,113,0.13);
+  color: #f87171;
+  border: 1px solid rgba(248,113,113,0.25);
+}
+
 /* ─── Phase 2: info card layout (clinic admin) ──────────────────────── */
 
 .info-section-title {
@@ -3863,3 +4075,260 @@ html.light .data-table tbody tr:hover td {
 }
 .phone-counter.ok    { color: var(--success); }
 .phone-counter.bad   { color: var(--danger);  }
+
+/* ------------------------------------------------------------------ */
+/*  New badge variants for queue states                                */
+/* ------------------------------------------------------------------ */
+.badge--in_queue {
+  background: rgba(96,165,250,0.15);
+  color: #60a5fa;
+}
+.badge--serving {
+  background: rgba(34,197,94,0.15);
+  color: #22c55e;
+}
+.badge--billing_pending,
+.badge--billing {
+  background: rgba(251,191,36,0.15);
+  color: #fbbf24;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Merged Appointments + Queue page                                    */
+/* ------------------------------------------------------------------ */
+
+/* Live queue section container */
+.queue-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 20px 24px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--glow);
+}
+
+.queue-block { display: flex; flex-direction: column; gap: 8px; }
+
+.queue-block-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 2px;
+}
+
+.queue-empty {
+  text-align: center;
+  padding: 16px 0 8px;
+  color: var(--muted);
+}
+
+/* Schedule card — matches queue-section dimensions */
+.schedule-section {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  box-shadow: var(--glow);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Schedule section header (label + date nav + search in one row) */
+.schedule-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.schedule-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Appointment row – serving highlight */
+.appt-row--serving {
+  border-color: rgba(34,197,94,.3);
+  background: rgba(34,197,94,.03);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Today's Queue  (visits_today.html — kept for standalone access)    */
+/* ------------------------------------------------------------------ */
+
+/* Walk-in check-in panel */
+.walkin-panel {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 8px;
+  box-shadow: var(--shadow);
+}
+.walkin-form { width: 100%; }
+
+/* Section count badge */
+.section-count {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+/* NOW SERVING card */
+.visit-serving-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  box-shadow: var(--glow);
+  position: relative;
+  margin-bottom: 4px;
+}
+.visit-serving-card.visit-emergency {
+  border-color: rgba(248,113,113,0.4);
+  box-shadow: 0 0 24px rgba(248,113,113,0.12), var(--shadow);
+}
+
+.visit-token {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 60px;
+  color: var(--text);
+}
+.emergency-badge { font-size: 1rem; margin-left: 6px; }
+
+/* Waiting list */
+.visit-list { display: flex; flex-direction: column; gap: 6px; }
+
+.visit-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  transition: var(--transition-pop), background 0.15s ease;
+}
+.visit-row:hover {
+  transform: translateY(-1px) scale(1.005);
+  box-shadow: var(--glow-hover);
+}
+.visit-row.visit-emergency {
+  border-color: rgba(248,113,113,0.35);
+  background: rgba(248,113,113,0.04);
+}
+.visit-row--closed {
+  opacity: 0.65;
+}
+.visit-row--closed:hover { opacity: 0.9; }
+
+.visit-token-sm {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  min-width: 38px;
+  color: var(--text);
+}
+
+.visit-info { flex: 1; min-width: 0; }
+.visit-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.visit-meta {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.visit-status-badge { white-space: nowrap; }
+
+.visit-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+/* ⋮ more button */
+.visit-more-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--muted);
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+  line-height: 1;
+}
+.visit-more-btn:hover { background: var(--bg-3); color: var(--text); }
+
+/* Dropdown menu */
+.visit-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+  min-width: 160px;
+  overflow: hidden;
+}
+.visit-menu.open { display: block; }
+
+.visit-menu-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.visit-menu-item:hover { background: var(--bg-3); }
+.visit-menu-item.danger { color: var(--danger); }
+.visit-menu-item.danger:hover { background: rgba(248,113,113,0.08); }
+
+/* Dock active indicator */
+.dock-item--active .dock-icon {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.2);
+  color: var(--text);
+}
+html.light .dock-item--active .dock-icon {
+  background: rgba(0,0,0,0.07);
+  border-color: rgba(0,0,0,0.15);
+}

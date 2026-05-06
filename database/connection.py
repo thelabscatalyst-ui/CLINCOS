@@ -160,3 +160,117 @@ def _run_migrations():
             ")"
         ))
         conn.commit()
+
+        # ── v2: doctor mode + walk-in policy ─────────────────────────────────
+        _add_column(conn, "ALTER TABLE doctors ADD COLUMN doctor_mode VARCHAR(30) DEFAULT 'reception_driven'")
+        _add_column(conn, "ALTER TABLE doctors ADD COLUMN walkin_policy VARCHAR(20) DEFAULT 'booked_jumps'")
+
+        # ── v2: appointment → visit link ──────────────────────────────────────
+        _add_column(conn, "ALTER TABLE appointments ADD COLUMN visit_id INTEGER")
+        _add_column(conn, "ALTER TABLE appointments ADD COLUMN arrival_status VARCHAR(20)")
+
+        # ── v2: visits table ──────────────────────────────────────────────────
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS visits ("
+            "  id             INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "  doctor_id      INTEGER NOT NULL REFERENCES doctors(id), "
+            "  patient_id     INTEGER NOT NULL REFERENCES patients(id), "
+            "  clinic_id      INTEGER REFERENCES clinics(id), "
+            "  appointment_id INTEGER REFERENCES appointments(id), "
+            "  visit_date     DATE    NOT NULL, "
+            "  token_number   INTEGER NOT NULL, "
+            "  queue_position INTEGER, "
+            "  status         VARCHAR(20) NOT NULL DEFAULT 'waiting', "
+            "  is_emergency   BOOLEAN NOT NULL DEFAULT 0, "
+            "  source         VARCHAR(20) NOT NULL DEFAULT 'walk_in', "
+            "  check_in_time  TIMESTAMP, "
+            "  call_time      TIMESTAMP, "
+            "  complete_time  TIMESTAMP, "
+            "  bill_id        INTEGER, "
+            "  notes          TEXT, "
+            "  created_by     INTEGER, "
+            "  UNIQUE(doctor_id, visit_date, token_number)"
+            ")"
+        ))
+        conn.commit()
+
+        # ── v2: bills + bill_items ────────────────────────────────────────────
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS bills ("
+            "  id           INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "  visit_id     INTEGER UNIQUE NOT NULL REFERENCES visits(id), "
+            "  doctor_id    INTEGER NOT NULL REFERENCES doctors(id), "
+            "  clinic_id    INTEGER REFERENCES clinics(id), "
+            "  patient_id   INTEGER NOT NULL REFERENCES patients(id), "
+            "  subtotal     NUMERIC(10,2) DEFAULT 0, "
+            "  discount     NUMERIC(10,2) DEFAULT 0, "
+            "  gst_amount   NUMERIC(10,2) DEFAULT 0, "
+            "  total        NUMERIC(10,2) DEFAULT 0, "
+            "  paid_amount  NUMERIC(10,2) DEFAULT 0, "
+            "  payment_mode VARCHAR(20), "
+            "  paid_at      TIMESTAMP, "
+            "  notes        TEXT, "
+            "  created_by   INTEGER, "
+            "  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            ")"
+        ))
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS bill_items ("
+            "  id          INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "  bill_id     INTEGER NOT NULL REFERENCES bills(id), "
+            "  description VARCHAR(200) NOT NULL, "
+            "  category    VARCHAR(50), "
+            "  quantity    INTEGER NOT NULL DEFAULT 1, "
+            "  unit_price  NUMERIC(10,2) NOT NULL, "
+            "  total       NUMERIC(10,2) NOT NULL, "
+            "  gst_rate    NUMERIC(4,2)  DEFAULT 0"
+            ")"
+        ))
+        conn.commit()
+
+        # ── v2: price catalog ─────────────────────────────────────────────────
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS price_catalog ("
+            "  id            INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "  doctor_id     INTEGER NOT NULL REFERENCES doctors(id), "
+            "  clinic_id     INTEGER REFERENCES clinics(id), "
+            "  name          VARCHAR(100) NOT NULL, "
+            "  category      VARCHAR(50), "
+            "  default_price NUMERIC(10,2) NOT NULL, "
+            "  is_pinned     BOOLEAN NOT NULL DEFAULT 0, "
+            "  sort_order    INTEGER NOT NULL DEFAULT 0, "
+            "  is_active     BOOLEAN NOT NULL DEFAULT 1, "
+            "  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            ")"
+        ))
+        conn.commit()
+
+        # ── v2: expenses + recurring expenses ─────────────────────────────────
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS recurring_expenses ("
+            "  id           INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "  doctor_id    INTEGER NOT NULL REFERENCES doctors(id), "
+            "  clinic_id    INTEGER REFERENCES clinics(id), "
+            "  category     VARCHAR(30) NOT NULL, "
+            "  amount       NUMERIC(10,2) NOT NULL, "
+            "  label        VARCHAR(100) NOT NULL, "
+            "  day_of_month INTEGER NOT NULL, "
+            "  is_active    BOOLEAN NOT NULL DEFAULT 1, "
+            "  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            ")"
+        ))
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS expenses ("
+            "  id           INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "  doctor_id    INTEGER NOT NULL REFERENCES doctors(id), "
+            "  clinic_id    INTEGER REFERENCES clinics(id), "
+            "  category     VARCHAR(30) NOT NULL, "
+            "  amount       NUMERIC(10,2) NOT NULL, "
+            "  expense_date DATE NOT NULL, "
+            "  description  VARCHAR(300), "
+            "  recurring_id INTEGER REFERENCES recurring_expenses(id), "
+            "  created_by   INTEGER, "
+            "  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            ")"
+        ))
+        conn.commit()

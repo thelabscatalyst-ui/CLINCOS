@@ -70,46 +70,57 @@
 </div>
 
 <!-- Today's Schedule -->
-<div class="section-header">
-  <h2 class="section-title">Today's Schedule</h2>
-  <a href="/appointments" class="section-link">View all →</a>
-</div>
+<div class="schedule-section">
+  <div class="section-header" style="margin-bottom:0;padding-bottom:16px;border-bottom:1px solid var(--border);">
+    <h2 class="section-title">Today's Schedule</h2>
+    <a href="/appointments" class="section-link">View all →</a>
+  </div>
 
-{% if todays_appointments %}
-<div class="appt-list">
-  {% for appt in todays_appointments %}
-  <div class="appt-row {% if appt.status.value == 'completed' %}appt-row--done{% elif appt.status.value == 'no_show' %}appt-row--noshow{% endif %}">
-    <div class="appt-time">{{ appt.appointment_time.strftime("%I:%M %p") }}</div>
-    <div class="appt-info">
-      <div class="appt-name">{{ appt.patient.name }}</div>
-      <div class="appt-meta">{{ appt.appointment_type.value.replace("_", " ").title() }} · {{ appt.duration_mins }} min</div>
+  {% if todays_appointments %}
+  <div class="appt-list">
+    {% for appt in todays_appointments %}
+    <div class="appt-row {% if appt.status.value == 'completed' %}appt-row--done{% elif appt.status.value == 'no_show' %}appt-row--noshow{% endif %}"
+         onclick="window.location='/appointments/{{ appt.id }}'" style="cursor:pointer;">
+      <div class="appt-left">
+        <div class="appt-token-num">#{{ loop.index }}</div>
+        <div class="appt-left-divider"></div>
+        <div class="appt-time">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</div>
+      </div>
+      <div class="appt-right">
+        <div class="appt-patient">
+          <div class="appt-name-line">
+            <span class="appt-meta">{{ appt.appointment_type.value.replace("_"," ").title() }}</span>
+            <span class="appt-meta-sep">·</span>
+            <span class="appt-meta">{{ appt.duration_mins }} min</span>
+            <span class="appt-meta-sep">·</span>
+            <span class="appt-name">{{ appt.patient.name }}</span>
+          </div>
+          <div class="appt-tags">
+            <span class="badge-channel badge-channel--{{ appt.status.value }}">{{ appt.status.value.replace("_"," ").title() }}</span>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="appt-status">
-      <span class="badge badge--{{ appt.status.value }}">{{ appt.status.value.replace("_", " ").title() }}</span>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state" style="padding:32px 0;">
+    <div class="empty-icon">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
     </div>
-    <div class="appt-actions">
-      <a href="/appointments/{{ appt.id }}" class="btn btn-secondary btn-xs">View</a>
+    <div class="empty-title">No appointments today</div>
+    <div class="empty-sub">Add your first appointment or share your booking link with patients.</div>
+    <div class="empty-actions">
+      <a href="/appointments/new" class="btn btn-primary btn-sm">+ Add Appointment</a>
     </div>
   </div>
-  {% endfor %}
+  {% endif %}
 </div>
-{% else %}
-<div class="empty-state">
-  <div class="empty-icon">
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2"/>
-      <line x1="16" y1="2" x2="16" y2="6"/>
-      <line x1="8" y1="2" x2="8" y2="6"/>
-      <line x1="3" y1="10" x2="21" y2="10"/>
-    </svg>
-  </div>
-  <div class="empty-title">No appointments today</div>
-  <div class="empty-sub">Add your first appointment or share your booking link with patients.</div>
-  <div class="empty-actions">
-    <a href="/appointments/new" class="btn btn-primary btn-sm">+ Add Appointment</a>
-  </div>
-</div>
-{% endif %}
 
 {% endblock %}
 

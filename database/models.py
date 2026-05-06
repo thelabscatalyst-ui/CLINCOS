@@ -1,7 +1,7 @@
 from datetime import datetime, date, time
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime, Date, Time,
-    ForeignKey, Text, Enum as SAEnum, JSON
+    ForeignKey, Text, Enum as SAEnum, JSON, Numeric, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 import enum
@@ -52,6 +52,42 @@ class BookedBy(str, enum.Enum):
     staff_shared = "staff_shared"  # receptionist on shared login
     walk_in      = "walk_in"       # on-site patient, booked for now()
     staff        = "staff"         # Tier 2: dedicated staff account books for a doctor
+
+
+class VisitStatus(str, enum.Enum):
+    waiting         = "waiting"
+    serving         = "serving"
+    billing_pending = "billing_pending"
+    done            = "done"
+    cancelled       = "cancelled"
+    no_show         = "no_show"
+    skipped         = "skipped"
+
+
+class VisitSource(str, enum.Enum):
+    walk_in     = "walk_in"
+    appointment = "appointment"
+    follow_up   = "follow_up"
+    referral    = "referral"
+
+
+class PaymentMode(str, enum.Enum):
+    cash      = "cash"
+    upi       = "upi"
+    card      = "card"
+    insurance = "insurance"
+    free      = "free"
+    partial   = "partial"
+
+
+class ExpenseCategory(str, enum.Enum):
+    rent        = "rent"
+    salaries    = "salaries"
+    medicines   = "medicines"
+    equipment   = "equipment"
+    utilities   = "utilities"
+    marketing   = "marketing"
+    misc        = "misc"
 
 
 # --------------------------------------------------------------------------- #
@@ -160,6 +196,9 @@ class Doctor(Base):
     plan_type = Column(SAEnum(PlanType), default=PlanType.trial)
     trial_ends_at = Column(DateTime, nullable=True)
     plan_expires_at = Column(DateTime, nullable=True)
+    # v2 additions
+    doctor_mode   = Column(String(30), default="reception_driven")  # reception_driven|phone_only|cabin_terminal
+    walkin_policy = Column(String(20), default="booked_jumps")      # booked_jumps|fcfs|ask
     created_at = Column(DateTime, default=datetime.utcnow)
 
     appointments       = relationship("Appointment", back_populates="doctor", cascade="all, delete-orphan")
@@ -170,6 +209,7 @@ class Doctor(Base):
     subscriptions      = relationship("Subscription", back_populates="doctor", cascade="all, delete-orphan")
     clinic_memberships = relationship("ClinicDoctor", back_populates="doctor")
     pinned_patients    = relationship("PinnedPatient", back_populates="doctor", cascade="all, delete-orphan")
+    visits             = relationship("Visit", back_populates="doctor", cascade="all, delete-orphan")
 
 
 # --------------------------------------------------------------------------- #
@@ -255,6 +295,9 @@ class Appointment(Base):
     reminder_2h_sent = Column(Boolean, default=False)
     booked_by = Column(SAEnum(BookedBy), default=BookedBy.doctor)
     is_emergency = Column(Boolean, default=False)   # bypasses quota/hours checks
+    # v2: link to Visit once patient checks in
+    visit_id       = Column(Integer, ForeignKey("visits.id"), nullable=True)
+    arrival_status = Column(String(20), nullable=True)  # booked|delayed|arrived|no_show|cancelled
     created_at = Column(DateTime, default=datetime.utcnow)
 
     doctor = relationship("Doctor", back_populates="appointments")
@@ -364,3 +407,146 @@ class PinnedPatient(Base):
 
     doctor  = relationship("Doctor", back_populates="pinned_patients")
     patient = relationship("Patient")
+
+
+# --------------------------------------------------------------------------- #
+#  Visit  (v2 — primary queue entity)                                          #
+# --------------------------------------------------------------------------- #
+
+class Visit(Base):
+    __tablename__ = "visits"
+    __table_args__ = (
+        UniqueConstraint("doctor_id", "visit_date", "token_number",
+                         name="uq_visit_token_per_doctor_day"),
+    )
+
+    id             = Column(Integer, primary_key=True, index=True)
+    doctor_id      = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    patient_id     = Column(Integer, ForeignKey("patients.id"), nullable=False, index=True)
+    clinic_id      = Column(Integer, ForeignKey("clinics.id"), nullable=True, index=True)
+    appointment_id = Column(Integer, ForeignKey("appointments.id"), nullable=True)
+
+    visit_date     = Column(Date, nullable=False, index=True)
+    token_number   = Column(Integer, nullable=False)       # monotonic per (doctor, date)
+    queue_position = Column(Integer, nullable=True)        # mutable ordering hint
+
+    status       = Column(SAEnum(VisitStatus), default=VisitStatus.waiting, nullable=False, index=True)
+    is_emergency = Column(Boolean, default=False)
+    source       = Column(SAEnum(VisitSource), default=VisitSource.walk_in)
+
+    check_in_time  = Column(DateTime, nullable=True)
+    call_time      = Column(DateTime, nullable=True)
+    complete_time  = Column(DateTime, nullable=True)
+
+    bill_id    = Column(Integer, nullable=True)   # set once bill is saved
+    notes      = Column(Text, nullable=True)
+    created_by = Column(Integer, nullable=True)   # staff/doctor id who checked in
+
+    doctor  = relationship("Doctor", back_populates="visits")
+    patient = relationship("Patient")
+    bill    = relationship("Bill", back_populates="visit", uselist=False,
+                           primaryjoin="Visit.id == Bill.visit_id",
+                           foreign_keys="Bill.visit_id")
+
+
+# --------------------------------------------------------------------------- #
+#  Bill + BillItem  (v2 — generated when a Visit is closed)                    #
+# --------------------------------------------------------------------------- #
+
+class Bill(Base):
+    __tablename__ = "bills"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    visit_id   = Column(Integer, ForeignKey("visits.id"), unique=True, nullable=False, index=True)
+    doctor_id  = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    clinic_id  = Column(Integer, ForeignKey("clinics.id"), nullable=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False, index=True)
+
+    subtotal   = Column(Numeric(10, 2), default=0)
+    discount   = Column(Numeric(10, 2), default=0)
+    gst_amount = Column(Numeric(10, 2), default=0)
+    total      = Column(Numeric(10, 2), default=0)
+
+    paid_amount  = Column(Numeric(10, 2), default=0)
+    payment_mode = Column(SAEnum(PaymentMode), nullable=True)
+    paid_at      = Column(DateTime, nullable=True)
+
+    notes      = Column(Text, nullable=True)
+    created_by = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    visit = relationship("Visit", back_populates="bill",
+                         primaryjoin="Bill.visit_id == Visit.id",
+                         foreign_keys="[Bill.visit_id]")
+    items = relationship("BillItem", back_populates="bill", cascade="all, delete-orphan")
+
+
+class BillItem(Base):
+    __tablename__ = "bill_items"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    bill_id     = Column(Integer, ForeignKey("bills.id"), nullable=False, index=True)
+    description = Column(String(200), nullable=False)
+    category    = Column(String(50), nullable=True)   # consultation|procedure|medicine|lab|other
+    quantity    = Column(Integer, default=1)
+    unit_price  = Column(Numeric(10, 2), nullable=False)
+    total       = Column(Numeric(10, 2), nullable=False)
+    gst_rate    = Column(Numeric(4, 2), default=0)
+
+    bill = relationship("Bill", back_populates="items")
+
+
+# --------------------------------------------------------------------------- #
+#  PriceCatalog  (v2 — quick-add items for billing modal)                      #
+# --------------------------------------------------------------------------- #
+
+class PriceCatalog(Base):
+    __tablename__ = "price_catalog"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    doctor_id     = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    clinic_id     = Column(Integer, ForeignKey("clinics.id"), nullable=True)
+    name          = Column(String(100), nullable=False)
+    category      = Column(String(50), nullable=True)
+    default_price = Column(Numeric(10, 2), nullable=False)
+    is_pinned     = Column(Boolean, default=False)   # show as quick button in bill modal
+    sort_order    = Column(Integer, default=0)
+    is_active     = Column(Boolean, default=True)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+
+
+# --------------------------------------------------------------------------- #
+#  Expense + RecurringExpense  (v2 — income dashboard)                         #
+# --------------------------------------------------------------------------- #
+
+class Expense(Base):
+    __tablename__ = "expenses"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    doctor_id    = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    clinic_id    = Column(Integer, ForeignKey("clinics.id"), nullable=True)
+    category     = Column(SAEnum(ExpenseCategory), nullable=False)
+    amount       = Column(Numeric(10, 2), nullable=False)
+    expense_date = Column(Date, nullable=False)
+    description  = Column(String(300), nullable=True)
+    recurring_id = Column(Integer, ForeignKey("recurring_expenses.id"), nullable=True)
+    created_by   = Column(Integer, nullable=True)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+    recurring = relationship("RecurringExpense", back_populates="expense_rows")
+
+
+class RecurringExpense(Base):
+    __tablename__ = "recurring_expenses"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    doctor_id    = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    clinic_id    = Column(Integer, ForeignKey("clinics.id"), nullable=True)
+    category     = Column(SAEnum(ExpenseCategory), nullable=False)
+    amount       = Column(Numeric(10, 2), nullable=False)
+    label        = Column(String(100), nullable=False)
+    day_of_month = Column(Integer, nullable=False)   # 1..28
+    is_active    = Column(Boolean, default=True)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+    expense_rows = relationship("Expense", back_populates="recurring")

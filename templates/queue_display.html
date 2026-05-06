@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Queue — {{ doctor.clinic_name or doctor.name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080808;
+      --card: #111;
+      --border: #1e1e1e;
+      --text: #f0f0f0;
+      --muted: #666;
+      --accent: #f0f0f0;
+      --green: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    .clinic-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      color: var(--muted);
+      letter-spacing: .04em;
+      margin-bottom: 40px;
+    }
+
+    .now-serving-label {
+      font-size: 0.8rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .token-display {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(5rem, 18vw, 12rem);
+      font-weight: 700;
+      line-height: 1;
+      color: var(--text);
+      letter-spacing: -.02em;
+    }
+
+    .token-display.emergency {
+      color: var(--danger);
+    }
+
+    .patient-name {
+      font-size: clamp(1.2rem, 3vw, 2.2rem);
+      font-weight: 600;
+      color: var(--text);
+      margin-top: 12px;
+      margin-bottom: 6px;
+    }
+
+    .emergency-pill {
+      display: inline-block;
+      background: rgba(239,68,68,.15);
+      color: var(--danger);
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 3px 14px;
+      border-radius: 99px;
+      margin-bottom: 8px;
+    }
+
+    .divider {
+      width: 80px;
+      height: 1px;
+      background: var(--border);
+      margin: 32px auto;
+    }
+
+    .up-next-label {
+      font-size: 0.75rem;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .up-next-row {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+
+    .next-token {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 22px;
+      font-size: 1.6rem;
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    .next-token.emergency { border-color: var(--danger); color: var(--danger); }
+
+    .queue-stats {
+      margin-top: 40px;
+      display: flex;
+      gap: 40px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .queue-stats span { color: var(--text); font-weight: 600; }
+
+    .empty-msg {
+      color: var(--muted);
+      font-size: 1.4rem;
+    }
+
+    .powered-by {
+      position: fixed;
+      bottom: 18px;
+      right: 24px;
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: .04em;
+    }
+  </style>
+</head>
+<body>
+  <div class="clinic-name">{{ doctor.clinic_name or doctor.name }}</div>
+
+  <div id="content">
+    {% if status.now_serving %}
+    <div class="now-serving-label">Now Serving</div>
+    <div class="token-display {% if status.now_serving.is_emergency %}emergency{% endif %}" id="tokenDisplay">
+      #{{ status.now_serving.token }}
+    </div>
+    {% if status.now_serving.is_emergency %}
+    <div class="emergency-pill">⚡ Emergency</div>
+    {% endif %}
+    <div class="patient-name" id="patientName">{{ status.now_serving.name }}</div>
+    {% else %}
+    <div class="empty-msg">Queue is ready</div>
+    {% endif %}
+
+    {% if status.up_next %}
+    <div class="divider"></div>
+    <div class="up-next-label">Up Next</div>
+    <div class="up-next-row" id="upNextRow">
+      {% for t in status.up_next %}
+      <div class="next-token {% if t.is_emergency %}emergency{% endif %}">#{{ t.token }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="queue-stats">
+      <div>In queue: <span id="queueLen">{{ status.queue_length }}</span></div>
+      <div>Est. wait: <span id="avgWait">~{{ status.avg_wait_mins }} min</span></div>
+    </div>
+  </div>
+
+  <div class="powered-by">Powered by ClinicOS</div>
+
+  <script>
+    const POLL_URL = window.location.pathname + '/status';
+    let lastToken = '{{ status.now_serving.token if status.now_serving else "" }}';
+
+    async function poll() {
+      try {
+        const res = await fetch(POLL_URL);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const tokenEl   = document.getElementById('tokenDisplay');
+        const nameEl    = document.getElementById('patientName');
+        const queueLenEl = document.getElementById('queueLen');
+        const avgWaitEl  = document.getElementById('avgWait');
+
+        if (queueLenEl) queueLenEl.textContent = data.queue_length;
+        if (avgWaitEl)  avgWaitEl.textContent  = '~' + data.avg_wait_mins + ' min';
+
+        if (data.now_serving) {
+          const newToken = '#' + data.now_serving.token;
+          if (tokenEl) {
+            tokenEl.textContent = newToken;
+            tokenEl.className = 'token-display' + (data.now_serving.is_emergency ? ' emergency' : '');
+          }
+          if (nameEl) nameEl.textContent = data.now_serving.name;
+        }
+
+        // Rebuild up-next row
+        const upNextRow = document.getElementById('upNextRow');
+        if (upNextRow && data.up_next) {
+          upNextRow.innerHTML = data.up_next.map(t =>
+            `<div class="next-token${t.is_emergency ? ' emergency' : ''}">#${t.token}</div>`
+          ).join('');
+        }
+      } catch (e) {
+        // network issue — silent fail, keep showing stale data
+      }
+    }
+
+    setInterval(poll, 5000);
+  </script>
+</body>
+</html>
