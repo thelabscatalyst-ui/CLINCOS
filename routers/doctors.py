@@ -11,6 +11,7 @@ from database.connection import get_db
 from database.models import (
     Doctor, Appointment, Patient, AppointmentStatus, BookedBy,
     DoctorSchedule, BlockedDate, BlockedTime, PriceCatalog,
+    Bill, Expense, ExpenseCategory, PaymentMode,
 )
 from services.auth_service import (
     get_current_doctor, get_paying_doctor,
@@ -37,29 +38,36 @@ def dashboard(
 ):
     today = date.today()
 
-    todays_appointments = (
+    all_today = (
         db.query(Appointment)
         .filter(
-            Appointment.doctor_id == doctor.id,
+            Appointment.doctor_id   == doctor.id,
             Appointment.appointment_date == today,
-            Appointment.status != AppointmentStatus.cancelled,
         )
-        .order_by(
-            case((Appointment.status == AppointmentStatus.scheduled, 0), else_=1),
-            Appointment.appointment_time,
-        )
+        .order_by(Appointment.appointment_time)
         .all()
     )
 
-    for appt in todays_appointments:
+    for appt in all_today:
         appt.patient  # lazy-load
 
-    total_patients = db.query(func.count(Patient.id)).filter(Patient.doctor_id == doctor.id).scalar()
-    total_today = len(todays_appointments)
-    completed_today  = sum(1 for a in todays_appointments if a.status == AppointmentStatus.completed)
-    pending_today    = sum(1 for a in todays_appointments if a.status == AppointmentStatus.scheduled)
-    walkin_today     = sum(1 for a in todays_appointments if a.booked_by == BookedBy.walk_in and not a.is_emergency)
-    emergency_today  = sum(1 for a in todays_appointments if a.is_emergency)
+    _done_statuses = {
+        AppointmentStatus.completed,
+        AppointmentStatus.no_show,
+        AppointmentStatus.cancelled,
+    }
+
+    # Active = scheduled (show at top)
+    todays_appointments = [a for a in all_today if a.status not in _done_statuses]
+    # Past = completed / no_show / cancelled (collapsible section)
+    past_appointments   = [a for a in all_today if a.status in _done_statuses]
+
+    total_patients   = db.query(func.count(Patient.id)).filter(Patient.doctor_id == doctor.id).scalar()
+    total_today      = len(all_today)
+    completed_today  = sum(1 for a in all_today if a.status == AppointmentStatus.completed)
+    pending_today    = sum(1 for a in all_today if a.status == AppointmentStatus.scheduled)
+    walkin_today     = sum(1 for a in all_today if a.booked_by == BookedBy.walk_in and not a.is_emergency)
+    emergency_today  = sum(1 for a in all_today if a.is_emergency)
 
     # Show the earliest still-open appointment regardless of whether its time has passed
     next_appointment = next(
@@ -102,6 +110,58 @@ def dashboard(
         if assoc:
             primary_clinic = db.query(ClinicModel).filter(ClinicModel.id == assoc.clinic_id).first()
 
+    # ── Mini income dashboard data ─────────────────────────────────── #
+    from datetime import datetime as _dt
+    _today_start = _dt.combine(today, _dt.min.time())
+    _today_end   = _dt.combine(today, _dt.max.time())
+
+    today_income_row = (
+        db.query(func.sum(Bill.total))
+        .filter(
+            Bill.doctor_id    == doctor.id,
+            Bill.paid_at      >= _today_start,
+            Bill.paid_at      <= _today_end,
+            Bill.payment_mode != PaymentMode.free,
+        )
+        .scalar()
+    )
+    today_income = float(today_income_row or 0)
+
+    # Last transaction
+    last_bill = (
+        db.query(Bill)
+        .filter(Bill.doctor_id == doctor.id, Bill.paid_at != None)
+        .order_by(Bill.paid_at.desc())
+        .first()
+    )
+
+    # Recent 5 bills with patient name
+    recent_bills_dash = (
+        db.query(Bill)
+        .filter(Bill.doctor_id == doctor.id)
+        .order_by(Bill.paid_at.desc().nullslast(), Bill.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    # eager-load patient names
+    for b in recent_bills_dash:
+        if b.visit:
+            _ = b.visit.patient
+
+    # ── Pending dues ───────────────────────────────────────────────── #
+    _due_bills = (
+        db.query(Bill)
+        .filter(
+            Bill.doctor_id    == doctor.id,
+            Bill.paid_at      == None,
+            Bill.total        >  0,
+            Bill.payment_mode != PaymentMode.free,
+        )
+        .all()
+    )
+    pending_dues_amount = float(sum(b.total or 0 for b in _due_bills))
+    pending_dues_count  = len(_due_bills)
+
     return templates.TemplateResponse(request, "dashboard.html", {
         "doctor": doctor,
         "today": today,
@@ -113,12 +173,21 @@ def dashboard(
         "pending_today":    pending_today,
         "walkin_today":     walkin_today,
         "emergency_today":  emergency_today,
-        "next_appointment": next_appointment,
+        "next_appointment":   next_appointment,
+        "past_appointments":  past_appointments,
         "trial_active": trial_active,
         "days_left": days_left,
         "active": "dashboard",
         "is_clinic_owner": is_clinic_owner,
         "primary_clinic": primary_clinic,
+        # mini income
+        "today_income":        today_income,
+        "last_bill":           last_bill,
+        "recent_bills_dash":   recent_bills_dash,
+        "ExpenseCategory":     ExpenseCategory,
+        # pending dues
+        "pending_dues_amount": pending_dues_amount,
+        "pending_dues_count":  pending_dues_count,
     })
 
 

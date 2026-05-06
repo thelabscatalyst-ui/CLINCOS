@@ -225,7 +225,10 @@ class Patient(Base):
     name = Column(String(100), nullable=False)
     phone = Column(String(15), nullable=False)
     age = Column(Integer, nullable=True)
-    gender = Column(String(10), nullable=True)   # male | female | other
+    gender = Column(String(10), nullable=True)        # male | female | other
+    blood_group        = Column(String(10), nullable=True)
+    allergies          = Column(Text, nullable=True)
+    preferred_contact  = Column(String(20), nullable=True, default="phone")  # phone | whatsapp | none
     language_pref = Column(String(20), default="english")
     notes = Column(Text, nullable=True)
     visit_count = Column(Integer, default=0)
@@ -296,8 +299,10 @@ class Appointment(Base):
     booked_by = Column(SAEnum(BookedBy), default=BookedBy.doctor)
     is_emergency = Column(Boolean, default=False)   # bypasses quota/hours checks
     # v2: link to Visit once patient checks in
-    visit_id       = Column(Integer, ForeignKey("visits.id"), nullable=True)
-    arrival_status = Column(String(20), nullable=True)  # booked|delayed|arrived|no_show|cancelled
+    visit_id         = Column(Integer, ForeignKey("visits.id"), nullable=True)
+    arrival_status   = Column(String(20), nullable=True)
+    reception_notes  = Column(Text, nullable=True)
+    follow_up_date   = Column(Date, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     doctor = relationship("Doctor", back_populates="appointments")

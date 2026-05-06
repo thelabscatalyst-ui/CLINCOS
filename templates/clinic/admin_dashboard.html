@@ -122,3 +122,24 @@
 </div>
 
 {% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Clinic Admin: 1-minute inactivity → clears auth cookie + redirects ── */
+(function () {
+  var TIMEOUT = 60 * 1000;
+  var timer;
+  function reset() {
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      document.cookie = 'clinic_admin_auth=; Max-Age=0; path=/';
+      window.location.href = '/dashboard';
+    }, TIMEOUT);
+  }
+  ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(function (e) {
+    document.addEventListener(e, reset, { passive: true });
+  });
+  reset();
+})();
+</script>
+{% endblock %}

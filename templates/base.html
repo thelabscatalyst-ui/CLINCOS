@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}ClinicOS{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/main.css?v=59" />
+  <link rel="stylesheet" href="/static/css/main.css?v=95" />
   {% block head %}{% endblock %}
   <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
@@ -15,17 +15,12 @@
   <a href="/dashboard" class="navbar-brand">ClinicOS</a>
   <div style="display:flex;align-items:center;gap:0;">
     <div class="navbar-controls">
+      <!-- Clinic Admin (clinic owners only) -->
+      {% if request.state.is_clinic_owner %}
+      <a href="/clinic/admin" class="navbar-settings-link">Clinic Admin</a>
+      {% endif %}
       <!-- Settings -->
-      <a href="/doctors/settings" class="logout-btn" title="Settings" style="color:var(--muted);">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4"  y1="6"  x2="20" y2="6"/>
-          <circle cx="9"  cy="6"  r="2.5" fill="var(--bg-1)" stroke="currentColor" stroke-width="2"/>
-          <line x1="4"  y1="13" x2="20" y2="13"/>
-          <circle cx="15" cy="13" r="2.5" fill="var(--bg-1)" stroke="currentColor" stroke-width="2"/>
-          <line x1="4"  y1="20" x2="20" y2="20"/>
-          <circle cx="10" cy="20" r="2.5" fill="var(--bg-1)" stroke="currentColor" stroke-width="2"/>
-        </svg>
-      </a>
+      <a href="/doctors/settings" class="navbar-settings-link">Settings</a>
       <!-- Theme toggle -->
       <button type="button" class="theme-toggle" id="themeToggle" title="Toggle theme" onclick="toggleTheme()">
         <svg id="themeIconSun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
@@ -294,6 +289,74 @@ function initPhoneInput(inputEl) {
   zone.addEventListener('mouseenter', show);
   zone.addEventListener('mouseleave', scheduleHide);
 })();
+</script>
+
+<!-- ── Appointment Card Overlay ── -->
+<div class="appt-card-overlay" id="apptCardOverlay" onclick="if(event.target===this)closeApptCard()">
+  <div class="appt-card-container" id="apptCardContainer">
+    <div id="apptCardContent">
+      <div style="padding:60px;text-align:center;color:var(--dim);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+             style="animation:spin 1s linear infinite;display:inline-block;">
+          <circle cx="12" cy="12" r="9" stroke-opacity=".25"/>
+          <path d="M12 3a9 9 0 0 1 9 9" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<script>
+/* Re-execute <script> tags after innerHTML injection — browsers skip them by default */
+function _execScripts(container) {
+  container.querySelectorAll('script').forEach(function(oldScript) {
+    var s = document.createElement('script');
+    s.textContent = oldScript.textContent;
+    document.head.appendChild(s);
+    document.head.removeChild(s);
+  });
+}
+
+function openApptCard(apptId) {
+  var overlay   = document.getElementById('apptCardOverlay');
+  var content   = document.getElementById('apptCardContent');
+  var container = document.getElementById('apptCardContainer');
+  var spinner   = '<div style="padding:60px;text-align:center;color:var(--dim);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="animation:spin 1s linear infinite;display:inline-block;"><circle cx="12" cy="12" r="9" stroke-opacity=".25"/><path d="M12 3a9 9 0 0 1 9 9" stroke-linecap="round"/></svg></div>';
+  content.innerHTML = spinner;
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  fetch('/appointments/' + apptId + '/card', { credentials: 'same-origin' })
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      content.innerHTML = html;
+      _execScripts(content);
+      container.scrollTop = 0;
+    })
+    .catch(function() {
+      content.innerHTML = '<div style="padding:40px;text-align:center;color:#ef4444;">Failed to load appointment.</div>';
+    });
+}
+function closeApptCard() {
+  document.getElementById('apptCardOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function reloadApptCard(apptId) {
+  var content = document.getElementById('apptCardContent');
+  var container = document.getElementById('apptCardContainer');
+  fetch('/appointments/' + apptId + '/card', { credentials: 'same-origin' })
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      content.innerHTML = html;
+      _execScripts(content);
+      container.scrollTop = 0;
+    });
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeApptCard();
+});
 </script>
 </body>
 </html>

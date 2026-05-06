@@ -23,6 +23,7 @@ from database.models import (
 )
 from services.auth_service import (
     get_current_staff, get_clinic_owner, hash_password, get_current_doctor,
+    verify_password, create_access_token,
 )
 from services.appointment_service import (
     get_available_slots, is_slot_available, get_or_create_patient,
@@ -354,6 +355,49 @@ def reception_walkin(
 
 
 # ─────────────────────────────────────────────────────────────────────────── #
+#  Clinic Admin — Password Gate                                                #
+# ─────────────────────────────────────────────────────────────────────────── #
+
+ADMIN_AUTH_COOKIE = "clinic_admin_auth"
+
+
+def _is_admin_authenticated(request: Request, doctor_id: int) -> bool:
+    """Returns True only if the short-lived clinic-admin cookie is valid for this doctor."""
+    token = request.cookies.get(ADMIN_AUTH_COOKIE)
+    if not token:
+        return False
+    from services.auth_service import decode_token
+    payload = decode_token(token)
+    return bool(payload and payload.get("clinic_admin") and payload.get("doctor_id") == doctor_id)
+
+
+@router.post("/admin/auth", response_class=HTMLResponse)
+def clinic_admin_auth(
+    request: Request,
+    password: str = Form(...),
+    doctor: Doctor = Depends(get_clinic_owner),
+):
+    """Verify doctor's login password → set short-lived clinic-admin cookie."""
+    if not verify_password(password, doctor.password_hash):
+        response = RedirectResponse(url="/clinic/admin?auth_error=1", status_code=303)
+        return response
+    # Short-lived token: expires in 10 minutes (no relaxation beyond this page session)
+    from datetime import timedelta as td
+    from jose import jwt as _jwt
+    from config import settings
+    import time
+    payload = {
+        "doctor_id": doctor.id,
+        "clinic_admin": True,
+        "exp": int(time.time()) + 600,   # 10 min hard cap
+    }
+    token = _jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    response = RedirectResponse(url="/clinic/admin", status_code=303)
+    response.set_cookie(ADMIN_AUTH_COOKIE, token, httponly=True, samesite="lax", max_age=600)
+    return response
+
+
+# ─────────────────────────────────────────────────────────────────────────── #
 #  Clinic Admin Dashboard — Step 4                                             #
 # ─────────────────────────────────────────────────────────────────────────── #
 
@@ -366,6 +410,13 @@ def clinic_admin_dashboard(
     clinic = _get_owner_clinic(doctor.id, db)
     if not clinic:
         return RedirectResponse(url="/dashboard", status_code=303)
+
+    # Password gate — require fresh auth every visit
+    if not _is_admin_authenticated(request, doctor.id):
+        return templates.TemplateResponse(request, "clinic/admin_auth.html", {
+            "doctor": doctor,
+            "auth_error": request.query_params.get("auth_error"),
+        })
 
     today = date.today()
     week_start = today - timedelta(days=today.weekday())

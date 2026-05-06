@@ -274,3 +274,11 @@ def _run_migrations():
             ")"
         ))
         conn.commit()
+
+        # ── appointment card — new patient + appointment fields ───────────────
+        _add_column(conn, "ALTER TABLE patients ADD COLUMN blood_group VARCHAR(10)")
+        _add_column(conn, "ALTER TABLE patients ADD COLUMN allergies TEXT")
+        _add_column(conn, "ALTER TABLE patients ADD COLUMN preferred_contact VARCHAR(20) DEFAULT 'phone'")
+        _add_column(conn, "ALTER TABLE appointments ADD COLUMN reception_notes TEXT")
+        _add_column(conn, "ALTER TABLE appointments ADD COLUMN follow_up_date DATE")
+        conn.commit()

@@ -2,15 +2,6 @@
 {% block title %}Dashboard — ClinicOS{% endblock %}
 {% block content %}
 
-<!-- Trial Banner -->
-{% if doctor.trial_ends_at and trial_active %}
-<div class="trial-banner">
-  <span class="trial-dot"></span>
-  Free trial — <strong>{{ days_left }} day{{ 's' if days_left != 1 else '' }} left</strong>.
-  <a href="/billing">Upgrade to keep access →</a>
-</div>
-{% endif %}
-
 <!-- Page Header -->
 <div class="page-header dash-header">
   <div>
@@ -20,9 +11,6 @@
     <div class="page-date" style="margin-top:4px;">{{ today.strftime("%A, %d %B %Y") }}</div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;">
-    {% if is_clinic_owner %}
-    <a href="/clinic/admin" class="btn btn-secondary btn-sm">Clinic Admin</a>
-    {% endif %}
     {% if doctor.slug %}
     <button type="button" class="btn btn-secondary btn-sm" id="dashCopyBtn" onclick="copyBookingLink()">
       Share Link
@@ -67,60 +55,213 @@
     <div class="stat-value stat-value--sm">{{ primary_clinic.name if primary_clinic else (doctor.clinic_name or "—") }}</div>
     <div class="stat-sub">{{ primary_clinic.city if primary_clinic else (doctor.city or "") }}</div>
   </div>
+  <a href="/income" class="stat-card stat-card--dues" style="text-decoration:none;">
+    <div class="stat-label">Pending Dues</div>
+    {% if pending_dues_amount > 0 %}
+    <div class="stat-value stat-value--sm">₹{{ "{:,.0f}".format(pending_dues_amount) }}</div>
+    <div class="stat-sub">{{ pending_dues_count }} unpaid bill{{ "s" if pending_dues_count != 1 else "" }}</div>
+    {% else %}
+    <div class="stat-value stat-value--sm">—</div>
+    <div class="stat-sub">No outstanding dues</div>
+    {% endif %}
+  </a>
 </div>
 
-<!-- Today's Schedule -->
-<div class="schedule-section">
-  <div class="section-header" style="margin-bottom:0;padding-bottom:16px;border-bottom:1px solid var(--border);">
-    <h2 class="section-title">Today's Schedule</h2>
-    <a href="/appointments" class="section-link">View all →</a>
-  </div>
+<!-- ── Two-Column Dashboard Body ─────────────────────────────────────────── -->
+<div class="dash-body-grid">
 
-  {% if todays_appointments %}
-  <div class="appt-list">
-    {% for appt in todays_appointments %}
-    <div class="appt-row {% if appt.status.value == 'completed' %}appt-row--done{% elif appt.status.value == 'no_show' %}appt-row--noshow{% endif %}"
-         onclick="window.location='/appointments/{{ appt.id }}'" style="cursor:pointer;">
-      <div class="appt-left">
-        <div class="appt-token-num">#{{ loop.index }}</div>
-        <div class="appt-left-divider"></div>
-        <div class="appt-time">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</div>
+  <!-- ── LEFT: Today's Schedule ──────────────────────────────────────────── -->
+  <div class="dash-left">
+    <div class="schedule-section" style="height:100%;">
+      <div class="section-header" style="margin-bottom:0;padding-bottom:16px;border-bottom:1px solid var(--border);">
+        <h2 class="section-title">Today's Schedule</h2>
+        <a href="/appointments" class="section-link">View all →</a>
       </div>
-      <div class="appt-right">
-        <div class="appt-patient">
-          <div class="appt-name-line">
-            <span class="appt-meta">{{ appt.appointment_type.value.replace("_"," ").title() }}</span>
-            <span class="appt-meta-sep">·</span>
-            <span class="appt-meta">{{ appt.duration_mins }} min</span>
-            <span class="appt-meta-sep">·</span>
-            <span class="appt-name">{{ appt.patient.name }}</span>
+
+      {% if todays_appointments %}
+      <div class="appt-list">
+        {% for appt in todays_appointments %}
+        <div class="appt-row"
+             onclick="openApptCard({{ appt.id }})" style="cursor:pointer;">
+          <div class="appt-left">
+            <div class="appt-token-num">#{{ loop.index }}</div>
+            <div class="appt-left-divider"></div>
+            <div class="appt-time">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</div>
           </div>
-          <div class="appt-tags">
-            <span class="badge-channel badge-channel--{{ appt.status.value }}">{{ appt.status.value.replace("_"," ").title() }}</span>
+          <div class="appt-right">
+            <div class="appt-patient">
+              <div class="appt-name-line">
+                <span class="appt-meta">{{ appt.appointment_type.value.replace("_"," ").title() }}</span>
+                <span class="appt-meta-sep">·</span>
+                <span class="appt-meta">{{ appt.duration_mins }} min</span>
+                <span class="appt-meta-sep">·</span>
+                <span class="appt-name">{{ appt.patient.name }}</span>
+              </div>
+              <div class="appt-tags">
+                <span class="badge-channel badge-channel--{{ appt.status.value }}">{{ appt.status.value.replace("_"," ").title() }}</span>
+              </div>
+            </div>
           </div>
         </div>
+        {% endfor %}
       </div>
+      {% else %}
+      <div class="empty-state" style="padding:40px 0;">
+        <div class="empty-icon">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </div>
+        <div class="empty-title">No appointments today</div>
+        <div class="empty-sub">Add your first appointment or share your booking link.</div>
+        <div class="empty-actions">
+          <a href="/appointments/new" class="btn btn-primary btn-sm">+ Add Appointment</a>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- ── Previous Appointments (collapsible) ──────────────────────── -->
+      {% if past_appointments %}
+      <div class="dash-prev-section">
+        <button type="button" class="dash-prev-toggle" id="prevToggle" onclick="togglePrev()">
+          <span>Previous Appointments</span>
+          <span class="dash-prev-count">{{ past_appointments|length }}</span>
+          <svg id="prevChevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+               style="transition:transform .25s;margin-left:4px;">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div class="dash-prev-list" id="prevList">
+          {% for appt in past_appointments %}
+          <div class="appt-row appt-row--done"
+               onclick="openApptCard({{ appt.id }})" style="cursor:pointer;">
+            <div class="appt-left">
+              <div class="appt-token-num">#{{ loop.index }}</div>
+              <div class="appt-left-divider"></div>
+              <div class="appt-time">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</div>
+            </div>
+            <div class="appt-right">
+              <div class="appt-patient">
+                <div class="appt-name-line">
+                  <span class="appt-meta">{{ appt.appointment_type.value.replace("_"," ").title() }}</span>
+                  <span class="appt-meta-sep">·</span>
+                  <span class="appt-name">{{ appt.patient.name }}</span>
+                </div>
+                <div class="appt-tags">
+                  <span class="badge-channel badge-channel--{{ appt.status.value }}">
+                    {{ appt.status.value.replace("_"," ").title() }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
     </div>
-    {% endfor %}
   </div>
-  {% else %}
-  <div class="empty-state" style="padding:32px 0;">
-    <div class="empty-icon">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2"/>
-        <line x1="16" y1="2" x2="16" y2="6"/>
-        <line x1="8" y1="2" x2="8" y2="6"/>
-        <line x1="3" y1="10" x2="21" y2="10"/>
-      </svg>
+
+  <!-- ── RIGHT: Income + Expense ─────────────────────────────────────────── -->
+  <div class="dash-right">
+
+    <!-- Mini Income Card -->
+    <div class="dash-mini-card">
+      <div class="dash-mini-header">
+        <div class="dash-mini-title">Today's Income</div>
+        <a href="/income" class="dash-mini-link">Full report →</a>
+      </div>
+
+      <!-- Today total -->
+      <div class="dash-income-today">
+        <div class="dash-income-amount">
+          {% if today_income > 0 %}₹{{ "{:,.0f}".format(today_income) }}{% else %}₹0{% endif %}
+        </div>
+        <div class="dash-income-sub">Collected today</div>
+      </div>
+
+      <!-- Last transaction -->
+      {% if last_bill %}
+      <div class="dash-last-txn">
+        <span class="dash-last-txn-label">Last transaction</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="badge-channel badge-channel--{{ last_bill.payment_mode.value if last_bill.payment_mode else 'walkin' }}" style="font-size:10px;">
+            {{ last_bill.payment_mode.value.title() if last_bill.payment_mode else '—' }}
+          </span>
+          <span class="dash-last-txn-amount">
+            {% if last_bill.payment_mode and last_bill.payment_mode.value == 'free' %}Free
+            {% else %}₹{{ "{:,.0f}".format(last_bill.total|float) }}{% endif %}
+          </span>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Divider -->
+      <div style="height:1px;background:var(--border);margin:14px 0;"></div>
+
+      <!-- Recent 5 bills -->
+      <div class="dash-mini-subheader">Recent Patients</div>
+      {% if recent_bills_dash %}
+        {% for b in recent_bills_dash %}
+        <div class="dash-bill-row">
+          <div class="dash-bill-left">
+            <span class="dash-bill-token">#{{ b.visit.token_number if b.visit else '—' }}</span>
+            <span class="dash-bill-name">{{ b.visit.patient.name if b.visit and b.visit.patient else '—' }}</span>
+          </div>
+          <div class="dash-bill-right">
+            <span class="dash-bill-date">{{ b.paid_at.strftime("%-d %b") if b.paid_at else b.created_at.strftime("%-d %b") if b.created_at else '' }}</span>
+            <span class="dash-bill-amount {% if b.payment_mode and b.payment_mode.value == 'free' %}dash-bill-free{% endif %}">
+              {% if b.payment_mode and b.payment_mode.value == 'free' %}Free
+              {% else %}₹{{ "{:,.0f}".format(b.total|float) }}{% endif %}
+            </span>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="font-size:12px;color:var(--dim);padding:8px 0;">No billing records yet</div>
+      {% endif %}
     </div>
-    <div class="empty-title">No appointments today</div>
-    <div class="empty-sub">Add your first appointment or share your booking link with patients.</div>
-    <div class="empty-actions">
-      <a href="/appointments/new" class="btn btn-primary btn-sm">+ Add Appointment</a>
+
+    <!-- Quick Expense Card -->
+    <div class="dash-mini-card">
+      <div class="dash-mini-header">
+        <div class="dash-mini-title">Quick Expense</div>
+        <a href="/expenses" class="dash-mini-link">All expenses →</a>
+      </div>
+      <form method="post" action="/expenses">
+        <div class="dash-expense-grid">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Category</label>
+            <select name="category" class="form-input form-select" style="font-size:12px;">
+              {% for cat in ExpenseCategory %}
+              <option value="{{ cat.value }}">{{ cat.value.title() }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Amount (₹)</label>
+            <input type="number" name="amount" class="form-input" placeholder="0" min="1" step="1" required style="font-size:12px;">
+          </div>
+        </div>
+        <div class="form-group" style="margin:0 0 10px;">
+          <label class="form-label">Description</label>
+          <input type="text" name="description" class="form-input" placeholder="e.g. Clinic supplies" style="font-size:12px;">
+        </div>
+        <div class="form-group" style="margin:0 0 12px;">
+          <label class="form-label">Date</label>
+          <input type="date" name="expense_date" class="form-input"
+                 value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" style="font-size:12px;">
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm" style="width:100%;">+ Add Expense</button>
+      </form>
     </div>
-  </div>
-  {% endif %}
-</div>
+
+  </div><!-- end dash-right -->
+</div><!-- end dash-body-grid -->
 
 {% endblock %}
 
@@ -136,5 +277,14 @@ function copyBookingLink() {
   });
 }
 {% endif %}
+
+function togglePrev() {
+  const list     = document.getElementById('prevList');
+  const chevron  = document.getElementById('prevChevron');
+  const toggle   = document.getElementById('prevToggle');
+  const open     = list.classList.toggle('dash-prev-list--open');
+  chevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+  toggle.classList.toggle('dash-prev-toggle--open', open);
+}
 </script>
 {% endblock %}

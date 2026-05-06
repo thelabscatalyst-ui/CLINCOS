@@ -129,5 +129,7 @@ function copyInviteLink(path, btn) {
     setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
   });
 }
+/* 1-min inactivity → redirect */
+(function(){var t;function r(){clearTimeout(t);t=setTimeout(function(){document.cookie='clinic_admin_auth=;Max-Age=0;path=/';window.location.href='/dashboard';},60000);}['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(function(e){document.addEventListener(e,r,{passive:true});});r();})();
 </script>
 {% endblock %}

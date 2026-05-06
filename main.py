@@ -9,7 +9,7 @@ from pathlib import Path
 from database.connection import create_tables
 from routers import auth, appointments, doctors, patients, public, admin, clinic, visits, billing_ops, income
 from services.scheduler_service import start_scheduler, stop_scheduler
-from services.auth_service import PlanExpired, PinRequired
+from services.auth_service import PlanExpired, PinRequired, decode_token
 
 
 @asynccontextmanager
@@ -25,6 +25,33 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="ClinicOS", version="1.0.0", lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.middleware("http")
+async def inject_clinic_owner_state(request: Request, call_next):
+    """Sets request.state.is_clinic_owner so base.html navbar can show Clinic Admin link."""
+    request.state.is_clinic_owner = False
+    token = request.cookies.get("access_token")
+    if token:
+        payload = decode_token(token)
+        if payload and payload.get("doctor_id"):
+            try:
+                from database.connection import SessionLocal
+                from database.models import ClinicDoctor
+                db = SessionLocal()
+                try:
+                    owns = db.query(ClinicDoctor).filter(
+                        ClinicDoctor.doctor_id == payload["doctor_id"],
+                        ClinicDoctor.role == "owner",
+                        ClinicDoctor.is_active == True,
+                    ).first()
+                    request.state.is_clinic_owner = owns is not None
+                finally:
+                    db.close()
+            except Exception:
+                pass
+    response = await call_next(request)
+    return response
 
 templates = Jinja2Templates(directory="templates")
 

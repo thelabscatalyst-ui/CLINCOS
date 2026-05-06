@@ -1,0 +1,601 @@
+<!-- Appointment Card Partial — injected into #apptCardOverlay -->
+<div class="ac-wrap" id="acMainView">
+
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <div class="ac-header">
+
+    <div class="ac-identity">
+      <h2 class="ac-name">{{ patient.name }}</h2>
+      <div class="ac-tags">
+        {% if patient.gender %}
+        <span class="ac-tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.58-8 8-8s8 3.6 8 8"/></svg>
+          {{ patient.gender.title() }}
+        </span>
+        <span class="ac-tag-dot">•</span>
+        {% endif %}
+        {% if patient.age %}
+        <span class="ac-tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.58-8 8-8s8 3.6 8 8"/></svg>
+          {{ patient.age }}y
+        </span>
+        <span class="ac-tag-dot">•</span>
+        {% endif %}
+        <span class="ac-tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          {{ appt.appointment_type.value.replace("_"," ").title() }}
+        </span>
+        {% if appt.is_emergency %}
+        <span class="ac-tag-dot">•</span>
+        <span class="ac-tag ac-tag--emergency">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Emergency
+        </span>
+        {% endif %}
+      </div>
+      <div class="ac-appt-id">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Appointment #{{ appt.id }}
+      </div>
+    </div>
+
+    <div class="ac-header-right">
+      <span class="ac-status-badge ac-status--{{ appt.status.value }}">
+        {% if appt.status.value == 'completed' %}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>{% endif %}
+        {% if appt.status.value == 'no_show' %}<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>{% endif %}
+        {{ appt.status.value.replace("_"," ").title() }}
+      </span>
+      <button type="button" class="ac-action-btn" onclick="openEditPanel()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Edit
+      </button>
+      <a href="/appointments/{{ appt.id }}" class="ac-action-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </a>
+      <button type="button" class="ac-action-btn ac-action-btn--danger"
+              onclick="document.getElementById('acDeleteConfirm').style.display='flex'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        Delete
+      </button>
+    </div>
+  </div>
+
+  <!-- ── 3-column Info Grid ────────────────────────────────────────── -->
+  <div class="ac-info-grid">
+
+    <!-- APPOINTMENT DETAILS -->
+    <div class="ac-col">
+      <div class="ac-col-title">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Appointment Details
+      </div>
+      <div class="ac-col-rows">
+        <div class="ac-row">
+          <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Date</span>
+          <span class="ac-row-val">{{ appt.appointment_date.strftime("%A, %d %B %Y") }}</span>
+        </div>
+        <div class="ac-row">
+          <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 15.5"/></svg>Time</span>
+          <span class="ac-row-val">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }} <span class="ac-dot-sep">•</span> {{ appt.duration_mins }} min</span>
+        </div>
+        <div class="ac-row">
+          <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.58-8 8-8s8 3.6 8 8"/></svg>Visit Type</span>
+          <span class="ac-row-val"><span class="ac-type-pill">{{ appt.appointment_type.value.replace("_"," ").title() }}</span></span>
+        </div>
+        {% if appt.patient_notes %}
+        <div class="ac-row">
+          <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Notes</span>
+          <span class="ac-row-val">{{ appt.patient_notes }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="ac-col-divider"></div>
+
+    <!-- CONTACT & BOOKING -->
+    <div class="ac-col">
+      <div class="ac-col-title">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.06 6.06l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        Contact &amp; Booking
+      </div>
+      <div class="ac-col-rows">
+        <div class="ac-row">
+          <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.06 6.06l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Phone</span>
+          <span class="ac-row-val">{{ patient.phone }}</span>
+        </div>
+        <div class="ac-row">
+          <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.58-8 8-8s8 3.6 8 8"/></svg>Booked By</span>
+          <span class="ac-row-val">{{ appt.booked_by.value.replace("_"," ").title() }}</span>
+        </div>
+        <div class="ac-row">
+          <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Source</span>
+          <span class="ac-row-val">{% if visit %}{{ visit.source.value.replace("_"," ").title() }}{% elif appt.booked_by.value == 'walk_in' %}Walk-In{% else %}Appointment{% endif %}</span>
+        </div>
+        <div class="ac-row">
+          <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Follow Up</span>
+          <span class="ac-row-val">
+            <span id="fuDisplayText">{% if appt.follow_up_date %}{{ appt.follow_up_date.strftime("%d %b %Y") }}{% else %}<span style="color:var(--dim);">Not Scheduled</span>{% endif %}</span>
+            <button type="button" class="ac-inline-edit" onclick="toggleFollowUp({{ appt.id }})">{% if appt.follow_up_date %}Edit{% else %}Schedule{% endif %}</button>
+          </span>
+        </div>
+        <!-- Follow-up inline form — hidden by default -->
+        <div id="followUpForm{{ appt.id }}" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;padding-left:2px;">
+          <input type="date" id="followUpInput{{ appt.id }}"
+                 value="{{ appt.follow_up_date.isoformat() if appt.follow_up_date else today.isoformat() }}"
+                 style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);">
+          <button type="button" class="btn btn-primary" style="font-size:11px;padding:5px 12px;"
+                  onclick="saveFollowUp({{ appt.id }})">Save</button>
+          <button type="button" class="btn btn-secondary" style="font-size:11px;padding:5px 12px;"
+                  onclick="toggleFollowUp({{ appt.id }})">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ac-col-divider"></div>
+
+    <!-- PATIENT INFO -->
+    <div class="ac-col">
+      <div class="ac-col-title">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.58-8 8-8s8 3.6 8 8"/></svg>
+        Patient Info
+      </div>
+      <div class="ac-col-rows">
+        <div class="ac-row">
+          <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Last Visit</span>
+          <span class="ac-row-val">{% if patient.last_visit %}{{ patient.last_visit.strftime("%d %b %Y") }}{% else %}<span style="color:var(--dim);">First visit</span>{% endif %}</span>
+        </div>
+        <div class="ac-row">
+          <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Allergies</span>
+          <span class="ac-row-val">{{ patient.allergies or "None Known" }}</span>
+        </div>
+        <div class="ac-row">
+          <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 1 5 5c0 1.96-1.12 3.66-2.75 4.53C17.44 12.67 20 15.61 20 19H4c0-3.39 2.56-6.33 5.75-7.47A5 5 0 0 1 12 2z"/></svg>Blood Group</span>
+          <span class="ac-row-val">{% if patient.blood_group %}<span class="ac-blood-badge">{{ patient.blood_group }}</span>{% else %}<span style="color:var(--dim);">Not recorded</span>{% endif %}</span>
+        </div>
+        <div class="ac-row">
+          <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.06 6.06l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Preferred Contact</span>
+          <span class="ac-row-val">{{ (patient.preferred_contact or "phone").title() }}</span>
+        </div>
+        <div class="ac-row">
+          <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Payment Status</span>
+          <span class="ac-row-val">
+            {% if payment_status == 'dues' %}<span class="ac-pay-status ac-pay-status--dues">Dues Pending</span>
+            {% elif payment_status == 'free' %}<span class="ac-pay-status ac-pay-status--free">Free</span>
+            {% elif payment_status == 'paid' %}<span class="ac-pay-status ac-pay-status--paid">No Dues</span>
+            {% else %}<span style="color:var(--dim);">Not billed</span>{% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div><!-- end ac-info-grid -->
+
+  <!-- ── Bottom: Billing + Reception Notes ────────────────────────── -->
+  <div class="ac-bottom-grid">
+
+    <!-- BILLING SUMMARY -->
+    <div class="ac-bottom-card">
+      <div class="ac-bottom-title">
+        <span style="display:flex;align-items:center;gap:6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Billing Summary
+        </span>
+        {% if bill %}
+          {% if bill.payment_mode and bill.payment_mode.value == 'free' %}<span class="ac-mode-badge ac-mode-badge--free">Free</span>
+          {% elif bill.payment_mode %}<span class="ac-mode-badge ac-mode-badge--{{ bill.payment_mode.value }}">{{ bill.payment_mode.value.upper() }}</span>
+          {% else %}<span class="ac-mode-badge">Pending</span>{% endif %}
+        {% else %}<span class="ac-mode-badge">Not billed</span>{% endif %}
+      </div>
+      {% if bill %}
+      <div class="ac-bill-list">
+        <div class="ac-bill-head-row"><span>Description</span><span>Amount</span></div>
+        {% if bill.items %}
+          {% for item in bill.items %}
+          <div class="ac-bill-item-row"><span>{{ item.description }}</span><span>₹{{ "{:,.0f}".format(item.unit_price|float) }}</span></div>
+          {% endfor %}
+        {% else %}
+        <div class="ac-bill-item-row">
+          <span>Consultation{% if visit and visit.source %} ({{ visit.source.value.replace("_","-").title() }}){% endif %}</span>
+          <span>₹{{ "{:,.0f}".format(bill.subtotal|float) }}</span>
+        </div>
+        {% endif %}
+        {% if bill.discount and bill.discount|float > 0 %}
+        <div class="ac-bill-item-row ac-bill-discount-row"><span>Discount</span><span>− ₹{{ "{:,.0f}".format(bill.discount|float) }}</span></div>
+        {% endif %}
+        <div class="ac-bill-total-row"><span>Total Paid</span><span>₹{{ "{:,.0f}".format(bill.total|float) }}</span></div>
+      </div>
+      <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="openEditBill()">Edit Payment</button>
+      </div>
+      {% else %}
+      <div style="font-size:13px;color:var(--dim);padding:16px 0;font-style:italic;">No billing record for this appointment.</div>
+      {% endif %}
+    </div>
+
+    <!-- RECEPTION NOTES -->
+    <div class="ac-bottom-card">
+      <div class="ac-bottom-title">
+        <span style="display:flex;align-items:center;gap:6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Reception Notes
+        </span>
+      </div>
+      <textarea id="receptionNotesText" placeholder="Add a note…" maxlength="300" oninput="updateNoteCounter()"
+                style="width:100%;min-height:100px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);font-size:13px;line-height:1.5;resize:vertical;box-sizing:border-box;font-family:inherit;">{{ appt.reception_notes or '' }}</textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
+        <span id="noteCounter" style="font-size:11px;color:var(--dim);">{{ (appt.reception_notes or '')|length }} / 300</span>
+        <button type="button" class="btn btn-primary btn-sm" onclick="saveReceptionNotes({{ appt.id }})">Save Note</button>
+      </div>
+      <div id="noteSaved" style="display:none;font-size:12px;color:#22c55e;margin-top:6px;">✓ Saved</div>
+      {% if appt.doctor_notes %}
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:6px;">Doctor Notes</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.5;">{{ appt.doctor_notes }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Delete Confirm ───────────────────────────────────────────── -->
+  <div id="acDeleteConfirm" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.82);border-radius:20px;z-index:20;align-items:center;justify-content:center;flex-direction:column;">
+    <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:36px;max-width:360px;width:calc(100% - 40px);text-align:center;">
+      <div style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;margin-bottom:10px;color:var(--text);">Delete Appointment?</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.6;">
+        Permanently remove appointment for <strong style="color:var(--text);">{{ patient.name }}</strong> on {{ appt.appointment_date.strftime("%d %b %Y") }}. Cannot be undone.
+      </p>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('acDeleteConfirm').style.display='none'">Cancel</button>
+        <form method="post" action="/appointments/{{ appt.id }}/delete" style="margin:0;">
+          <button type="submit" class="btn btn-danger btn-sm">Yes, Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end ac-wrap -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     EDIT PANEL — slides in over the card when Edit is clicked
+══════════════════════════════════════════════════════════════════ -->
+<div id="acEditPanel" style="display:none;">
+  <div class="ac-edit-header">
+    <div>
+      <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text);">Edit Appointment</div>
+      <div style="font-size:12px;color:var(--dim);margin-top:2px;">{{ patient.name }} · #{{ appt.id }}</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button type="button" class="btn btn-primary btn-sm" onclick="submitCardEdit({{ appt.id }})">Save Changes</button>
+      <button type="button" class="ac-action-btn" onclick="closeEditPanel()">Cancel</button>
+    </div>
+  </div>
+
+  <form id="acEditForm">
+
+    <!-- Section: Patient Info -->
+    <div class="ac-edit-section">
+      <div class="ac-edit-section-title">Patient Information</div>
+      <div class="ac-edit-grid">
+        <div class="ac-edit-field">
+          <label>Full Name</label>
+          <input type="text" name="patient_name" value="{{ patient.name }}" placeholder="Patient name">
+        </div>
+        <div class="ac-edit-field">
+          <label>Phone Number</label>
+          <input type="text" name="patient_phone" value="{{ patient.phone }}" placeholder="10-digit phone">
+        </div>
+        <div class="ac-edit-field">
+          <label>Age</label>
+          <input type="number" name="age" value="{{ patient.age or '' }}" min="0" max="120" placeholder="e.g. 35">
+        </div>
+        <div class="ac-edit-field">
+          <label>Gender</label>
+          <select name="gender">
+            <option value="">— Not specified —</option>
+            <option value="male"   {% if patient.gender and patient.gender.lower()=='male'   %}selected{% endif %}>Male</option>
+            <option value="female" {% if patient.gender and patient.gender.lower()=='female' %}selected{% endif %}>Female</option>
+            <option value="other"  {% if patient.gender and patient.gender.lower()=='other'  %}selected{% endif %}>Other</option>
+          </select>
+        </div>
+        <div class="ac-edit-field">
+          <label>Blood Group</label>
+          <select name="blood_group">
+            <option value="">— Not recorded —</option>
+            {% for bg in ["A+","A-","B+","B-","AB+","AB-","O+","O-"] %}
+            <option value="{{ bg }}" {% if patient.blood_group == bg %}selected{% endif %}>{{ bg }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="ac-edit-field">
+          <label>Preferred Contact</label>
+          <select name="preferred_contact">
+            <option value="phone"    {% if (patient.preferred_contact or 'phone')=='phone'    %}selected{% endif %}>Phone</option>
+            <option value="whatsapp" {% if (patient.preferred_contact or '')=='whatsapp' %}selected{% endif %}>WhatsApp</option>
+            <option value="email"    {% if (patient.preferred_contact or '')=='email'    %}selected{% endif %}>Email</option>
+          </select>
+        </div>
+        <div class="ac-edit-field" style="grid-column:span 2;">
+          <label>Known Allergies</label>
+          <input type="text" name="allergies" value="{{ patient.allergies or '' }}" placeholder="e.g. Penicillin, Aspirin — or leave blank">
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Appointment Details -->
+    <div class="ac-edit-section">
+      <div class="ac-edit-section-title">Appointment Details</div>
+      <div class="ac-edit-grid">
+        <div class="ac-edit-field">
+          <label>Date</label>
+          <input type="date" name="appointment_date" value="{{ appt.appointment_date.isoformat() }}">
+        </div>
+        <div class="ac-edit-field">
+          <label>Time</label>
+          <input type="time" name="appointment_time" value="{{ appt.appointment_time.strftime('%H:%M') }}">
+        </div>
+        <div class="ac-edit-field">
+          <label>Duration (mins)</label>
+          <input type="number" name="duration_mins" value="{{ appt.duration_mins }}" min="5" max="180" step="5">
+        </div>
+        <div class="ac-edit-field">
+          <label>Visit Type</label>
+          <select name="appointment_type">
+            <option value="new_patient"    {% if appt.appointment_type.value=='new_patient'    %}selected{% endif %}>New Patient</option>
+            <option value="follow_up"      {% if appt.appointment_type.value=='follow_up'      %}selected{% endif %}>Follow Up</option>
+            <option value="routine_checkup"{% if appt.appointment_type.value=='routine_checkup'%}selected{% endif %}>Routine Checkup</option>
+            <option value="emergency"      {% if appt.appointment_type.value=='emergency'      %}selected{% endif %}>Emergency</option>
+            <option value="consultation"   {% if appt.appointment_type.value=='consultation'   %}selected{% endif %}>Consultation</option>
+          </select>
+        </div>
+        <div class="ac-edit-field">
+          <label>Follow-Up Date</label>
+          <input type="date" name="follow_up_date" value="{{ appt.follow_up_date.isoformat() if appt.follow_up_date else '' }}">
+        </div>
+        <div class="ac-edit-field" style="grid-column:span 2;">
+          <label>Patient Notes</label>
+          <input type="text" name="patient_notes" value="{{ appt.patient_notes or '' }}" placeholder="Notes visible to patient">
+        </div>
+        <div class="ac-edit-field" style="grid-column:span 2;">
+          <label>Doctor Notes</label>
+          <textarea name="doctor_notes" rows="3" placeholder="Private notes for the doctor">{{ appt.doctor_notes or '' }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div id="acEditSaved" style="display:none;font-size:13px;color:#22c55e;text-align:center;margin:8px 0;">✓ Changes saved successfully</div>
+    <div id="acEditError" style="display:none;font-size:13px;color:#ef4444;text-align:center;margin:8px 0;"></div>
+
+  </form>
+</div>
+
+
+<!-- Edit Bill Modal -->
+{% if bill %}
+<div class="ac-bill-modal-wrap" id="editBillModal" onclick="if(event.target===this)closeEditBill()">
+  <div class="ac-bill-modal-box">
+
+    <!-- Header -->
+    <div class="acm-header">
+      <div class="acm-header-left">
+        <div class="acm-title">Edit Payment</div>
+        <div class="acm-sub">{{ patient.name }}</div>
+      </div>
+      <button type="button" class="acm-close" onclick="closeEditBill()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Quick-add pinned items -->
+    {% set pinned = price_catalog | selectattr("is_pinned") | list %}
+    {% if pinned %}
+    <div class="acm-quickadd">
+      <div class="acm-quickadd-label">Quick Add</div>
+      <div class="acm-quickadd-pills">
+        {% for item in pinned %}
+        <button type="button" class="acm-pill" onclick="addEditItem('{{ item.name }}', {{ item.default_price }})">
+          + {{ item.name }} <span class="acm-pill-price">₹{{ "{:,.0f}".format(item.default_price) }}</span>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/bills/{{ bill.id }}/edit">
+
+      <!-- Items section -->
+      <div class="acm-section">
+        <div class="acm-section-header">
+          <div class="acm-section-title">Items &amp; Services</div>
+          <button type="button" class="acm-add-btn" onclick="addEditItem()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Item
+          </button>
+        </div>
+        <!-- Column headers -->
+        <div class="acm-item-head">
+          <span>Description</span>
+          <span>Amount (₹)</span>
+          <span></span>
+        </div>
+        <div id="editBillItemsList" class="acm-item-list">
+          {% if bill.items %}
+            {% for item in bill.items %}
+            <div class="acm-item-row">
+              <input type="text"   name="item_name"  class="acm-input acm-input-name"  value="{{ item.description }}" placeholder="Service name">
+              <input type="text"   name="item_price" class="acm-input acm-input-price bill-item-price" inputmode="numeric" value="{{ item.unit_price|int }}" oninput="updateEditTotal()" placeholder="0">
+              <button type="button" class="acm-remove-btn" onclick="removeEditItem(this)" title="Remove">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            {% endfor %}
+          {% else %}
+          <div class="acm-item-row">
+            <input type="text"   name="item_name"  class="acm-input acm-input-name"  value="Consultation" placeholder="Service name">
+            <input type="text"   name="item_price" class="acm-input acm-input-price bill-item-price" inputmode="numeric" value="{{ bill.subtotal|int }}" oninput="updateEditTotal()" placeholder="0">
+            <button type="button" class="acm-remove-btn" onclick="removeEditItem(this)" title="Remove" style="visibility:hidden;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Discount + Payment Mode -->
+      <div class="acm-fields-grid">
+        <div class="acm-field">
+          <label class="acm-label">Discount (₹)</label>
+          <div class="acm-input-wrap">
+            <span class="acm-input-prefix">₹</span>
+            <input type="text" id="editDiscount" name="discount" class="acm-input acm-input-prefixed"
+                   inputmode="numeric" value="{{ bill.discount|int }}" oninput="updateEditTotal()" placeholder="0">
+          </div>
+        </div>
+        <div class="acm-field">
+          <label class="acm-label">Payment Mode</label>
+          <div class="acm-select-wrap">
+            <select name="payment_mode" class="acm-select">
+              <option value="cash"      {% if bill.payment_mode and bill.payment_mode.value=='cash'      %}selected{% endif %}>Cash</option>
+              <option value="upi"       {% if bill.payment_mode and bill.payment_mode.value=='upi'       %}selected{% endif %}>UPI</option>
+              <option value="card"      {% if bill.payment_mode and bill.payment_mode.value=='card'      %}selected{% endif %}>Card</option>
+              <option value="insurance" {% if bill.payment_mode and bill.payment_mode.value=='insurance' %}selected{% endif %}>Insurance</option>
+              <option value="free"      {% if bill.payment_mode and bill.payment_mode.value=='free'      %}selected{% endif %}>Free</option>
+            </select>
+            <svg class="acm-select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="acm-field acm-field--full">
+          <label class="acm-label">Notes <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--dim)">(optional)</span></label>
+          <input type="text" name="notes" class="acm-input" value="{{ bill.notes or '' }}" placeholder="e.g. follow-up in 7 days, paid by family…">
+        </div>
+      </div>
+
+      <!-- Total bar -->
+      <div class="acm-total-bar">
+        <div class="acm-total-left">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Total Payable
+        </div>
+        <div class="acm-total-amount" id="editBillTotal">₹{{ "{:,.0f}".format(bill.total) }}</div>
+      </div>
+
+      <!-- Actions -->
+      <div class="acm-actions">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeEditBill()">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endif %}
+
+
+<script>
+/* ── Edit panel ── */
+function openEditPanel() {
+  document.getElementById('acMainView').style.display  = 'none';
+  document.getElementById('acEditPanel').style.display = 'block';
+  document.getElementById('apptCardContainer').scrollTop = 0;
+}
+function closeEditPanel() {
+  document.getElementById('acEditPanel').style.display = 'none';
+  document.getElementById('acMainView').style.display  = 'block';
+  document.getElementById('apptCardContainer').scrollTop = 0;
+}
+function submitCardEdit(apptId) {
+  const form    = document.getElementById('acEditForm');
+  const data    = new FormData(form);
+  const params  = new URLSearchParams();
+  data.forEach((v, k) => params.append(k, v));
+  const errEl  = document.getElementById('acEditError');
+  const savedEl = document.getElementById('acEditSaved');
+  errEl.style.display = 'none';
+  fetch('/appointments/' + apptId + '/card-save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      savedEl.style.display = 'block';
+      setTimeout(() => { reloadApptCard(apptId); }, 700);
+    } else {
+      errEl.textContent = d.error || 'Save failed.';
+      errEl.style.display = 'block';
+    }
+  })
+  .catch(() => { errEl.textContent = 'Network error.'; errEl.style.display = 'block'; });
+}
+
+/* ── Reception notes ── */
+function updateNoteCounter() {
+  const t = document.getElementById('receptionNotesText');
+  if (t) document.getElementById('noteCounter').textContent = t.value.length + ' / 300';
+}
+function saveReceptionNotes(apptId) {
+  const notes = document.getElementById('receptionNotesText').value;
+  fetch('/appointments/' + apptId + '/reception-notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'reception_notes=' + encodeURIComponent(notes),
+  }).then(r => r.json()).then(() => {
+    const s = document.getElementById('noteSaved');
+    s.style.display = 'block';
+    setTimeout(() => { s.style.display = 'none'; }, 2000);
+  });
+}
+
+/* ── Follow-up ── */
+function toggleFollowUp(id) {
+  const f = document.getElementById('followUpForm' + id);
+  const isVisible = f.style.display === 'flex';
+  f.style.display = isVisible ? 'none' : 'flex';
+}
+function saveFollowUp(apptId) {
+  const val = document.getElementById('followUpInput' + apptId).value;
+  fetch('/appointments/' + apptId + '/follow-up', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'follow_up_date=' + encodeURIComponent(val),
+  }).then(() => { reloadApptCard(apptId); });
+}
+
+/* ── Edit bill modal ── */
+function openEditBill() {
+  const m = document.getElementById('editBillModal');
+  if (m) { m.style.display = 'flex'; updateEditTotal(); }
+}
+function closeEditBill() {
+  const m = document.getElementById('editBillModal');
+  if (m) m.style.display = 'none';
+}
+function addEditItem(name, price) {
+  const list = document.getElementById('editBillItemsList');
+  const row  = document.createElement('div');
+  row.className = 'acm-item-row';
+  row.innerHTML =
+    '<input type="text" name="item_name" class="acm-input acm-input-name" value="'+(name||'')+'" placeholder="Service name">' +
+    '<input type="text" name="item_price" class="acm-input acm-input-price bill-item-price" inputmode="numeric" value="'+(price||'')+'" oninput="updateEditTotal()" placeholder="0">' +
+    '<button type="button" class="acm-remove-btn" onclick="removeEditItem(this)" title="Remove"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+  list.appendChild(row);
+  row.querySelector('.acm-input-name').focus();
+  updateEditTotal();
+}
+function removeEditItem(btn) {
+  const list = document.getElementById('editBillItemsList');
+  if (list.querySelectorAll('.acm-item-row').length > 1) {
+    btn.closest('.acm-item-row').remove(); updateEditTotal();
+  }
+}
+function updateEditTotal() {
+  let sub = 0;
+  document.querySelectorAll('#editBillItemsList .bill-item-price').forEach(el => { sub += parseFloat(el.value)||0; });
+  const disc  = parseFloat((document.getElementById('editDiscount')||{value:'0'}).value)||0;
+  const total = Math.max(0, sub - disc);
+  const fmt   = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+  const el    = document.getElementById('editBillTotal');
+  if (el) el.textContent = '₹' + fmt.format(total);
+}
+</script>

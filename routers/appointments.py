@@ -492,6 +492,183 @@ def appointment_detail(
 
 
 # ------------------------------------------------------------------ #
+#  Appointment Card Partial — GET (for floating overlay)               #
+# ------------------------------------------------------------------ #
+
+@router.get("/{appt_id}/card", response_class=HTMLResponse)
+def appointment_card(
+    appt_id: int,
+    request: Request,
+    doctor: Doctor = Depends(get_appt_doctor),
+    db: Session = Depends(get_db),
+):
+    appt = db.query(Appointment).filter(
+        Appointment.id == appt_id,
+        Appointment.doctor_id == doctor.id,
+    ).first()
+    if not appt:
+        return HTMLResponse("<div style='padding:40px;text-align:center;color:var(--muted)'>Appointment not found.</div>")
+
+    _ = appt.patient  # eager-load
+
+    visit = db.query(Visit).filter(Visit.appointment_id == appt.id).first()
+    bill  = db.query(Bill).filter(Bill.visit_id == visit.id).first() if visit else None
+    if bill:
+        _ = bill.items  # eager-load bill items
+
+    price_catalog = (
+        db.query(PriceCatalog)
+        .filter(PriceCatalog.doctor_id == doctor.id, PriceCatalog.is_active == True)
+        .order_by(PriceCatalog.sort_order, PriceCatalog.name)
+        .all()
+    )
+
+    # Payment status
+    if bill and float(bill.total or 0) > 0 and float(bill.paid_amount or 0) == 0:
+        payment_status = "dues"
+    elif bill and bill.payment_mode and bill.payment_mode.value == "free":
+        payment_status = "free"
+    elif bill:
+        payment_status = "paid"
+    else:
+        payment_status = "none"
+
+    # Initials for avatar
+    words    = (appt.patient.name or "?").split()
+    initials = (words[0][0] + (words[-1][0] if len(words) > 1 else "")).upper()
+
+    return templates.TemplateResponse(request, "appointment_card.html", {
+        "appt":           appt,
+        "patient":        appt.patient,
+        "visit":          visit,
+        "bill":           bill,
+        "price_catalog":  price_catalog,
+        "payment_status": payment_status,
+        "initials":       initials,
+        "AppointmentStatus": AppointmentStatus,
+        "today":          date.today(),
+    })
+
+
+# ------------------------------------------------------------------ #
+#  Save Reception Notes — POST                                         #
+# ------------------------------------------------------------------ #
+
+@router.post("/{appt_id}/reception-notes")
+async def save_reception_notes(
+    appt_id: int,
+    request: Request,
+    doctor: Doctor = Depends(get_appt_doctor),
+    db: Session = Depends(get_db),
+):
+    form  = await request.form()
+    notes = (form.get("reception_notes") or "").strip()
+    appt  = db.query(Appointment).filter(
+        Appointment.id == appt_id,
+        Appointment.doctor_id == doctor.id,
+    ).first()
+    if appt:
+        appt.reception_notes = notes or None
+        db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ------------------------------------------------------------------ #
+#  Card — Full Edit Save — POST                                        #
+# ------------------------------------------------------------------ #
+
+@router.post("/{appt_id}/card-save")
+async def card_save(
+    appt_id: int,
+    request: Request,
+    doctor: Doctor = Depends(get_appt_doctor),
+    db: Session = Depends(get_db),
+):
+    form = await request.form()
+    appt = db.query(Appointment).filter(
+        Appointment.id == appt_id,
+        Appointment.doctor_id == doctor.id,
+    ).first()
+    if not appt:
+        return JSONResponse({"ok": False, "error": "Not found"}, status_code=404)
+
+    patient = appt.patient
+
+    # ── Patient fields ─────────────────────────────────────────────
+    name = (form.get("patient_name") or "").strip()
+    if name:
+        patient.name = name
+    phone = (form.get("patient_phone") or "").strip()
+    if phone:
+        patient.phone = phone
+    age_raw = (form.get("age") or "").strip()
+    patient.age = int(age_raw) if age_raw.isdigit() else None
+    patient.gender              = (form.get("gender") or "").strip() or None
+    patient.blood_group         = (form.get("blood_group") or "").strip() or None
+    patient.allergies           = (form.get("allergies") or "").strip() or None
+    patient.preferred_contact   = (form.get("preferred_contact") or "phone").strip()
+
+    # ── Appointment fields ──────────────────────────────────────────
+    appt_date_raw = (form.get("appointment_date") or "").strip()
+    appt_time_raw = (form.get("appointment_time") or "").strip()
+    try:
+        if appt_date_raw:
+            appt.appointment_date = date.fromisoformat(appt_date_raw)
+    except ValueError:
+        pass
+    try:
+        if appt_time_raw:
+            appt.appointment_time = time.fromisoformat(appt_time_raw)
+    except ValueError:
+        pass
+    dur_raw = (form.get("duration_mins") or "").strip()
+    if dur_raw.isdigit():
+        appt.duration_mins = int(dur_raw)
+    appt_type_raw = (form.get("appointment_type") or "").strip()
+    if appt_type_raw:
+        try:
+            appt.appointment_type = AppointmentType(appt_type_raw)
+        except ValueError:
+            pass
+    appt.patient_notes  = (form.get("patient_notes") or "").strip() or None
+    appt.doctor_notes   = (form.get("doctor_notes") or "").strip() or None
+    fu_raw = (form.get("follow_up_date") or "").strip()
+    try:
+        appt.follow_up_date = date.fromisoformat(fu_raw) if fu_raw else None
+    except ValueError:
+        pass
+
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ------------------------------------------------------------------ #
+#  Save Follow-up Date — POST                                          #
+# ------------------------------------------------------------------ #
+
+@router.post("/{appt_id}/follow-up")
+async def save_follow_up(
+    appt_id: int,
+    request: Request,
+    doctor: Doctor = Depends(get_appt_doctor),
+    db: Session = Depends(get_db),
+):
+    form = await request.form()
+    fu   = (form.get("follow_up_date") or "").strip()
+    appt = db.query(Appointment).filter(
+        Appointment.id == appt_id,
+        Appointment.doctor_id == doctor.id,
+    ).first()
+    if appt:
+        try:
+            appt.follow_up_date = date.fromisoformat(fu) if fu else None
+        except ValueError:
+            appt.follow_up_date = None
+        db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ------------------------------------------------------------------ #
 #  Update Status — POST                                                #
 # ------------------------------------------------------------------ #
 
