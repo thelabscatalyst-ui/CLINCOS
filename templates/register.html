@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Create Account — ClinicOS</title>
-  <link rel="stylesheet" href="/static/css/main.css?v=40" />
+  <link rel="stylesheet" href="/static/css/main.css?v=110" />
 </head>
 <body>
 
@@ -70,6 +70,23 @@
         <input type="hidden" name="clinic_invite" value="{{ clinic_invite }}">
         {% endif %}
 
+        {% if not joining_clinic %}
+        <!-- Account type selector -->
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+          <button type="button" id="btnSolo" onclick="setMode('solo')"
+            style="flex:1;padding:10px 8px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-3);color:var(--text);font-size:0.82rem;font-weight:600;cursor:pointer;transition:var(--transition-pop);"
+            class="reg-mode-btn reg-mode-btn--active">
+            Solo Doctor
+          </button>
+          <button type="button" id="btnClinic" onclick="setMode('clinic')"
+            style="flex:1;padding:10px 8px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-3);color:var(--text);font-size:0.82rem;font-weight:600;cursor:pointer;transition:var(--transition-pop);"
+            class="reg-mode-btn">
+            Clinic Account
+          </button>
+        </div>
+        <input type="hidden" name="account_type" id="account_type" value="solo">
+        {% endif %}
+
         <div class="form-group">
           <label for="name">Full name *</label>
           <input
@@ -127,8 +144,8 @@
         </div>
 
         {% if not joining_clinic %}
-        <div class="form-group">
-          <label for="clinic_name">Clinic name</label>
+        <div class="form-group" id="clinicNameGroup" style="display:none;">
+          <label for="clinic_name">Clinic name *</label>
           <input
             type="text"
             id="clinic_name"
@@ -164,5 +181,30 @@
   </div>
 
 </div>
+<script>
+function setMode(mode) {
+  document.getElementById('account_type').value = mode;
+
+  const btnSolo   = document.getElementById('btnSolo');
+  const btnClinic = document.getElementById('btnClinic');
+  const clinicGrp = document.getElementById('clinicNameGroup');
+  if (!btnSolo) return;
+
+  const activeStyle = 'border-color:var(--text);background:var(--bg-2);';
+  const idleStyle   = 'border-color:var(--border);background:var(--bg-3);';
+
+  if (mode === 'clinic') {
+    btnClinic.setAttribute('style', btnClinic.getAttribute('style').replace(/border-color:[^;]+;background:[^;]+;/, '') + activeStyle);
+    btnSolo.setAttribute('style',   btnSolo.getAttribute('style').replace(/border-color:[^;]+;background:[^;]+;/, '')   + idleStyle);
+    if (clinicGrp) { clinicGrp.style.display = 'block'; }
+  } else {
+    btnSolo.setAttribute('style',   btnSolo.getAttribute('style').replace(/border-color:[^;]+;background:[^;]+;/, '')   + activeStyle);
+    btnClinic.setAttribute('style', btnClinic.getAttribute('style').replace(/border-color:[^;]+;background:[^;]+;/, '') + idleStyle);
+    if (clinicGrp) { clinicGrp.style.display = 'none'; }
+  }
+}
+// Init default
+setMode('solo');
+</script>
 </body>
 </html>

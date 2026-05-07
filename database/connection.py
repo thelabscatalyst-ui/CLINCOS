@@ -282,3 +282,15 @@ def _run_migrations():
         _add_column(conn, "ALTER TABLE appointments ADD COLUMN reception_notes TEXT")
         _add_column(conn, "ALTER TABLE appointments ADD COLUMN follow_up_date DATE")
         conn.commit()
+
+        # ── v3: clinic plan management columns ───────────────────────────────
+        _add_column(conn, "ALTER TABLE clinics ADD COLUMN plan_grace_until DATETIME")
+        _add_column(conn, "ALTER TABLE clinics ADD COLUMN max_doctors INTEGER DEFAULT 1")
+        _add_column(conn, "ALTER TABLE clinics ADD COLUMN max_staff INTEGER DEFAULT 2")
+        _add_column(conn, "ALTER TABLE clinics ADD COLUMN billing_access_staff BOOLEAN DEFAULT 0")
+        # Backfill: solo-plan clinics keep max_doctors=1; set Clinic plan ones to 5
+        conn.execute(text(
+            "UPDATE clinics SET max_doctors = 5, max_staff = 999 "
+            "WHERE plan_type = 'clinic'"
+        ))
+        conn.commit()

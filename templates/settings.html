@@ -281,7 +281,9 @@
     <div>
       <div class="settings-card-title">Subscription</div>
       <div class="settings-card-sub">
-        {% if plan_status == 'trial' %}
+        {% if is_clinic_associate %}
+          Access covered by clinic
+        {% elif plan_status == 'trial' %}
           Free Trial — {{ plan_days }} day{{ 's' if plan_days != 1 }} remaining
         {% elif plan_status == 'solo' %}
           Solo Plan — renews in {{ plan_days }} day{{ 's' if plan_days != 1 }}
@@ -294,8 +296,9 @@
         {% endif %}
       </div>
     </div>
-    <span class="sub-status-badge sub-status-badge--{{ plan_status }}">
-      {% if plan_status == 'trial' %}Free Trial
+    <span class="sub-status-badge sub-status-badge--{{ 'solo' if is_clinic_associate else plan_status }}">
+      {% if is_clinic_associate %}Clinic
+      {% elif plan_status == 'trial' %}Free Trial
       {% elif plan_status == 'solo' %}Solo
       {% elif plan_status == 'basic' %}Basic
       {% elif plan_status == 'pro' %}Pro
@@ -303,10 +306,94 @@
     </span>
   </div>
 
-  {% if plan_status == 'solo' %}
-    <!-- Solo — show renew -->
+  {% if is_clinic_associate %}
+    <!-- ── ASSOCIATE DOCTOR — no billing, covered by clinic ─────────── -->
+    <div style="display:flex;align-items:flex-start;gap:14px;padding:18px 20px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);flex-shrink:0;margin-top:1px;">
+        <circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/>
+      </svg>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">
+          Your access is managed by the clinic
+        </div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">
+          {% if assoc_clinic_name %}
+            You are a member of <strong style="color:var(--text);">{{ assoc_clinic_name }}</strong>.
+          {% endif %}
+          Subscription payments and billing are handled by the clinic owner — there's nothing you need to do here.
+        </div>
+      </div>
+    </div>
+
+  {% elif is_clinic_account %}
+    <!-- ── CLINIC PLAN SECTION ──────────────────────────────────────── -->
+    {% if plan_status == 'solo' or plan_status == 'basic' or plan_status == 'pro' %}
+    <!-- Clinic owner on a legacy personal plan — nudge to clinic billing -->
     <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-      Solo plan is active. PIN protection, walk-ins, and all features included.
+      You're managing a clinic. Renew the Clinic plan to keep all doctors active.
+    </p>
+    {% if razorpay_configured %}
+    <button type="button" class="btn btn-secondary btn-sm"
+            onclick="settingsPayment('clinic', 149900)">
+      Renew Clinic Plan — ₹1,499/mo
+    </button>
+    {% else %}
+    <a href="/billing" class="btn btn-secondary btn-sm">Manage Plan</a>
+    {% endif %}
+
+    {% elif plan_status == 'expired' %}
+    <p style="font-size:13px;color:#f87171;margin-bottom:16px;">
+      Your Clinic plan has expired. Renew to restore access for all doctors.
+    </p>
+    {% if razorpay_configured %}
+    <button type="button" class="btn btn-primary btn-sm"
+            onclick="settingsPayment('clinic', 149900)">
+      Renew Clinic Plan — ₹1,499/mo
+    </button>
+    {% else %}
+    <a href="/billing" class="btn btn-primary btn-sm">Manage Plan</a>
+    {% endif %}
+
+    {% else %}
+    <!-- Trial or active clinic plan -->
+    {% if plan_status == 'trial' %}
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      Subscribe to keep your clinic and all doctors running after the trial ends.
+    </p>
+    {% endif %}
+
+    <div class="sub-plan-horizontal">
+      <div class="sub-left">
+        <div class="sub-plan-name">Clinic <span class="sub-pro-tag">Your Plan</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:18px;">Multi-doctor clinic management</div>
+        <div class="sub-plan-price">₹1,499 <span>/month</span></div>
+        {% if razorpay_configured %}
+        <button type="button" class="btn btn-primary btn-sm"
+                onclick="settingsPayment('clinic', 149900)">Subscribe</button>
+        {% else %}
+        <a href="/billing" class="btn btn-primary btn-sm">Subscribe</a>
+        {% endif %}
+      </div>
+      <div class="sub-divider"></div>
+      <div class="sub-right">
+        <ul class="sub-features-grid">
+          <li>Up to 5 doctors in one clinic</li>
+          <li>Unified clinic public booking page</li>
+          <li>Clinic admin dashboard</li>
+          <li>All Solo features for every doctor</li>
+          <li>Shared patient records &amp; queue</li>
+          <li>Token &amp; walk-in queue per doctor</li>
+        </ul>
+      </div>
+    </div>
+    {% endif %}
+
+  {% else %}
+    <!-- ── SOLO PLAN SECTION ─────────────────────────────────────────── -->
+    {% if plan_status == 'solo' %}
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      Solo plan is active. All features included.
     </p>
     {% if razorpay_configured %}
     <button type="button" class="btn btn-secondary btn-sm"
@@ -315,8 +402,7 @@
     </button>
     {% endif %}
 
-  {% elif plan_status == 'pro' %}
-    <!-- Pro (legacy) — show renew -->
+    {% elif plan_status == 'pro' %}
     <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
       You're on the legacy Pro plan. Your features are fully active.
     </p>
@@ -327,24 +413,21 @@
     </button>
     {% endif %}
 
-  {% elif plan_status == 'basic' %}
-    <!-- Basic (legacy) — offer upgrade to Solo -->
+    {% elif plan_status == 'basic' %}
     <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
       Upgrade to Solo for unlimited appointments, PIN protection, and walk-in booking.
     </p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      {% if razorpay_configured %}
-      <button type="button" class="btn btn-primary btn-sm"
-              onclick="settingsPayment('solo', 39900)">
-        Upgrade to Solo — ₹399/mo
-      </button>
-      {% else %}
-      <a href="/billing" class="btn btn-secondary btn-sm">Manage Plan</a>
-      {% endif %}
-    </div>
+    {% if razorpay_configured %}
+    <button type="button" class="btn btn-primary btn-sm"
+            onclick="settingsPayment('solo', 39900)">
+      Upgrade to Solo — ₹399/mo
+    </button>
+    {% else %}
+    <a href="/billing" class="btn btn-secondary btn-sm">Manage Plan</a>
+    {% endif %}
 
-  {% else %}
-    <!-- Trial or Expired — show Solo + Clinic plans -->
+    {% else %}
+    <!-- Trial or Expired — solo doctor sees Solo plan + upgrade hint -->
     {% if plan_status == 'expired' %}
     <p style="font-size:13px;color:#f87171;margin-bottom:16px;">
       Your access is paused. Subscribe to resume.
@@ -355,50 +438,39 @@
     </p>
     {% endif %}
 
-    <div class="sub-plan-box">
-      <div class="sub-plan-row">
-        <!-- Solo plan -->
-        <div class="sub-plan-option sub-plan-option--pro">
-          <div class="sub-plan-name">Solo <span class="sub-pro-tag">Recommended</span></div>
-          <div class="sub-plan-price">₹399 <span>/month</span></div>
-          <ul class="sub-plan-features">
-            <li>Unlimited appointments</li>
-            <li>WhatsApp &amp; SMS reminders</li>
-            <li>Public booking + patient records</li>
-            <li>Reports &amp; analytics</li>
-            <li>PIN protection for sensitive sections</li>
-            <li>Walk-in quick booking</li>
-          </ul>
-          {% if razorpay_configured %}
-          <button type="button" class="btn btn-primary btn-sm sub-plan-btn"
-                  onclick="settingsPayment('solo', 39900)">Subscribe</button>
-          {% else %}
-          <a href="/billing" class="btn btn-primary btn-sm sub-plan-btn">Subscribe</a>
-          {% endif %}
-        </div>
-
-        <div class="sub-plan-divider"></div>
-
-        <!-- Clinic plan -->
-        <div class="sub-plan-option">
-          <div class="sub-plan-name">Clinic</div>
-          <div class="sub-plan-price">₹1,499 <span>/month</span></div>
-          <ul class="sub-plan-features">
-            <li>Up to 5 doctors</li>
-            <li>Staff &amp; receptionist accounts</li>
-            <li>Unified clinic booking page</li>
-            <li>Clinic admin dashboard</li>
-            <li>Everything in Solo × all doctors</li>
-          </ul>
-          {% if razorpay_configured %}
-          <button type="button" class="btn btn-primary btn-sm sub-plan-btn"
-                  onclick="settingsPayment('clinic', 149900)">Subscribe</button>
-          {% else %}
-          <a href="/billing" class="btn btn-primary btn-sm sub-plan-btn">Subscribe</a>
-          {% endif %}
-        </div>
+    <div class="sub-plan-horizontal">
+      <div class="sub-left">
+        <div class="sub-plan-name">Solo <span class="sub-pro-tag">Recommended</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:18px;">Everything you need as an independent doctor</div>
+        <div class="sub-plan-price">₹399 <span>/month</span></div>
+        {% if razorpay_configured %}
+        <button type="button" class="btn btn-primary btn-sm"
+                onclick="settingsPayment('solo', 39900)">Subscribe</button>
+        {% else %}
+        <a href="/billing" class="btn btn-primary btn-sm">Subscribe</a>
+        {% endif %}
+      </div>
+      <div class="sub-divider"></div>
+      <div class="sub-right">
+        <ul class="sub-features-grid">
+          <li>Unlimited appointments</li>
+          <li>WhatsApp &amp; SMS reminders</li>
+          <li>Public booking link</li>
+          <li>Patient records &amp; history</li>
+          <li>Reports &amp; analytics</li>
+          <li>PIN protection</li>
+          <li>Walk-in quick booking</li>
+          <li>Token queue system</li>
+        </ul>
       </div>
     </div>
+
+    <!-- Upgrade hint for solo doctors who want multi-doctor -->
+    <div style="margin-top:20px;padding:14px 16px;background:var(--bg-3,var(--bg-2));border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--muted);">
+      <strong style="color:var(--text);font-size:13px;">Running a clinic with multiple doctors?</strong><br>
+      Contact us to upgrade to the Clinic Plan (₹1,499/mo) — manage up to 5 doctors under one roof with a shared booking page and admin dashboard.
+    </div>
+    {% endif %}
   {% endif %}
 </div>
 
@@ -456,12 +528,12 @@
       <div class="catalog-actions">
         <form method="POST" action="/price-catalog/{{ item.id }}/pin" style="display:inline;">
           <button type="submit" class="btn btn-secondary btn-xs" title="{{ 'Unpin' if item.is_pinned else 'Pin as quick button' }}">
-            {{ '★' if item.is_pinned else '☆' }}
+            {{ 'Unpin' if item.is_pinned else 'Pin' }}
           </button>
         </form>
         <form method="POST" action="/price-catalog/{{ item.id }}/delete" style="display:inline;"
               onsubmit="return confirm('Remove {{ item.name }}?')">
-          <button type="submit" class="btn btn-xs" style="color:var(--danger);border:1px solid rgba(248,113,113,.3);background:rgba(248,113,113,.07);">Remove</button>
+          <button type="submit" class="btn btn-secondary btn-xs" style="color:var(--danger);border-color:rgba(248,113,113,.3);">Remove</button>
         </form>
       </div>
     </div>
@@ -472,12 +544,12 @@
   {% endif %}
 
   <form method="POST" action="/price-catalog" class="catalog-add-form">
-    <input type="text" name="name" class="form-input" placeholder="e.g. New Patient Consultation" required style="flex:1;">
-    <input type="number" name="price" class="form-input" placeholder="₹ Amount" min="0" step="1" required style="width:130px;">
+    <input type="text" name="name" class="input-sm" placeholder="e.g. New Patient Consultation" required style="flex:1;min-width:200px;">
+    <input type="number" name="price" class="input-sm" placeholder="₹ Amount" min="0" step="1" required style="width:130px;">
     <label class="catalog-pin-label">
       <input type="checkbox" name="pinned" value="true"> Quick button
     </label>
-    <button type="submit" class="btn btn-secondary btn-sm">Add</button>
+    <button type="submit" class="btn btn-primary btn-sm">Add</button>
   </form>
 </div>
 
@@ -486,10 +558,6 @@
   <div class="settings-card-header" style="margin-bottom:20px;">
     <div>
       <div class="settings-card-title">PIN Protection</div>
-      <div class="settings-card-sub">
-        Set a 6-digit PIN to protect billing, reports, and settings — so a shared-login receptionist
-        can book appointments without seeing sensitive data.
-      </div>
     </div>
     {% if doctor.pin_hash %}
     <span class="badge badge--scheduled" style="font-size:12px;padding:4px 10px;">Enabled</span>
@@ -497,12 +565,6 @@
     <span class="badge badge--cancelled" style="font-size:12px;padding:4px 10px;">Not set</span>
     {% endif %}
   </div>
-
-  {% if not doctor.pin_hash %}
-  <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">
-    No PIN set. Anyone with your login can access all sections including billing and reports.
-  </p>
-  {% endif %}
 
   <form method="POST" action="/doctors/settings/pin">
     <input type="hidden" name="action" value="set" />
@@ -534,7 +596,7 @@
       </button>
       {% if doctor.pin_hash %}
       <button type="submit" name="action" value="remove" class="btn btn-secondary btn-sm"
-              onclick="return confirm('Remove PIN protection? Anyone with your login can access billing and reports.')">
+              onclick="return confirm('Remove PIN? Anyone using your login will be able to see income, billing, and reports.')">
         Remove PIN
       </button>
       {% endif %}

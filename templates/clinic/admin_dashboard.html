@@ -10,7 +10,6 @@
   </div>
   <div style="display:flex;gap:8px;">
     <a href="/clinic/admin/doctors" class="btn btn-secondary btn-sm">Manage Doctors</a>
-    <a href="/clinic/admin/staff" class="btn btn-secondary btn-sm">Manage Staff</a>
     <a href="/dashboard" class="btn btn-secondary btn-sm">My Dashboard</a>
   </div>
 </div>
@@ -26,11 +25,6 @@
     <div class="stat-label">Doctors</div>
     <div class="stat-value">{{ doctor_stats | length }}</div>
     <div class="stat-sub">active in clinic</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Staff</div>
-    <div class="stat-value">{{ staff_list | length }}</div>
-    <div class="stat-sub">receptionist / manager</div>
   </div>
   <div class="stat-card">
     <div class="stat-label">Plan</div>
@@ -83,41 +77,7 @@
     {% endfor %}
   </div>
   {% else %}
-  <p class="empty-state-text">No doctors in this clinic yet.</p>
-  {% endif %}
-</div>
-
-<!-- Staff List -->
-<div class="settings-card" style="margin-top:24px;">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-    <div class="info-section-title" style="margin-bottom:0;">Staff</div>
-    <a href="/clinic/admin/staff" class="btn btn-secondary btn-sm">Manage →</a>
-  </div>
-  {% if staff_list %}
-  <div class="info-grid">
-    {% for s in staff_list %}
-    <div class="info-card">
-      <div class="info-row">
-        <span class="info-label">Name</span>
-        <span class="info-value">{{ s.name }}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Email</span>
-        <span class="info-value">{{ s.email }}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Role</span>
-        <span class="info-value">{{ s.role | title }}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Status</span>
-        <span class="info-value">{{ "Active" if s.is_active else "Inactive" }}</span>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <p style="color:var(--muted);font-size:14px;">No staff yet. <a href="/clinic/admin/staff">Invite someone →</a></p>
+  <p class="empty-state-text">No doctors in this clinic yet. <a href="/clinic/admin/doctors">Add a doctor →</a></p>
   {% endif %}
 </div>
 

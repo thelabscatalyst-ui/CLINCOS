@@ -131,6 +131,57 @@
 
 </div>
 
+<!-- ── Pagination bar ── -->
+{% if total_other > per_page %}
+<div class="pt-bar">
+  <span class="pt-info">
+    Showing {{ page_start }}–{{ page_end }} of {{ total_other }} patient{{ "s" if total_other != 1 else "" }}
+  </span>
+  <div class="pt-pages">
+    {% set base_url = "/patients?sort=" ~ sort ~ ("&q=" ~ q if q else "") %}
+    <!-- Prev -->
+    {% if page > 1 %}
+    <a href="{{ base_url }}&page={{ page - 1 }}" class="pt-btn pt-btn--arrow" aria-label="Previous">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </a>
+    {% else %}
+    <span class="pt-btn pt-btn--arrow pt-btn--disabled">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </span>
+    {% endif %}
+    <!-- Page numbers (window of 5) -->
+    {% set win_start = [1, page - 2] | max %}
+    {% set win_end   = [total_pages, win_start + 4] | min %}
+    {% set win_start = [1, win_end - 4] | max %}
+    {% if win_start > 1 %}
+      <a href="{{ base_url }}&page=1" class="pt-btn">1</a>
+      {% if win_start > 2 %}<span class="pt-ellipsis">…</span>{% endif %}
+    {% endif %}
+    {% for p in range(win_start, win_end + 1) %}
+      {% if p == page %}
+        <span class="pt-btn pt-btn--active">{{ p }}</span>
+      {% else %}
+        <a href="{{ base_url }}&page={{ p }}" class="pt-btn">{{ p }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if win_end < total_pages %}
+      {% if win_end < total_pages - 1 %}<span class="pt-ellipsis">…</span>{% endif %}
+      <a href="{{ base_url }}&page={{ total_pages }}" class="pt-btn">{{ total_pages }}</a>
+    {% endif %}
+    <!-- Next -->
+    {% if page < total_pages %}
+    <a href="{{ base_url }}&page={{ page + 1 }}" class="pt-btn pt-btn--arrow" aria-label="Next">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </a>
+    {% else %}
+    <span class="pt-btn pt-btn--arrow pt-btn--disabled">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 {% elif q %}
 <div class="empty-state">
   <div class="empty-icon">
@@ -176,7 +227,8 @@ if (searchInput) {
     timer = setTimeout(async () => {
       const q    = searchInput.value;
       const sort = new URLSearchParams(window.location.search).get('sort') || 'last_seen';
-      const url  = '/patients?sort=' + sort + (q ? '&q=' + encodeURIComponent(q) : '');
+      // always reset to page 1 on new search
+      const url  = '/patients?sort=' + sort + (q ? '&q=' + encodeURIComponent(q) : '') + '&page=1';
       history.pushState({}, '', url);
       const res  = await fetch(url, { headers: { 'X-Requested-With': 'fetch' } });
       const html = await res.text();

@@ -15,7 +15,6 @@
     </h1>
     <div class="page-date">
       {{ view_date.strftime("%A, %d %B %Y") }}
-      {% if is_today %}<span class="badge badge--scheduled" style="font-size:10px;vertical-align:middle;margin-left:6px;">Today</span>{% endif %}
     </div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;">
@@ -23,7 +22,11 @@
     <a href="/appointments" class="btn btn-secondary btn-sm">My View</a>
     {% endif %}
     {% if is_today %}
+    {% if walkin_available %}
     <button type="button" class="btn btn-secondary btn-sm" id="walkinToggleBtn" onclick="toggleWalkin()">+ Walk-in</button>
+    {% else %}
+    <button type="button" class="btn btn-secondary btn-sm" id="walkinToggleBtn" disabled title="Outside working hours" style="opacity:0.38;cursor:not-allowed;pointer-events:none;">+ Walk-in</button>
+    {% endif %}
     {% endif %}
     <a href="/appointments/new?prefill_date={{ view_date.isoformat() }}" class="btn btn-primary btn-sm">+ New</a>
   </div>
@@ -36,8 +39,10 @@
     <span style="color:var(--muted);font-size:12px;letter-spacing:.04em;text-transform:uppercase;">Doctor</span>
     {% for doc in clinic_doctors %}
     <a href="/appointments?doctor_id={{ doc.id }}&filter_date={{ view_date.isoformat() }}"
-       class="btn btn-sm {% if doc.id == vd.id %}btn-primary{% else %}btn-secondary{% endif %}">
+       class="btn btn-sm {% if doc.id == vd.id %}btn-primary{% else %}btn-secondary{% endif %} doc-selector-btn"
+       {% if doc.specialization %}data-spec="{{ doc.specialization }}"{% endif %}>
       Dr. {{ doc.name.split()[0] }}
+      {% if doc.specialization %}<span class="doc-spec-tip">( {{ doc.specialization }} )</span>{% endif %}
     </a>
     {% endfor %}
   </div>
@@ -482,20 +487,19 @@
     <!-- Pinned quick-fill buttons from catalog -->
     <div id="pinnedItems" class="bill-pinned-row"></div>
 
-    <form method="POST" id="billForm">
+    <form method="POST" id="billForm" style="display:flex;flex-direction:column;gap:16px;">
       <input type="hidden" id="billVisitId">
 
       <!-- Line items -->
       <div class="bill-items-section">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <span class="form-label" style="margin:0;">Items / Services</span>
           <button type="button" class="btn btn-secondary btn-xs" onclick="addBillItem()">+ Add Item</button>
         </div>
         <div id="billItemsList">
-          <!-- One default consultation row -->
           <div class="bill-item-row" id="billItemRow0">
             <input type="text" name="item_name" class="form-input" placeholder="Consultation" style="flex:1;" value="Consultation">
-            <input type="number" name="item_price" id="billFee" class="form-input bill-item-price" placeholder="₹" min="0" step="1" style="width:110px;" oninput="updateTotal()" required>
+            <input type="number" name="item_price" id="billFee" class="form-input bill-item-price" placeholder="₹ Amount" min="0" step="1" style="width:120px;" oninput="updateTotal()" required>
             <button type="button" class="bill-item-remove" onclick="removeBillItem(this)" style="display:none;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -503,13 +507,13 @@
         </div>
       </div>
 
-      <!-- Discount + payment mode + notes -->
-      <div class="bill-fields" style="margin-top:14px;">
-        <div class="form-group">
+      <!-- Discount + payment mode -->
+      <div class="bill-fields" style="margin:0;">
+        <div>
           <label class="form-label">Discount (₹)</label>
           <input type="number" id="billDiscount" name="discount" class="form-input" min="0" step="1" value="0" oninput="updateTotal()">
         </div>
-        <div class="form-group">
+        <div>
           <label class="form-label">Payment Mode</label>
           <select id="billMode" name="payment_mode" class="form-input form-select">
             <option value="cash">Cash</option>
@@ -518,8 +522,8 @@
             <option value="insurance">Insurance</option>
           </select>
         </div>
-        <div class="form-group" style="grid-column:span 2;">
-          <label class="form-label">Notes (optional)</label>
+        <div style="grid-column:span 2;">
+          <label class="form-label">Notes</label>
           <input type="text" id="billNotes" name="notes" class="form-input" placeholder="e.g. follow-up in 7 days">
         </div>
       </div>
@@ -531,7 +535,7 @@
 
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary btn-sm" onclick="closeBillModal()">Cancel</button>
-        <button type="submit" class="btn btn-primary btn-sm">Save & Close Visit</button>
+        <button type="submit" class="btn btn-primary btn-sm">Save &amp; Close Visit</button>
       </div>
 
     </form>

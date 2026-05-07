@@ -92,10 +92,19 @@ def dashboard(
         greeting = "Good Evening"
 
     # Clinic ownership + primary clinic for display
+    # is_clinic_owner is True ONLY if the doctor owns a real Clinic plan (plan_type='clinic'),
+    # not just the auto-created trial clinic every solo doctor gets.
     from database.models import ClinicDoctor, Clinic as ClinicModel
-    own_membership = db.query(ClinicDoctor).filter(
-        ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.role == "owner"
-    ).first()
+    own_membership = (
+        db.query(ClinicDoctor)
+        .join(ClinicModel, ClinicModel.id == ClinicDoctor.clinic_id)
+        .filter(
+            ClinicDoctor.doctor_id == doctor.id,
+            ClinicDoctor.role == "owner",
+            ClinicModel.plan_type == "clinic",
+        )
+        .first()
+    )
     is_clinic_owner = own_membership is not None
 
     primary_clinic = None
@@ -267,12 +276,38 @@ def settings_page(
         "invalid":  "PIN must be exactly 6 digits.",
     }.get(pin_error, "")
 
-    from database.models import ClinicDoctor
-    is_clinic_owner = db.query(ClinicDoctor).filter(
-        ClinicDoctor.doctor_id == doctor.id,
-        ClinicDoctor.role == "owner",
-        ClinicDoctor.is_active == True,
-    ).first() is not None
+    from database.models import ClinicDoctor, Clinic as ClinicModel2
+    _clinic_membership = (
+        db.query(ClinicDoctor)
+        .join(ClinicModel2, ClinicModel2.id == ClinicDoctor.clinic_id)
+        .filter(
+            ClinicDoctor.doctor_id == doctor.id,
+            ClinicDoctor.role == "owner",
+            ClinicDoctor.is_active == True,
+            ClinicModel2.plan_type == "clinic",
+        )
+        .first()
+    )
+    is_clinic_owner   = _clinic_membership is not None
+    is_clinic_account = is_clinic_owner   # True only on real clinic plan
+
+    # Associate doctor — member of a real clinic, access covered by owner
+    _assoc_membership = (
+        db.query(ClinicDoctor)
+        .join(ClinicModel2, ClinicModel2.id == ClinicDoctor.clinic_id)
+        .filter(
+            ClinicDoctor.doctor_id == doctor.id,
+            ClinicDoctor.role == "associate",
+            ClinicDoctor.is_active == True,
+            ClinicModel2.plan_type == "clinic",
+        )
+        .first()
+    )
+    is_clinic_associate = _assoc_membership is not None
+    assoc_clinic_name   = None
+    if is_clinic_associate and _assoc_membership:
+        _ac = db.query(ClinicModel2).filter(ClinicModel2.id == _assoc_membership.clinic_id).first()
+        assoc_clinic_name = _ac.name if _ac else None
 
     price_catalog = (
         db.query(PriceCatalog)
@@ -294,6 +329,9 @@ def settings_page(
         "pin_error":            pin_error_msg,
         "pin_required":         getattr(request.state, "pin_required", False),
         "is_clinic_owner":      is_clinic_owner,
+        "is_clinic_account":    is_clinic_account,
+        "is_clinic_associate":  is_clinic_associate,
+        "assoc_clinic_name":    assoc_clinic_name,
         "price_catalog":        price_catalog,
     })
 

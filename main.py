@@ -37,14 +37,20 @@ async def inject_clinic_owner_state(request: Request, call_next):
         if payload and payload.get("doctor_id"):
             try:
                 from database.connection import SessionLocal
-                from database.models import ClinicDoctor
+                from database.models import ClinicDoctor, Clinic
                 db = SessionLocal()
                 try:
-                    owns = db.query(ClinicDoctor).filter(
-                        ClinicDoctor.doctor_id == payload["doctor_id"],
-                        ClinicDoctor.role == "owner",
-                        ClinicDoctor.is_active == True,
-                    ).first()
+                    owns = (
+                        db.query(ClinicDoctor)
+                        .join(Clinic, Clinic.id == ClinicDoctor.clinic_id)
+                        .filter(
+                            ClinicDoctor.doctor_id == payload["doctor_id"],
+                            ClinicDoctor.role == "owner",
+                            ClinicDoctor.is_active == True,
+                            Clinic.plan_type == "clinic",
+                        )
+                        .first()
+                    )
                     request.state.is_clinic_owner = owns is not None
                 finally:
                     db.close()
@@ -79,7 +85,15 @@ async def forbidden_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(PlanExpired)
 async def plan_expired_handler(request: Request, exc: PlanExpired):
+    # Associates and clinic-plan doctors can't renew themselves — show lapsed page
+    if getattr(exc, "reason", "personal") == "clinic":
+        return RedirectResponse(url="/plan-lapsed", status_code=303)
     return RedirectResponse(url="/billing", status_code=303)
+
+
+@app.get("/plan-lapsed")
+async def plan_lapsed_page(request: Request):
+    return templates.TemplateResponse(request, "plan_lapsed.html", {})
 
 
 @app.exception_handler(PinRequired)

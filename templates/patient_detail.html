@@ -234,7 +234,7 @@
       </span>
     </div>
     <div class="appt-actions">
-      <a href="/appointments/{{ appt.id }}" class="btn btn-secondary btn-xs">View</a>
+      <button type="button" class="btn btn-secondary btn-xs" onclick="openApptCard({{ appt.id }})">View</button>
     </div>
   </div>
   {% endfor %}

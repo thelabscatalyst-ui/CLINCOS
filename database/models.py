@@ -108,8 +108,6 @@ class Clinic(Base):
     created_at      = Column(DateTime, default=datetime.utcnow)
 
     doctor_memberships = relationship("ClinicDoctor", back_populates="clinic", cascade="all, delete-orphan")
-    staff              = relationship("Staff", back_populates="clinic", cascade="all, delete-orphan")
-    invites            = relationship("StaffInvite", back_populates="clinic", cascade="all, delete-orphan")
 
 
 class ClinicDoctor(Base):
@@ -126,37 +124,6 @@ class ClinicDoctor(Base):
     clinic = relationship("Clinic", back_populates="doctor_memberships")
     doctor = relationship("Doctor", back_populates="clinic_memberships")
 
-
-class Staff(Base):
-    """Receptionist / manager with their own login, scoped to a clinic."""
-    __tablename__ = "staff"
-
-    id                 = Column(Integer, primary_key=True, index=True)
-    clinic_id          = Column(Integer, ForeignKey("clinics.id"), nullable=False, index=True)
-    name               = Column(String(100), nullable=False)
-    email              = Column(String(150), unique=True, index=True, nullable=False)
-    password_hash      = Column(String(255), nullable=True)  # null until invite accepted
-    role               = Column(String(20), default="receptionist")  # receptionist | manager
-    allowed_doctor_ids = Column(JSON, default=list)   # [] = all doctors in clinic
-    is_active          = Column(Boolean, default=True)
-    created_at         = Column(DateTime, default=datetime.utcnow)
-
-    clinic = relationship("Clinic", back_populates="staff")
-
-
-class StaffInvite(Base):
-    """One-time email invite for a staff member to set their password."""
-    __tablename__ = "staff_invites"
-
-    id         = Column(Integer, primary_key=True, index=True)
-    clinic_id  = Column(Integer, ForeignKey("clinics.id"), nullable=False, index=True)
-    email      = Column(String(150), nullable=False)
-    token      = Column(String(100), unique=True, index=True, nullable=False)
-    role       = Column(String(20), default="receptionist")
-    expires_at = Column(DateTime, nullable=False)
-    used_at    = Column(DateTime, nullable=True)
-
-    clinic = relationship("Clinic", back_populates="invites")
 
 
 class ClinicDoctorInvite(Base):
@@ -286,7 +253,7 @@ class Appointment(Base):
     doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False, index=True)
     clinic_id = Column(Integer, ForeignKey("clinics.id"), nullable=True, index=True)   # Phase 2
-    staff_id  = Column(Integer, ForeignKey("staff.id"), nullable=True)                  # Phase 2: who booked
+    staff_id  = Column(Integer, nullable=True)                                          # legacy, unused
     appointment_date = Column(Date, nullable=False)
     appointment_time = Column(Time, nullable=False)
     duration_mins = Column(Integer, default=15)

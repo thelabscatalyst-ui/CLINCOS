@@ -32,7 +32,7 @@ from database.models import (
     PaymentMode,
     RecurringExpense,
 )
-from services.auth_service import get_paying_doctor
+from services.auth_service import get_paying_doctor, require_pin
 
 router    = APIRouter(tags=["income"])
 templates = Jinja2Templates(directory="templates")
@@ -140,7 +140,7 @@ def _expense_sum(doctor_id: int, start: date, end: date, db: Session) -> float:
 async def income_dashboard(
     request: Request,
     db:      Session = Depends(get_db),
-    doctor:  Doctor  = Depends(get_paying_doctor),
+    doctor:  Doctor  = Depends(require_pin),
 ):
     _fire_due_recurring(doctor.id, db)
 
@@ -335,12 +335,12 @@ async def income_dashboard(
         .all()
     )
 
-    # ── Recent bills ──────────────────────────────────────────────────── #
+    # ── Recent 5 bills for dashboard strip ───────────────────────────── #
     recent_bills = (
         db.query(Bill)
         .filter(Bill.doctor_id == doctor.id)
         .order_by(Bill.paid_at.desc().nullslast(), Bill.created_at.desc())
-        .limit(12)
+        .limit(5)
         .all()
     )
 
@@ -348,6 +348,7 @@ async def income_dashboard(
         "active":             "income",
         "doctor":             doctor,
         "today":              today,
+        "pin_required":       getattr(request.state, "pin_required", False),
         # income KPIs
         "today_income":       today_income,
         "month_income":       month_income,
@@ -374,6 +375,93 @@ async def income_dashboard(
         # tables
         "top_patients":       top_pts,
         "recent_bills":       recent_bills,
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  GET /income/transactions  — paginated all-payments page
+# ═══════════════════════════════════════════════════════════════════════════════
+
+import math as _math
+from fastapi import Query as _Q
+
+TXN_PER_PAGE = 10
+
+@router.get("/income/transactions", response_class=HTMLResponse)
+async def transactions_page(
+    request: Request,
+    month:   int = _Q(default=0),
+    year:    int = _Q(default=0),
+    page:    int = _Q(default=1),
+    db:      Session = Depends(get_db),
+    doctor:  Doctor  = Depends(require_pin),
+):
+    today = date.today()
+    if not month: month = today.month
+    if not year:  year  = today.year
+
+    # Build month list for selector (all months that have bills)
+    all_bill_dates = (
+        db.query(Bill.paid_at, Bill.created_at)
+        .filter(Bill.doctor_id == doctor.id)
+        .all()
+    )
+    month_set = set()
+    for b_paid, b_created in all_bill_dates:
+        d = b_paid or b_created
+        if d:
+            month_set.add((d.year, d.month))
+    # Always include current month
+    month_set.add((today.year, today.month))
+    month_list = sorted(month_set, reverse=True)
+
+    m_first, m_last = _month_range(year, month)
+
+    base = (
+        db.query(Bill)
+        .filter(
+            Bill.doctor_id == doctor.id,
+            Bill.paid_at   >= _dt_start(m_first),
+            Bill.paid_at   <= _dt_end(m_last),
+        )
+        .order_by(Bill.paid_at.desc().nullslast(), Bill.created_at.desc())
+    )
+
+    total_txns  = base.count()
+    total_pages = max(1, _math.ceil(total_txns / TXN_PER_PAGE))
+    page        = max(1, min(page, total_pages))
+    offset      = (page - 1) * TXN_PER_PAGE
+
+    bills = base.offset(offset).limit(TXN_PER_PAGE).all()
+    for b in bills:
+        if b.visit:
+            _ = b.visit.patient  # eager-load
+
+    page_start = offset + 1 if total_txns > 0 else 0
+    page_end   = min(offset + TXN_PER_PAGE, total_txns)
+
+    # Month total
+    month_total = sum(_f(b.total) for b in base.all() if b.payment_mode and b.payment_mode.value != "free")
+
+    import calendar
+    month_name = calendar.month_name[month]
+
+    return templates.TemplateResponse(request, "income_transactions.html", {
+        "active":       "income",
+        "doctor":       doctor,
+        "pin_required": getattr(request.state, "pin_required", False),
+        "bills":        bills,
+        "month":        month,
+        "year":         year,
+        "month_name":   month_name,
+        "month_list":   month_list,
+        "total_txns":   total_txns,
+        "total_pages":  total_pages,
+        "page":         page,
+        "page_start":   page_start,
+        "page_end":     page_end,
+        "per_page":     TXN_PER_PAGE,
+        "month_total":  month_total,
     })
 
 
@@ -622,3 +710,4 @@ async def delete_recurring(
         db.delete(rule)
         db.commit()
     return RedirectResponse("/expenses", status_code=303)
+

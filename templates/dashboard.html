@@ -37,7 +37,7 @@
     <div class="stat-sub">All time</div>
   </div>
   {% if next_appointment %}
-  <a href="/appointments/{{ next_appointment.id }}" class="stat-card" style="text-decoration:none;cursor:pointer;">
+  <div class="stat-card" onclick="openApptCard({{ next_appointment.id }})" style="cursor:pointer;">
   {% else %}
   <div class="stat-card">
   {% endif %}
@@ -49,7 +49,7 @@
     <div class="stat-value stat-value--sm">—</div>
     <div class="stat-sub">No more today</div>
     {% endif %}
-  {% if next_appointment %}</a>{% else %}</div>{% endif %}
+  </div>
   <div class="stat-card">
     <div class="stat-label">Clinic</div>
     <div class="stat-value stat-value--sm">{{ primary_clinic.name if primary_clinic else (doctor.clinic_name or "—") }}</div>
@@ -72,7 +72,7 @@
 
   <!-- ── LEFT: Today's Schedule ──────────────────────────────────────────── -->
   <div class="dash-left">
-    <div class="schedule-section" style="height:100%;">
+    <div class="schedule-section" style="height:100%;display:flex;flex-direction:column;">
       <div class="section-header" style="margin-bottom:0;padding-bottom:16px;border-bottom:1px solid var(--border);">
         <h2 class="section-title">Today's Schedule</h2>
         <a href="/appointments" class="section-link">View all →</a>
@@ -106,7 +106,7 @@
         {% endfor %}
       </div>
       {% else %}
-      <div class="empty-state" style="padding:40px 0;">
+      <div class="empty-state" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 0;">
         <div class="empty-icon">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"/>

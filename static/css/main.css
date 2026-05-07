@@ -25,7 +25,7 @@
   --primary:      #e8e0d8;
   --primary-hover:#f5f0eb;
 
-  --success:      #4ade80;
+  --success:      #c8b49a;
   --danger:       #f87171;
   --warning:      #fbbf24;
 
@@ -50,9 +50,9 @@
 html.light {
   /* ── Light theme — warm beige/cream ── */
   --bg:           #ede7de;
-  --bg-2:         #f4ede6;
-  --bg-3:         #e5ddd4;
-  --bg-input:     #ddd5cb;
+  --bg-2:         #e4ddd4;
+  --bg-3:         #dbd3ca;
+  --bg-input:     #d2cabf;
   --border:       #c2a98a;
   --border-light: #a8906e;
 
@@ -89,7 +89,14 @@ body {
   font-size: 15px;
   line-height: 1.6;
   color: var(--text);
-  background: var(--bg);
+  background-color: var(--bg);
+  /* Subtle paper grain texture */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch' result='noise'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.55 0 0 0 0 0.40 0 0 0 0 0.25 0 0 0 0.55 0' in='noise'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23paper)'/%3E%3C/svg%3E");
+}
+
+/* Paper texture — dark theme */
+html:not(.light) body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch' result='noise'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.55 0 0 0 0 0.42 0 0 0 0 0.30 0 0 0 0.12 0' in='noise'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23paper)'/%3E%3C/svg%3E");
 }
 
 a { color: var(--text-muted); text-decoration: none; transition: color 0.15s; }
@@ -2351,6 +2358,86 @@ select.input-sm {
 .patient-arrow { font-size: 14px; color: var(--text-dim); text-align: right; }
 
 /* ------------------------------------------------------------------ */
+/*  Patient Pagination Bar                                              */
+/* ------------------------------------------------------------------ */
+.pt-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding: 12px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.pt-info {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.pt-pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.pt-btn:hover {
+  background: var(--bg-3);
+  color: var(--text);
+  border-color: rgba(200,175,145,0.35);
+}
+.pt-btn--active {
+  background: #6b4a28;
+  color: #e8d5bc;
+  border-color: #6b4a28;
+  cursor: default;
+}
+.pt-btn--active:hover {
+  background: #6b4a28;
+  color: #e8d5bc;
+  border-color: #6b4a28;
+}
+.pt-btn--disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.pt-btn--arrow {
+  border-color: transparent;
+  background: transparent;
+}
+.pt-btn--arrow:hover {
+  background: var(--bg-3);
+  border-color: var(--border);
+}
+.pt-ellipsis {
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 0 4px;
+  line-height: 32px;
+}
+
+html.light .pt-btn--active {
+  background: #6b4a28;
+  color: #f5ead8;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Public Booking Page                                                 */
 /* ------------------------------------------------------------------ */
 .pub-page {
@@ -2898,9 +2985,9 @@ html.light .billing-plan-card--pro {
 
 /* ─── Alert success ─── */
 .alert-success {
-  background: rgba(34,197,94,0.08);
-  border: 1px solid rgba(34,197,94,0.25);
-  color: #4ade80;
+  background: rgba(200,180,154,0.08);
+  border: 1px solid rgba(200,180,154,0.25);
+  color: #c8b49a;
   border-radius: var(--radius-sm);
   padding: 14px 18px;
   margin-bottom: 16px;
@@ -2997,6 +3084,36 @@ html.light .sub-plan-box {
   padding: 20px 24px;
 }
 
+/* ── Horizontal full-width plan card (settings page) ── */
+.sub-plan-horizontal {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+html.light .sub-plan-horizontal {
+  border-color: rgba(0,0,0,0.14);
+}
+.sub-plan-horizontal .sub-left {
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+}
+.sub-plan-horizontal .sub-divider {
+  background: rgba(255,255,255,0.12);
+}
+html.light .sub-plan-horizontal .sub-divider {
+  background: rgba(0,0,0,0.10);
+}
+.sub-plan-horizontal .sub-right {
+  padding: 28px 32px;
+  display: flex;
+  align-items: center;
+}
+
 .sub-plan-divider {
   width: 1px;
   background: rgba(255,255,255,0.12);
@@ -3074,10 +3191,38 @@ html.light .sub-pro-tag {
   font-weight: 700;
 }
 
-@media (max-width: 600px) {
-  .sub-plan-row      { flex-direction: column; }
-  .sub-plan-divider  { width: 100%; height: 1px; }
-  .billing-plans     { grid-template-columns: 1fr; }
+/* features grid — 2 columns inside the right half */
+.sub-features-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 24px;
+  width: 100%;
+}
+.sub-features-grid li {
+  font-size: 12px;
+  color: var(--muted);
+  padding-left: 16px;
+  position: relative;
+}
+.sub-features-grid li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .sub-plan-row        { flex-direction: column; }
+  .sub-plan-divider    { width: 100%; height: 1px; }
+  .billing-plans       { grid-template-columns: 1fr; }
+  .sub-plan-horizontal { grid-template-columns: 1fr; }
+  .sub-plan-horizontal .sub-divider { display: none; }
+  .sub-features-grid   { grid-template-columns: 1fr; }
 }
 
 /* ------------------------------------------------------------------ */
@@ -3542,6 +3687,44 @@ html.light .data-table tbody tr:hover td {
   transform: none;
   box-shadow: none;
   border-color: transparent;
+}
+
+/* Doctor selector tooltip — appointments page */
+.doc-selector-btn {
+  position: relative;
+}
+.doc-spec-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2e1e0c;
+  color: #ddd0be;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  border: 1px solid rgba(200,170,130,0.20);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  transition: opacity 0.08s ease;
+  transition-delay: 0s;
+  z-index: 50;
+}
+.doc-spec-tip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #2e1e0c;
+}
+.doc-selector-btn:hover .doc-spec-tip {
+  opacity: 1;
+  transition-delay: 0.1s;
 }
 
 .clinic-doc-name  { min-width: 0; }
@@ -4459,8 +4642,19 @@ html.light .dock-item--active {
 .modal-close:hover { color: var(--text); }
 .modal-actions {
   display: flex;
-  gap: 10px;
-  justify-content: flex-end;
+  gap: 0;
+}
+.modal-actions .btn {
+  flex: 1;
+  justify-content: center;
+  border-radius: 0;
+}
+.modal-actions .btn:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  border-right: none;
+}
+.modal-actions .btn:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -4491,10 +4685,6 @@ html.light .dock-item--active {
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
-.bill-fields .form-group:nth-child(3),
-.bill-fields .form-group:nth-child(4) {
-  grid-column: span 1;
-}
 .bill-total-row {
   display: flex;
   align-items: center;
@@ -4516,6 +4706,45 @@ html.light .dock-item--active {
   font-size: 1.4rem;
   font-weight: 700;
   color: var(--text);
+}
+
+/* ── Standalone form primitives (used inside modals, not inside .form-group) ── */
+.form-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 7px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.form-input {
+  width: 100%;
+  padding: 10px 13px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg-3);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.form-input::placeholder { color: var(--dim); }
+.form-input:focus {
+  border-color: rgba(255,255,255,0.3);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.04);
+}
+html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
+.form-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23555555' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
 }
 
 /* Collect payment button */
@@ -4798,11 +5027,11 @@ html.light .dock-item--active {
   color: var(--text);
   line-height: 1.1;
 }
-.income-kpi-amount.pnl-positive { color: #4ade80; }
-.income-kpi-amount.pnl-negative { color: #f87171; }
+.income-kpi-amount.pnl-positive { color: var(--text); }
+.income-kpi-amount.pnl-negative { color: var(--text); }
 .income-kpi-sub { font-size: 12px; color: var(--muted); }
-.income-kpi-sub.positive { color: #4ade80; }
-.income-kpi-sub.negative { color: #f87171; }
+.income-kpi-sub.positive { color: var(--muted); }
+.income-kpi-sub.negative { color: var(--muted); }
 
 /* 30-day chart card */
 .income-chart-card {
@@ -5016,6 +5245,66 @@ html.light .dock-item--active {
 }
 .txn-amount.free { color: var(--muted); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 400; }
 
+/* View all link on income page */
+.txn-view-all {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 18px;
+  display: inline-block;
+  transition: color 0.15s, border-color 0.15s;
+}
+.txn-view-all:hover { color: var(--text); border-color: rgba(200,175,145,0.35); }
+
+/* Month chips on transactions page */
+.txn-month-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.txn-month-chip {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.txn-month-chip:hover {
+  background: var(--bg-3);
+  color: var(--text);
+  border-color: rgba(200,175,145,0.35);
+}
+.txn-month-chip--active {
+  background: #6b4a28;
+  color: #e8d5bc;
+  border-color: #6b4a28;
+}
+.txn-month-chip--active:hover {
+  background: #6b4a28;
+  color: #e8d5bc;
+}
+
+/* Total row at bottom of transactions list */
+.txn-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0 0;
+  margin-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+html.light .txn-month-chip--active { background: #6b4a28; color: #f5ead8; }
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Expense Tracker
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -5060,8 +5349,8 @@ html.light .dock-item--active {
   font-weight: 700;
   color: var(--text);
 }
-.expense-kpi-val.pnl-positive { color: #4ade80; }
-.expense-kpi-val.pnl-negative { color: #f87171; }
+.expense-kpi-val.pnl-positive { color: var(--text); }
+.expense-kpi-val.pnl-negative { color: var(--text); }
 
 .expense-page-grid {
   display: grid;
@@ -5221,15 +5510,18 @@ html.light .expense-cat-badge {
   grid-template-columns: 3fr 2fr;
   gap: 20px;
   align-items: start;
+  min-height: calc(100vh - 180px);
 }
 
-/* Left column — stretches with content */
+/* Left column — stretches to fill grid height */
 .dash-left {
   display: flex;
   flex-direction: column;
+  align-self: stretch;
 }
 .dash-left .schedule-section {
   flex: 1;
+  min-height: 0;
 }
 
 /* Right column — stacked cards */
@@ -5761,7 +6053,8 @@ html.light .ac-pay-status--free {
   color: var(--text);
   font-size: 13px;
 }
-.ac-bill-discount-row { color: #22c55e; }
+.ac-bill-discount-row { color: #c8b49a; }
+html.light .ac-bill-discount-row { color: #6b4a28; }
 .ac-bill-total-row {
   display: flex;
   justify-content: space-between;

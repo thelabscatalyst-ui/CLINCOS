@@ -6,8 +6,8 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
-from database.models import Doctor, PlanType, Staff, Clinic, ClinicDoctor, ClinicDoctorInvite
-from services.auth_service import hash_password, verify_password, create_access_token, create_staff_token
+from database.models import Doctor, PlanType, Clinic, ClinicDoctor, ClinicDoctorInvite
+from services.auth_service import hash_password, verify_password, create_access_token
 
 router = APIRouter(tags=["auth"])
 templates = Jinja2Templates(directory="templates")
@@ -208,24 +208,6 @@ def login(
             )
         token = create_access_token({"doctor_id": doctor.id})
         response = RedirectResponse(url="/dashboard", status_code=303)
-        response.set_cookie(
-            key="access_token", value=token,
-            httponly=True, max_age=60 * 60 * 24, samesite="lax",
-        )
-        return response
-
-    # ── Try staff (receptionist / manager) ───────────────────────────────────
-    staff = db.query(Staff).filter(Staff.email == normalized_email).first()
-    if staff and staff.password_hash and verify_password(password, staff.password_hash):
-        if not staff.is_active:
-            return templates.TemplateResponse(
-                request, "login.html",
-                {"error": "Your account has been deactivated.", "success": None},
-                status_code=403,
-            )
-        allowed = staff.allowed_doctor_ids or []
-        token = create_staff_token(staff.id, staff.clinic_id, allowed)
-        response = RedirectResponse(url="/clinic/reception/dashboard", status_code=303)
         response.set_cookie(
             key="access_token", value=token,
             httponly=True, max_age=60 * 60 * 24, samesite="lax",

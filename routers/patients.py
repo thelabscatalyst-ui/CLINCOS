@@ -1,3 +1,4 @@
+import math
 import mimetypes
 import uuid
 from datetime import date
@@ -10,6 +11,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, File
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
+
+PER_PAGE = 10
 
 from datetime import datetime
 
@@ -114,6 +117,7 @@ def patients_list(
     request: Request,
     q: str = Query(default=""),
     sort: str = Query(default="last_seen"),
+    page: int = Query(default=1),
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
@@ -132,25 +136,46 @@ def patients_list(
         ).first()
         oldest_pin_name = oldest_pin_patient.name if oldest_pin_patient else None
 
-    # ── Base patient query ───────────────────────────────────────────────
-    base = db.query(Patient).filter(Patient.doctor_id == doctor.id)
-    if q.strip():
-        term = f"%{q.strip()}%"
-        base = base.filter(or_(Patient.name.ilike(term), Patient.phone.ilike(term)))
-
-    if sort == "alpha":
-        all_patients = base.order_by(Patient.name.asc()).all()
-    else:
-        all_patients = base.order_by(Patient.last_visit.desc(), Patient.created_at.desc()).all()
-
-    # ── Split: pinned first (in pin order), rest below ───────────────────
-    pinned_map   = {p.id: p for p in all_patients if p.id in pinned_set}
-    pinned_list  = [pinned_map[pid] for pid in pinned_ids if pid in pinned_map]
-    other_list   = [p for p in all_patients if p.id not in pinned_set]
-
+    # ── Total patients (all, for header display) ─────────────────────────
     total = db.query(func.count(Patient.id)).filter(
         Patient.doctor_id == doctor.id
     ).scalar()
+
+    # ── Pinned patients (always fully shown, filtered by search if active) ─
+    pinned_base = db.query(Patient).filter(
+        Patient.doctor_id == doctor.id,
+        Patient.id.in_(pinned_ids) if pinned_ids else False,
+    )
+    if q.strip():
+        term = f"%{q.strip()}%"
+        pinned_base = pinned_base.filter(or_(Patient.name.ilike(term), Patient.phone.ilike(term)))
+    pinned_all = pinned_base.all()
+    pinned_map  = {p.id: p for p in pinned_all}
+    pinned_list = [pinned_map[pid] for pid in pinned_ids if pid in pinned_map]
+
+    # ── Other patients — paginated ────────────────────────────────────────
+    other_base = db.query(Patient).filter(Patient.doctor_id == doctor.id)
+    if pinned_ids:
+        other_base = other_base.filter(~Patient.id.in_(pinned_ids))
+    if q.strip():
+        term = f"%{q.strip()}%"
+        other_base = other_base.filter(or_(Patient.name.ilike(term), Patient.phone.ilike(term)))
+
+    total_other = other_base.with_entities(func.count(Patient.id)).scalar()
+
+    total_pages = max(1, math.ceil(total_other / PER_PAGE))
+    page = max(1, min(page, total_pages))
+    offset = (page - 1) * PER_PAGE
+
+    if sort == "alpha":
+        other_list = other_base.order_by(Patient.name.asc()).offset(offset).limit(PER_PAGE).all()
+    else:
+        other_list = other_base.order_by(
+            Patient.last_visit.desc(), Patient.created_at.desc()
+        ).offset(offset).limit(PER_PAGE).all()
+
+    page_start = offset + 1 if total_other > 0 else 0
+    page_end   = min(offset + PER_PAGE, total_other)
 
     return templates.TemplateResponse(request, "patients.html", {
         "doctor":           doctor,
@@ -160,6 +185,12 @@ def patients_list(
         "oldest_pin_name":  oldest_pin_name,
         "pin_count":        len(pinned_ids),
         "total":            total,
+        "total_other":      total_other,
+        "page":             page,
+        "total_pages":      total_pages,
+        "page_start":       page_start,
+        "page_end":         page_end,
+        "per_page":         PER_PAGE,
         "q":                q,
         "sort":             sort,
         "active":           "patients",

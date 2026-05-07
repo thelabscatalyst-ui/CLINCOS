@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from database.connection import get_db
 from database.models import (
     Doctor, Patient, Appointment, AppointmentStatus, AppointmentType, BookedBy,
-    ClinicDoctor, Clinic, Visit, VisitStatus, Bill, PriceCatalog,
+    ClinicDoctor, Clinic, Visit, VisitStatus, Bill, PriceCatalog, DoctorSchedule,
 )
 from services.auth_service import get_paying_doctor, get_appt_doctor
 from services.appointment_service import (
@@ -109,6 +109,20 @@ def appointments_list(
     for a in appointments:
         a.patient  # ensure lazy-load
 
+    # ── Walk-in availability — only within doctor's working hours ───────
+    walkin_available = False
+    if view_date == today:
+        from datetime import datetime as _dt
+        _dow = today.weekday()  # 0 = Monday
+        _sched = db.query(DoctorSchedule).filter(
+            DoctorSchedule.doctor_id == viewing_doctor.id,
+            DoctorSchedule.day_of_week == _dow,
+            DoctorSchedule.is_active == True,
+        ).first()
+        if _sched:
+            _now_t = _dt.now().time()
+            walkin_available = _sched.start_time <= _now_t <= _sched.end_time
+
     # ── Queue data (today only) ───────────────────────────────────────
     visit_map = {}   # appt_id → Visit (for status badges on schedule rows)
     serving = None
@@ -150,6 +164,7 @@ def appointments_list(
         "waiting":          waiting,
         "billing_pending":  billing_pending,
         "is_today":         view_date == today,
+        "walkin_available": walkin_available,
     })
 
 
@@ -359,7 +374,7 @@ async def create_appointment(
     except Exception:
         pass
 
-    return RedirectResponse(url=f"/appointments/{appt.id}", status_code=303)
+    return RedirectResponse(url=f"/appointments?filter_date={appt.appointment_date.isoformat()}", status_code=303)
 
 
 # ------------------------------------------------------------------ #
@@ -446,49 +461,25 @@ async def create_walkin(
 
 
 # ------------------------------------------------------------------ #
-#  Detail — GET                                                        #
+#  Detail — GET (redirects to floating card; page removed)             #
 # ------------------------------------------------------------------ #
 
 @router.get("/{appt_id}", response_class=HTMLResponse)
-def appointment_detail(
+def appointment_detail_redirect(
     appt_id: int,
     request: Request,
     doctor: Doctor = Depends(get_appt_doctor),
     db: Session = Depends(get_db),
 ):
+    """Appointment detail page removed — redirect back to the list."""
     appt = db.query(Appointment).filter(
         Appointment.id == appt_id,
         Appointment.doctor_id == doctor.id,
     ).first()
-    if not appt:
-        back = "/clinic/reception" if getattr(request.state, "is_staff", False) else "/appointments"
-        return RedirectResponse(url=back, status_code=303)
-
-    appt.patient  # lazy-load
-
-    # Load linked visit + bill if any
-    visit = db.query(Visit).filter(Visit.appointment_id == appt.id).first()
-    bill  = db.query(Bill).filter(Bill.visit_id == visit.id).first() if visit else None
-
-    # Price catalog for the edit-bill modal
-    price_catalog = (
-        db.query(PriceCatalog)
-        .filter(PriceCatalog.doctor_id == doctor.id, PriceCatalog.is_active == True)
-        .order_by(PriceCatalog.sort_order, PriceCatalog.name)
-        .all()
-    )
-
-    is_staff = getattr(request.state, "is_staff", False)
-    return templates.TemplateResponse(request, "appointment_detail.html", {
-        "doctor":        doctor,
-        "appt":          appt,
-        "visit":         visit,
-        "bill":          bill,
-        "price_catalog": price_catalog,
-        "active":        "appointments",
-        "AppointmentStatus": AppointmentStatus,
-        "is_staff":      is_staff,
-    })
+    back = "/clinic/reception" if getattr(request.state, "is_staff", False) else "/appointments"
+    if appt:
+        back += f"?filter_date={appt.appointment_date.isoformat()}"
+    return RedirectResponse(url=back, status_code=303)
 
 
 # ------------------------------------------------------------------ #
@@ -697,7 +688,7 @@ def update_status(
         appt.doctor_notes = doctor_notes.strip()
 
     db.commit()
-    return RedirectResponse(url=f"/appointments/{appt_id}", status_code=303)
+    return RedirectResponse(url=f"/appointments?filter_date={appt.appointment_date.isoformat()}", status_code=303)
 
 
 # ------------------------------------------------------------------ #
@@ -828,7 +819,7 @@ async def edit_appointment(
             appt.patient.phone = patient_phone.strip()
 
     db.commit()
-    return RedirectResponse(url=f"/appointments/{appt_id}", status_code=303)
+    return RedirectResponse(url=f"/appointments?filter_date={appt.appointment_date.isoformat()}", status_code=303)
 
 
 # ------------------------------------------------------------------ #

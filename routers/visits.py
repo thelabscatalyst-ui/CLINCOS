@@ -214,9 +214,7 @@ async def done_visit(
     db: Session    = Depends(get_db),
     doctor: Doctor = Depends(get_paying_doctor),
 ):
-    """
-    Mark serving visit as billing_pending, auto-call next, auto-complete appointment.
-    """
+    """Mark serving visit as billing_pending, auto-call next, auto-complete appointment."""
     visit = _get_visit(visit_id, doctor.id, db)
     if visit and visit.status == VisitStatus.serving:
         _auto_complete_appointment(db, visit)

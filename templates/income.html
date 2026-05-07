@@ -221,7 +221,7 @@
 </div>
 {% endif %}
 
-<!-- ── Recent Transactions ───────────────────────────────────────────────── -->
+<!-- ── Recent Transactions (last 5) ──────────────────────────────────────── -->
 <div class="txn-card">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
     <div class="income-breakdown-title" style="margin:0;">Recent Transactions</div>
@@ -253,6 +253,9 @@
       </span>
     </div>
     {% endfor %}
+    <div style="margin-top:16px;text-align:center;">
+      <a href="/income/transactions" class="txn-view-all">View all payments →</a>
+    </div>
   {% else %}
     <div class="income-empty-state">No transactions yet</div>
   {% endif %}
@@ -307,19 +310,42 @@
   defs.appendChild(grad);
   svg.appendChild(defs);
 
-  // Area polygon
-  let areaPoints = `${x(0)},${H - PAD.bottom} `;
-  data.forEach((d, i) => { areaPoints += `${x(i)},${y(d.amount)} `; });
-  areaPoints += `${x(data.length - 1)},${H - PAD.bottom}`;
-  const area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-  area.setAttribute('points', areaPoints);
+  // Smooth cubic-bezier path builder (cardinal spline, clamped to valid Y range)
+  const yMin = PAD.top;
+  const yMax = H - PAD.bottom;
+  function smoothD(pts, tension) {
+    if (pts.length < 2) return '';
+    let d = `M ${pts[0][0]},${pts[0][1]}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0, i - 1)];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[Math.min(pts.length - 1, i + 2)];
+      const cp1x = p1[0] + (p2[0] - p0[0]) * tension;
+      const cp1y = Math.min(yMax, Math.max(yMin, p1[1] + (p2[1] - p0[1]) * tension));
+      const cp2x = p2[0] - (p3[0] - p1[0]) * tension;
+      const cp2y = Math.min(yMax, Math.max(yMin, p2[1] - (p3[1] - p1[1]) * tension));
+      d += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p2[0]},${p2[1]}`;
+    }
+    return d;
+  }
+
+  const coords = data.map((d, i) => [x(i), y(d.amount)]);
+  const T = 0.28;
+  const linePath = smoothD(coords, T);
+
+  // Area fill — close down to baseline
+  const areaD = linePath +
+    ` L ${x(data.length - 1)},${H - PAD.bottom}` +
+    ` L ${x(0)},${H - PAD.bottom} Z`;
+  const area = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  area.setAttribute('d', areaD);
   area.setAttribute('fill', 'url(#revGrad)');
   svg.appendChild(area);
 
-  // Line polyline
-  const pts = data.map((d, i) => `${x(i)},${y(d.amount)}`).join(' ');
-  const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-  line.setAttribute('points', pts);
+  // Smooth line
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  line.setAttribute('d', linePath);
   line.setAttribute('fill', 'none');
   line.setAttribute('stroke', 'var(--text)');
   line.setAttribute('stroke-width', '1.8');
