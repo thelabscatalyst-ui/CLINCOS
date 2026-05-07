@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Request, Depends, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -136,18 +136,22 @@ async def create_bill(
         discount = float(form.get("discount") or 0)
     except ValueError:
         discount = 0.0
+    try:
+        gst_amount = float(form.get("gst_amount") or 0)
+    except ValueError:
+        gst_amount = 0.0
 
     payment_mode_str = form.get("payment_mode", "cash")
     notes = (form.get("notes") or "").strip()
 
-    # Collect line items — item_name[] and item_price[]
-    item_names  = form.getlist("item_name")
+    # Collect line items — item_name[], item_price[], item_qty[]
+    item_names      = form.getlist("item_name")
     item_prices_raw = form.getlist("item_price")
+    item_qtys_raw   = form.getlist("item_qty")
 
-    # Build item list, calculate subtotal from items if provided
     items = []
     items_subtotal = 0.0
-    for name, price_raw in zip(item_names, item_prices_raw):
+    for i, (name, price_raw) in enumerate(zip(item_names, item_prices_raw)):
         name = name.strip()
         if not name:
             continue
@@ -155,13 +159,17 @@ async def create_bill(
             price = float(price_raw)
         except (ValueError, TypeError):
             price = 0.0
-        items.append((name, price))
-        items_subtotal += price
+        try:
+            qty = max(1, int(float(item_qtys_raw[i]))) if i < len(item_qtys_raw) else 1
+        except (ValueError, TypeError):
+            qty = 1
+        line_total = price * qty
+        items.append((name, qty, price, line_total))
+        items_subtotal += line_total
 
-    # If items were added use their sum, otherwise use the single fee field
     subtotal = items_subtotal if items else fee
     disc     = min(discount, subtotal)
-    total    = max(0.0, subtotal - disc)
+    total    = max(0.0, subtotal - disc + gst_amount)
 
     try:
         mode = PaymentMode(payment_mode_str)
@@ -175,7 +183,7 @@ async def create_bill(
         patient_id   = visit.patient_id,
         subtotal     = subtotal,
         discount     = disc,
-        gst_amount   = 0,
+        gst_amount   = gst_amount,
         total        = total,
         paid_amount  = total,
         payment_mode = mode,
@@ -186,13 +194,13 @@ async def create_bill(
     db.add(bill)
     db.flush()
 
-    for name, price in items:
+    for name, qty, unit_price, line_total in items:
         db.add(BillItem(
             bill_id     = bill.id,
             description = name,
-            quantity    = 1,
-            unit_price  = price,
-            total       = price,
+            quantity    = qty,
+            unit_price  = unit_price,
+            total       = line_total,
         ))
 
     _auto_complete_appointment(db, visit)
@@ -222,16 +230,21 @@ async def edit_bill(
         discount = float(form.get("discount") or 0)
     except ValueError:
         discount = 0.0
+    try:
+        gst_amount = float(form.get("gst_amount") or 0)
+    except ValueError:
+        gst_amount = 0.0
 
     payment_mode_str = form.get("payment_mode", "cash")
     notes = (form.get("notes") or "").strip()
 
     item_names      = form.getlist("item_name")
     item_prices_raw = form.getlist("item_price")
+    item_qtys_raw   = form.getlist("item_qty")
 
     items = []
     items_subtotal = 0.0
-    for name, price_raw in zip(item_names, item_prices_raw):
+    for i, (name, price_raw) in enumerate(zip(item_names, item_prices_raw)):
         name = name.strip()
         if not name:
             continue
@@ -239,12 +252,17 @@ async def edit_bill(
             price = float(price_raw)
         except (ValueError, TypeError):
             price = 0.0
-        items.append((name, price))
-        items_subtotal += price
+        try:
+            qty = max(1, int(float(item_qtys_raw[i]))) if i < len(item_qtys_raw) else 1
+        except (ValueError, TypeError):
+            qty = 1
+        line_total = price * qty
+        items.append((name, qty, price, line_total))
+        items_subtotal += line_total
 
     subtotal = items_subtotal if items else float(bill.subtotal)
     disc     = min(discount, subtotal)
-    total    = max(0.0, subtotal - disc)
+    total    = max(0.0, subtotal - disc + gst_amount)
 
     try:
         mode = PaymentMode(payment_mode_str)
@@ -253,6 +271,7 @@ async def edit_bill(
 
     bill.subtotal     = subtotal
     bill.discount     = disc
+    bill.gst_amount   = gst_amount
     bill.total        = total
     bill.paid_amount  = total
     bill.payment_mode = mode
@@ -262,13 +281,13 @@ async def edit_bill(
     for item in list(bill.items):
         db.delete(item)
     db.flush()
-    for name, price in items:
+    for name, qty, unit_price, line_total in items:
         db.add(BillItem(
             bill_id     = bill.id,
             description = name,
-            quantity    = 1,
-            unit_price  = price,
-            total       = price,
+            quantity    = qty,
+            unit_price  = unit_price,
+            total       = line_total,
         ))
 
     db.commit()
@@ -322,6 +341,41 @@ async def bill_detail(
         "doctor": doctor,
         "bill":   bill,
     })
+
+
+# ── Bill PDF download ─────────────────────────────────────────────────────── #
+
+@router.get("/bills/{bill_id}/pdf")
+async def download_bill_pdf(
+    bill_id: int,
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    bill = db.query(Bill).filter(
+        Bill.id == bill_id,
+        Bill.doctor_id == doctor.id,
+    ).first()
+    if not bill:
+        return RedirectResponse("/appointments", status_code=303)
+
+    try:
+        from services.bill_pdf_service import _build_pdf
+        patient = db.query(Patient).filter(Patient.id == bill.patient_id).first()
+        visit   = bill.visit
+        appt    = None
+        if visit and visit.appointment_id:
+            appt = db.query(Appointment).filter(Appointment.id == visit.appointment_id).first()
+        items   = list(bill.items)
+        pdf     = _build_pdf(bill, patient, doctor, visit, appt, items)
+        data    = bytes(pdf.output())
+        fname   = f"bill_{bill.id}_{patient.name.replace(' ','_') if patient else 'receipt'}.pdf"
+        return Response(
+            content=data,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+        )
+    except Exception:
+        return RedirectResponse(f"/bills/{bill_id}", status_code=303)
 
 
 # ── Price catalog CRUD ────────────────────────────────────────────────────── #

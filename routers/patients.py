@@ -17,7 +17,7 @@ PER_PAGE = 10
 from datetime import datetime
 
 from database.connection import get_db
-from database.models import Doctor, Patient, Appointment, AppointmentStatus, PatientNote, NoteFile, PinnedPatient, Bill
+from database.models import Doctor, Patient, Appointment, AppointmentStatus, PatientNote, NoteFile, PinnedPatient, Bill, PatientDocument, DOCUMENT_CATEGORIES
 from services.auth_service import get_paying_doctor, require_pin
 
 router = APIRouter(prefix="/patients", tags=["patients"])
@@ -327,6 +327,11 @@ def patient_detail(
         .all()
     )
 
+    doc_count = db.query(func.count(PatientDocument.id)).filter(
+        PatientDocument.patient_id == patient.id,
+        PatientDocument.doctor_id  == doctor.id,
+    ).scalar() or 0
+
     return templates.TemplateResponse(request, "patient_detail.html", {
         "doctor":       doctor,
         "patient":      patient,
@@ -335,6 +340,7 @@ def patient_detail(
         "completed":    completed,
         "upcoming":     upcoming,
         "bills":        bills,
+        "doc_count":    doc_count,
         "active":       "patients",
         "pin_required": getattr(request.state, "pin_required", False),
     })
@@ -618,6 +624,183 @@ def edit_patient(
         patient.phone = phone_clean
         db.commit()
     return RedirectResponse(url=f"/patients/{patient_id}", status_code=303)
+
+
+# --------------------------------------------------------------------------- #
+#  Legacy single-note update (kept for backwards compat, now unused by UI)     #
+# --------------------------------------------------------------------------- #
+
+# --------------------------------------------------------------------------- #
+#  Document Vault                                                               #
+# --------------------------------------------------------------------------- #
+
+@router.get("/{patient_id}/vault", response_class=HTMLResponse)
+def vault_page(
+    patient_id: int,
+    request: Request,
+    doctor: Doctor = Depends(require_pin),
+    db: Session = Depends(get_db),
+):
+    patient = db.query(Patient).filter(
+        Patient.id == patient_id,
+        Patient.doctor_id == doctor.id,
+    ).first()
+    if not patient:
+        return RedirectResponse(url="/patients", status_code=303)
+
+    docs = (
+        db.query(PatientDocument)
+        .filter(
+            PatientDocument.patient_id == patient_id,
+            PatientDocument.doctor_id  == doctor.id,
+        )
+        .order_by(PatientDocument.uploaded_at.desc())
+        .all()
+    )
+
+    # Group by category preserving display order
+    grouped: dict = {k: [] for k in DOCUMENT_CATEGORIES}
+    for d in docs:
+        cat = d.category if d.category in grouped else "other"
+        grouped[cat].append(d)
+
+    return templates.TemplateResponse(request, "patient_vault.html", {
+        "doctor":       doctor,
+        "patient":      patient,
+        "grouped":      grouped,
+        "categories":   DOCUMENT_CATEGORIES,
+        "doc_count":    len(docs),
+        "fmt_size":     _fmt_size,
+        "active":       "patients",
+        "pin_required": getattr(request.state, "pin_required", False),
+    })
+
+
+@router.post("/{patient_id}/vault/upload")
+async def vault_upload(
+    patient_id: int,
+    category: str = Form("other"),
+    description: str = Form(""),
+    files: List[UploadFile] = File(default=[]),
+    doctor: Doctor = Depends(require_pin),
+    db: Session = Depends(get_db),
+):
+    patient = db.query(Patient).filter(
+        Patient.id == patient_id,
+        Patient.doctor_id == doctor.id,
+    ).first()
+    if not patient:
+        return RedirectResponse(url="/patients", status_code=303)
+
+    real_files = [f for f in files if f.filename]
+    if not real_files:
+        return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
+
+    upload_dir = _upload_dir(doctor.id, patient_id)
+    cat = category if category in DOCUMENT_CATEGORIES else "other"
+
+    for f in real_files:
+        data = await f.read()
+        if len(data) > MAX_FILE_BYTES:
+            continue
+        safe   = _safe_filename(f.filename)
+        stored = f"doc_{uuid.uuid4().hex}_{safe}"
+        (upload_dir / stored).write_bytes(data)
+        mime, _ = mimetypes.guess_type(f.filename)
+        db.add(PatientDocument(
+            doctor_id     = doctor.id,
+            patient_id    = patient_id,
+            original_name = f.filename,
+            stored_name   = stored,
+            file_size     = len(data),
+            mime_type     = mime,
+            category      = cat,
+            description   = description.strip() or None,
+        ))
+
+    db.commit()
+    return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
+
+
+@router.get("/{patient_id}/vault/{doc_id}")
+def vault_serve(
+    patient_id: int,
+    doc_id: int,
+    download: bool = Query(default=False),
+    doctor: Doctor = Depends(require_pin),
+    db: Session = Depends(get_db),
+):
+    doc = db.query(PatientDocument).filter(
+        PatientDocument.id         == doc_id,
+        PatientDocument.patient_id == patient_id,
+        PatientDocument.doctor_id  == doctor.id,
+    ).first()
+    if not doc:
+        return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
+
+    file_path = _upload_dir(doctor.id, patient_id) / doc.stored_name
+    if not file_path.exists():
+        return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
+
+    mime = doc.mime_type or "application/octet-stream"
+    inline = (
+        not download
+        and (
+            any(mime.startswith(p) for p in _INLINE_MIME_PREFIXES)
+            or mime in _INLINE_MIME_EXACT
+        )
+    )
+    from urllib.parse import quote
+    disposition = "inline" if inline else "attachment"
+    ascii_name  = doc.original_name.encode("ascii", errors="ignore").decode()
+    encoded     = quote(doc.original_name, safe=" .()")
+    headers = {
+        "Content-Disposition": f"{disposition}; filename=\"{ascii_name}\"; filename*=UTF-8''{encoded}",
+        "X-Content-Type-Options": "nosniff",
+    }
+    return FileResponse(str(file_path), media_type=mime, headers=headers)
+
+
+@router.post("/{patient_id}/vault/{doc_id}/delete", response_class=HTMLResponse)
+def vault_delete(
+    patient_id: int,
+    doc_id: int,
+    doctor: Doctor = Depends(require_pin),
+    db: Session = Depends(get_db),
+):
+    doc = db.query(PatientDocument).filter(
+        PatientDocument.id         == doc_id,
+        PatientDocument.patient_id == patient_id,
+        PatientDocument.doctor_id  == doctor.id,
+    ).first()
+    if doc:
+        file_path = _upload_dir(doctor.id, patient_id) / doc.stored_name
+        if file_path.exists():
+            file_path.unlink()
+        db.delete(doc)
+        db.commit()
+    return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
+
+
+@router.post("/{patient_id}/vault/{doc_id}/edit", response_class=HTMLResponse)
+def vault_edit(
+    patient_id: int,
+    doc_id: int,
+    category: str = Form("other"),
+    description: str = Form(""),
+    doctor: Doctor = Depends(require_pin),
+    db: Session = Depends(get_db),
+):
+    doc = db.query(PatientDocument).filter(
+        PatientDocument.id         == doc_id,
+        PatientDocument.patient_id == patient_id,
+        PatientDocument.doctor_id  == doctor.id,
+    ).first()
+    if doc:
+        doc.category    = category if category in DOCUMENT_CATEGORIES else "other"
+        doc.description = description.strip() or None
+        db.commit()
+    return RedirectResponse(url=f"/patients/{patient_id}/vault", status_code=303)
 
 
 # --------------------------------------------------------------------------- #

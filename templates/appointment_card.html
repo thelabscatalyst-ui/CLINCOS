@@ -121,14 +121,18 @@
           </span>
         </div>
         <!-- Follow-up inline form — hidden by default -->
-        <div id="followUpForm{{ appt.id }}" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;padding-left:2px;">
+        <div id="followUpForm{{ appt.id }}" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0 4px 0;margin-top:4px;">
           <input type="date" id="followUpInput{{ appt.id }}"
-                 value="{{ appt.follow_up_date.isoformat() if appt.follow_up_date else today.isoformat() }}"
-                 style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);">
-          <button type="button" class="btn btn-primary" style="font-size:11px;padding:5px 12px;"
-                  onclick="saveFollowUp({{ appt.id }})">Save</button>
-          <button type="button" class="btn btn-secondary" style="font-size:11px;padding:5px 12px;"
+                 value="{{ appt.follow_up_date.isoformat() if appt.follow_up_date else '' }}"
+                 min="{{ today.isoformat() }}"
+                 style="font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);">
+          <button type="button" class="btn btn-primary btn-sm fu-save-btn"
+                  onclick="saveFollowUp({{ appt.id }})">Book Follow-up</button>
+          <button type="button" class="btn btn-secondary btn-sm"
                   onclick="toggleFollowUp({{ appt.id }})">Cancel</button>
+          <div style="font-size:11px;color:var(--dim);width:100%;line-height:1.4;">
+            First available slot on the selected date will be auto-booked.
+          </div>
         </div>
       </div>
     </div>
@@ -555,11 +559,57 @@ function toggleFollowUp(id) {
 }
 function saveFollowUp(apptId) {
   const val = document.getElementById('followUpInput' + apptId).value;
+  if (!val) { toggleFollowUp(apptId); return; }
+  const btn = document.querySelector('#followUpForm' + apptId + ' .fu-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   fetch('/appointments/' + apptId + '/follow-up', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: 'follow_up_date=' + encodeURIComponent(val),
-  }).then(() => { reloadApptCard(apptId); });
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      if (d.new_appt) {
+        _showFuToast(
+          '✓ Follow-up booked · ' + d.new_appt.date + ' at ' + d.new_appt.time,
+          '#22c55e'
+        );
+      } else {
+        _showFuToast(
+          'Follow-up date saved. No free slot found — book manually if needed.',
+          'var(--muted)'
+        );
+      }
+      reloadApptCard(apptId);
+    }
+  })
+  .catch(() => {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+  });
+}
+function _showFuToast(msg, color) {
+  let t = document.getElementById('fuToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'fuToast';
+    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);'
+      + 'background:var(--bg-2);border:1px solid var(--border);border-radius:12px;'
+      + 'padding:10px 20px;font-size:13px;font-weight:500;z-index:9999;'
+      + 'box-shadow:0 4px 20px rgba(0,0,0,.35);opacity:0;transition:opacity .25s,transform .25s;white-space:nowrap;';
+    document.body.appendChild(t);
+  }
+  t.style.color = color;
+  t.textContent = msg;
+  requestAnimationFrame(() => {
+    t.style.opacity = '1';
+    t.style.transform = 'translateX(-50%) translateY(0)';
+  });
+  clearTimeout(t._hide);
+  t._hide = setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(-50%) translateY(20px)';
+  }, 3500);
 }
 
 /* ── Edit bill modal ── */

@@ -82,6 +82,7 @@ ClinicOS/
 │   ├── visit_service.py         # Queue logic — check_in, call_next, done_and_call_next, close_visit, etc.
 │   ├── notification_service.py  # Twilio WhatsApp + SMS, confirmation + reminder sends
 │   ├── payment_service.py       # Razorpay order create + HMAC signature verify
+│   ├── bill_pdf_service.py      # fpdf2 PDF bill generation → auto-saved to patient vault
 │   └── scheduler_service.py     # APScheduler — T-24h and T-2h reminder jobs
 │
 ├── templates/
@@ -96,7 +97,8 @@ ClinicOS/
 │   ├── appointment_edit.html    # Edit/reschedule form
 │   ├── calendar.html            # Monthly calendar view
 │   ├── patients.html            # Patient list with search
-│   ├── patient_detail.html      # Patient profile, history, notes
+│   ├── patient_detail.html      # Patient profile, history, notes (Documents button → vault)
+│   ├── patient_vault.html       # Document vault — categorised files, search, upload, edit
 │   ├── reports.html             # Analytics: charts, top patients, visit types
 │   ├── billing.html             # Solo plan card + Razorpay checkout
 │   ├── queue_display.html       # Public TV display screen /queue/{slug}
@@ -131,6 +133,7 @@ ClinicOS/
 | **blocked_dates** | id, doctor_id, blocked_date, reason |
 | **subscriptions** | id, doctor_id, plan_name, amount (paise), payment_id, start_date, end_date, status |
 | **notifications_log** | id, appointment_id, type, channel, message_body, status, sent_at |
+| **patient_documents** | id, doctor_id, patient_id, original_name, stored_name, file_size, mime_type, category, description, uploaded_at |
 
 `pin_hash`, `visit_id`, `arrival_status`, `doctor_mode`, `walkin_policy` added via `_run_migrations()` on startup.
 
@@ -302,6 +305,11 @@ class BookedBy(str, enum.Enum):
 | POST | `/patients/{id}/edit` | Plan | Update patient name + phone |
 | POST | `/patients/{id}/notes` | Plan | Update patient notes |
 | POST | `/patients/{id}/delete` | PIN | Delete patient + all appointments |
+| GET | `/patients/{id}/vault` | PIN | Patient document vault |
+| POST | `/patients/{id}/vault/upload` | PIN | Upload one or more files to vault |
+| GET | `/patients/{id}/vault/{doc_id}` | PIN | Serve/download a vault document |
+| POST | `/patients/{id}/vault/{doc_id}/edit` | PIN | Update doc category + description |
+| POST | `/patients/{id}/vault/{doc_id}/delete` | PIN | Delete vault document |
 | GET | `/book/{slug}` | No | Public booking form |
 | GET | `/book/{slug}/slots` | No | Public slots JSON (AJAX) |
 | POST | `/book/{slug}` | No | Submit booking (rate-limited) |
@@ -508,9 +516,15 @@ ADMIN_EMAIL=your-email@example.com          # must match the email used to regis
 | 50 | Appointment rows — clickable cards, token numbers, time pill, no View button | ✅ Done |
 | 51 | Dashboard Today's Schedule — numbered rows, clickable, in schedule-section card | ✅ Done |
 | 52 | Past time slots hidden when booking for today | ✅ Done |
-| 53 | Phase 3.3: Billing on close — bill modal, price catalog, payment recording | ⬜ Next |
-| 54 | Phase 3.4: Income dashboard — daily/monthly revenue + expense tracker | ⬜ Planned |
-| 55 | Deploy on Railway.app | ⬜ Planned |
+| 53 | Phase 3.3: Billing on close — bill modal, price catalog, payment recording | ✅ Done |
+| 54 | Settings — Account Details card (name, email, phone, specialization edit) | ✅ Done |
+| 55 | Settings — Price Catalog Quick-add button styled as app button | ✅ Done |
+| 56 | Settings — Clinic subscription active plan details (paid date, next billing, payment ID) | ✅ Done |
+| 57 | Patient Document Vault — categorised file storage, upload, search, inline edit, delete | ✅ Done |
+| 58 | Auto-generate PDF bill on payment → saved to patient vault (invoice category, "Auto" badge) | ✅ Done |
+| 59 | Bill PDF — warm parchment palette, rounded cards, pre-calculated heights (no text overflow) | ✅ Done |
+| 60 | Phase 3.4: Income dashboard — daily/monthly revenue + expense tracker | ⬜ Planned |
+| 61 | Deploy on Railway.app | ⬜ Planned |
 
 ---
 
@@ -522,11 +536,39 @@ ADMIN_EMAIL=your-email@example.com          # must match the email used to regis
 
 ---
 
-## Session Startup Checklist
-When starting a new Claude Code session:
-> "Read CLAUDE.md. We are continuing ClinicOS. Features 1–52 are complete. Today we are working on [describe task]."
+## Patient Document Vault
+
+### Storage
+Files saved to `uploads/patients/{doctor_id}/{patient_id}/` (auto-created). `PatientDocument` ORM model stores metadata: `doctor_id`, `patient_id`, `original_name`, `stored_name`, `file_size`, `mime_type`, `category`, `description`, `uploaded_at`.
+
+### Categories (`DOCUMENT_CATEGORIES` in `database/models.py`)
+`invoice`, `lab_report`, `prescription`, `xray_scan`, `discharge_summary`, `insurance`, `other`
+
+### Auto-generated Bills
+`services/bill_pdf_service.py` → `generate_and_store_bill_pdf(bill, db)` called from `routers/billing_ops.py` after every successful bill save. Failures are silently swallowed (never crash billing). PDFs stored as `bill_{id}_{hex6}.pdf`, categorised as `invoice`, shown with an "Auto" badge in the vault UI.
+
+### Bill PDF Design
+Built with `fpdf2` (pure Python, no system deps). Warm parchment palette matching app: BG `#f8f2ea`, CARD_BG `#ede7de`, BORDER `#c2a98a`. All section cards use `_rounded_card()` helper (`round_corners=True, corner_radius=3`). Heights pre-calculated before drawing to prevent text overflow. Sections: clinic header, patient info card, items table card, totals card, payment card, footer.
+
+### Content-Disposition header
+Vault file serving uses RFC 5987 encoding for non-ASCII filenames:
+```python
+headers["Content-Disposition"] = f'{disposition}; filename="{ascii_name}"; filename*=UTF-8\'\'{encoded}'
+```
+Generated bill filenames are ASCII-safe (`Bill {id} - {date}.pdf`).
 
 ---
 
-*Last updated: 2026-05-06*
-*Current phase: Phase 3 queue system complete — Billing on Close (Phase 3.3) is next*
+## Settings — Account Details
+`POST /doctors/settings/account` updates `doctor.name`, `doctor.email`, `doctor.phone`, `doctor.specialization`. Email uniqueness checked against other doctors. Specialization moved here from Clinic Profile. Error param `account_error` shown as alert in the Account Details card.
+
+---
+
+## Session Startup Checklist
+When starting a new Claude Code session:
+> "Read CLAUDE.md. We are continuing ClinicOS. Features 1–59 are complete. Today we are working on [describe task]."
+
+---
+
+*Last updated: 2026-05-07*
+*Current phase: Billing + Document Vault complete — Income Dashboard (Phase 3.4) is next*

@@ -211,6 +211,7 @@ def settings_page(
     db: Session = Depends(get_db),
     saved: str = "",
     pin_error: str = "",
+    account_error: str = "",
 ):
     # Build a list of 7 day dicts — each day has a primary shift + optional extra shifts
     days_data = []
@@ -316,6 +317,24 @@ def settings_page(
         .all()
     )
 
+    from database.models import Subscription
+    # Latest active clinic subscription (for the active clinic plan card)
+    latest_clinic_sub = None
+    if is_clinic_account and _clinic_membership:
+        latest_clinic_sub = (
+            db.query(Subscription)
+            .filter(
+                Subscription.clinic_id == _clinic_membership.clinic_id,
+                Subscription.status == "active",
+            )
+            .order_by(Subscription.start_date.desc())
+            .first()
+        )
+
+    account_error_msg = {
+        "email_taken": "That email is already in use by another account.",
+    }.get(account_error, "")
+
     return templates.TemplateResponse(request, "settings.html", {
         "doctor":               doctor,
         "days_data":            days_data,
@@ -327,12 +346,14 @@ def settings_page(
         "plan_days":            plan_days,
         "razorpay_configured":  bool(cfg.RAZORPAY_KEY_ID),
         "pin_error":            pin_error_msg,
+        "account_error":        account_error_msg,
         "pin_required":         getattr(request.state, "pin_required", False),
         "is_clinic_owner":      is_clinic_owner,
         "is_clinic_account":    is_clinic_account,
         "is_clinic_associate":  is_clinic_associate,
         "assoc_clinic_name":    assoc_clinic_name,
         "price_catalog":        price_catalog,
+        "latest_clinic_sub":    latest_clinic_sub,
     })
 
 
@@ -392,6 +413,42 @@ async def save_schedule(
 
 
 # ------------------------------------------------------------------ #
+#  Settings — Save Account (name / email / phone)                      #
+# ------------------------------------------------------------------ #
+
+@router.post("/doctors/settings/account", response_class=HTMLResponse)
+def save_account(
+    request: Request,
+    name: str = Form(""),
+    email: str = Form(""),
+    phone: str = Form(""),
+    specialization: str = Form(""),
+    doctor: Doctor = Depends(require_pin),
+    db: Session = Depends(get_db),
+):
+    name           = name.strip()
+    email          = email.strip().lower()
+    phone          = phone.strip()
+    specialization = specialization.strip()
+
+    if not name or not email:
+        return RedirectResponse(url="/doctors/settings?saved=0", status_code=303)
+
+    # Check email uniqueness (only if changed)
+    if email != doctor.email:
+        existing = db.query(Doctor).filter(Doctor.email == email, Doctor.id != doctor.id).first()
+        if existing:
+            return RedirectResponse(url="/doctors/settings?account_error=email_taken", status_code=303)
+
+    doctor.name           = name
+    doctor.email          = email
+    doctor.phone          = phone or None
+    doctor.specialization = specialization or None
+    db.commit()
+    return RedirectResponse(url="/doctors/settings?saved=1", status_code=303)
+
+
+# ------------------------------------------------------------------ #
 #  Settings — Save Profile                                             #
 # ------------------------------------------------------------------ #
 
@@ -400,7 +457,6 @@ def save_profile(
     request: Request,
     clinic_name: str = Form(""),
     city: str = Form(""),
-    specialization: str = Form(""),
     clinic_address: str = Form(""),
     languages: str = Form(""),
     doctor: Doctor = Depends(require_pin),
@@ -408,7 +464,6 @@ def save_profile(
 ):
     doctor.clinic_name = clinic_name.strip() or None
     doctor.city = city.strip() or None
-    doctor.specialization = specialization.strip() or None
     doctor.clinic_address = clinic_address.strip() or None
     doctor.languages = languages.strip() or None
     db.commit()

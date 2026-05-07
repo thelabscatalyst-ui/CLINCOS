@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% block title %}Documents — {{ patient.name }} — ClinicOS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Document Vault</h1>
+    <div class="page-sub">{{ patient.name }} · {{ patient.phone }}</div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <a href="/patients/{{ patient.id }}" class="btn btn-secondary btn-sm">← Patient</a>
+    <button type="button" class="btn btn-primary btn-sm" onclick="toggleUpload()">+ Upload Document</button>
+  </div>
+</div>
+
+<!-- ── Upload Panel ──────────────────────────────────────────────────── -->
+<div id="uploadPanel" style="display:none;margin-bottom:24px;">
+  <div class="settings-card">
+    <div class="settings-card-title" style="margin-bottom:16px;">Upload Document</div>
+    <form method="POST" action="/patients/{{ patient.id }}/vault/upload"
+          enctype="multipart/form-data" id="vaultUploadForm">
+
+      <!-- Category + Description row -->
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+        <div class="form-group" style="flex:1;min-width:180px;">
+          <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block;">Category</label>
+          <select name="category" class="input-sm" style="width:100%;">
+            {% for key, label in categories.items() %}
+            <option value="{{ key }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="flex:2;min-width:220px;">
+          <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block;">Description <span style="color:var(--muted);font-size:11px;">(optional)</span></label>
+          <input type="text" name="description" class="input-sm" style="width:100%;box-sizing:border-box;"
+                 placeholder="e.g. CBC — April 2026" />
+        </div>
+      </div>
+
+      <!-- Drop zone -->
+      <div id="vaultDropZone"
+           style="border:2px dashed var(--border);border-radius:var(--radius-sm);padding:32px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;margin-bottom:12px;"
+           onclick="document.getElementById('vaultFileInput').click()"
+           ondragover="vaultDragOver(event)" ondragleave="vaultDragLeave(event)" ondrop="vaultDrop(event)">
+        <div style="font-size:13px;color:var(--muted);">Drag files here or <span style="color:var(--text);text-decoration:underline;cursor:pointer;">browse</span></div>
+        <div style="font-size:11px;color:var(--dim);margin-top:4px;">Max 10 MB per file · PDF, images, Word, Excel accepted</div>
+      </div>
+      <input type="file" id="vaultFileInput" name="files" multiple style="display:none;"
+             onchange="vaultFilesSelected(this.files)">
+
+      <!-- Queued file list -->
+      <div id="vaultFileList" style="display:none;margin-bottom:12px;"></div>
+
+      <div style="display:flex;gap:8px;">
+        <button type="submit" class="btn btn-primary btn-sm" id="vaultSubmitBtn" disabled>Upload</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleUpload()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Search ────────────────────────────────────────────────────────── -->
+{% if doc_count > 0 %}
+<div style="margin-bottom:20px;">
+  <input type="text" id="vaultSearch" class="input-sm" placeholder="Search documents by name…"
+         oninput="vaultFilterDocs(this.value)"
+         style="width:100%;box-sizing:border-box;max-width:400px;" />
+</div>
+<div id="vaultNoResults" style="display:none;color:var(--muted);font-size:13px;margin-bottom:16px;">No documents match your search.</div>
+{% endif %}
+
+<!-- ── Document Groups ──────────────────────────────────────────────── -->
+{% set has_any = doc_count > 0 %}
+
+{% if not has_any %}
+<div class="settings-card" style="text-align:center;padding:48px 24px;">
+  <div style="font-size:32px;margin-bottom:12px;opacity:.3;">🗂</div>
+  <div style="font-size:14px;color:var(--muted);">No documents yet</div>
+  <div style="font-size:12px;color:var(--dim);margin-top:6px;">Upload lab reports, prescriptions, X-rays and more</div>
+</div>
+{% else %}
+
+{% for cat_key, cat_label in categories.items() %}
+{% set docs = grouped[cat_key] %}
+{% if docs %}
+<div class="settings-card vault-group-card" style="margin-bottom:16px;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+    <span style="font-size:13px;font-weight:600;color:var(--text);">{{ cat_label }}</span>
+    <span style="font-size:11px;color:var(--muted);background:var(--bg-2);border:1px solid var(--border);border-radius:20px;padding:2px 8px;">{{ docs|length }}</span>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    {% for doc in docs %}
+    <div class="vault-doc-row" data-name="{{ doc.original_name | lower }}"
+         style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;background:var(--bg-2);">
+
+      <!-- View row -->
+      <div id="vault-view-{{ doc.id }}" style="display:flex;align-items:center;gap:12px;">
+        <!-- Name + meta -->
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <a href="/patients/{{ patient.id }}/vault/{{ doc.id }}"
+               target="_blank"
+               style="font-size:13px;font-weight:500;color:var(--text);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+               title="{{ doc.original_name }}">
+              {{ doc.original_name }}
+            </a>
+            {% if doc.category == 'invoice' %}
+            <span style="flex-shrink:0;font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;background:var(--border);color:var(--muted);letter-spacing:.04em;">Auto</span>
+            {% endif %}
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;">
+            <span>{{ fmt_size(doc.file_size) }}</span>
+            <span>{{ doc.uploaded_at.strftime("%d %b %Y") }}</span>
+            {% if doc.description %}<span style="color:var(--text);opacity:.7;">{{ doc.description }}</span>{% endif %}
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <a href="/patients/{{ patient.id }}/vault/{{ doc.id }}?download=true"
+             class="btn btn-secondary btn-sm">Download</a>
+          <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="vaultShowEdit({{ doc.id }})">Edit</button>
+          <form method="POST" action="/patients/{{ patient.id }}/vault/{{ doc.id }}/delete"
+                style="margin:0;" onsubmit="return confirm('Delete \'{{ doc.original_name }}\'?')">
+            <button type="submit" class="btn btn-secondary btn-sm"
+                    style="color:var(--danger,#f87171);border-color:rgba(248,113,113,.25);">Delete</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Edit row (hidden by default) -->
+      <div id="vault-edit-{{ doc.id }}" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+        <form method="POST" action="/patients/{{ patient.id }}/vault/{{ doc.id }}/edit"
+              style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+          <div style="flex:1;min-width:150px;">
+            <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Category</label>
+            <select name="category" class="input-sm" style="width:100%;">
+              {% for key, label in categories.items() %}
+              <option value="{{ key }}" {% if doc.category == key %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div style="flex:2;min-width:200px;">
+            <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Description</label>
+            <input type="text" name="description" class="input-sm" style="width:100%;box-sizing:border-box;"
+                   value="{{ doc.description or '' }}" placeholder="Optional label" />
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    onclick="vaultHideEdit({{ doc.id }})">Cancel</button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function vaultShowEdit(docId) {
+  document.getElementById('vault-edit-' + docId).style.display = 'block';
+}
+function vaultHideEdit(docId) {
+  document.getElementById('vault-edit-' + docId).style.display = 'none';
+}
+
+function vaultFilterDocs(query) {
+  const q = query.trim().toLowerCase();
+  const rows = document.querySelectorAll('.vault-doc-row');
+  const groups = document.querySelectorAll('.vault-group-card');
+  let totalVisible = 0;
+
+  rows.forEach(row => {
+    const name = (row.dataset.name || '').toLowerCase();
+    const visible = !q || name.includes(q);
+    row.style.display = visible ? '' : 'none';
+    if (visible) totalVisible++;
+  });
+
+  // Hide entire category cards if all their rows are hidden
+  groups.forEach(card => {
+    const visibleRows = card.querySelectorAll('.vault-doc-row:not([style*="display: none"])');
+    card.style.display = visibleRows.length > 0 ? '' : 'none';
+  });
+
+  document.getElementById('vaultNoResults').style.display =
+    (q && totalVisible === 0) ? 'block' : 'none';
+}
+
+function toggleUpload() {
+  const panel = document.getElementById('uploadPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  if (panel.style.display === 'block') {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+let pendingFiles = [];
+
+function renderFileList() {
+  const list = document.getElementById('vaultFileList');
+  const btn  = document.getElementById('vaultSubmitBtn');
+  if (pendingFiles.length === 0) {
+    list.style.display = 'none';
+    btn.disabled = true;
+    return;
+  }
+  list.style.display = 'block';
+  btn.disabled = false;
+  list.innerHTML = pendingFiles.map((f, i) =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-2);border-radius:var(--radius-sm);margin-bottom:6px;">
+      <span style="flex:1;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(f.name)}</span>
+      <span style="font-size:11px;color:var(--muted);">${fmtSize(f.size)}</span>
+      <button type="button" onclick="removeFile(${i})"
+              style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px;line-height:1;">×</button>
+    </div>`
+  ).join('');
+}
+
+function removeFile(idx) {
+  pendingFiles.splice(idx, 1);
+  syncInput();
+  renderFileList();
+}
+
+function syncInput() {
+  const dt = new DataTransfer();
+  pendingFiles.forEach(f => dt.items.add(f));
+  document.getElementById('vaultFileInput').files = dt.files;
+}
+
+function vaultFilesSelected(fileList) {
+  const MAX = 10 * 1024 * 1024;
+  Array.from(fileList).forEach(f => {
+    if (f.size > MAX) { alert(`${f.name} exceeds 10 MB limit.`); return; }
+    if (!pendingFiles.find(p => p.name === f.name && p.size === f.size))
+      pendingFiles.push(f);
+  });
+  syncInput();
+  renderFileList();
+}
+
+function vaultDragOver(e) {
+  e.preventDefault();
+  document.getElementById('vaultDropZone').style.borderColor = 'var(--text)';
+  document.getElementById('vaultDropZone').style.background  = 'var(--bg-2)';
+}
+function vaultDragLeave(e) {
+  document.getElementById('vaultDropZone').style.borderColor = 'var(--border)';
+  document.getElementById('vaultDropZone').style.background  = '';
+}
+function vaultDrop(e) {
+  e.preventDefault();
+  vaultDragLeave(e);
+  vaultFilesSelected(e.dataTransfer.files);
+}
+
+function fmtSize(b) {
+  if (b < 1024)       return b + ' B';
+  if (b < 1024*1024)  return (b/1024).toFixed(1) + ' KB';
+  return (b/(1024*1024)).toFixed(1) + ' MB';
+}
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+{% endblock %}

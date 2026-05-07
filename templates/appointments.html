@@ -156,7 +156,7 @@
         </div>
         <div class="visit-actions">
           <form method="POST" action="/visits/{{ visit.id }}/call" style="display:inline;">
-            <button type="submit" class="btn btn-secondary btn-xs">Call</button>
+            <button type="submit" class="btn btn-secondary btn-sm">Call</button>
           </form>
           <div class="visit-more-btn" onclick="toggleMenu('menu-w{{ visit.id }}')">⋮</div>
           <div class="visit-menu" id="menu-w{{ visit.id }}">
@@ -195,12 +195,12 @@
           <span class="badge badge--billing_pending">Billing</span>
         </div>
         <div class="visit-actions">
-          <button type="button" class="btn btn-xs btn-collect"
+          <button type="button" class="btn btn-sm btn-collect"
                   onclick="openBillModal({{ visit.id }}, '{{ visit.patient.name }}')">
             Collect Payment
           </button>
           <form method="POST" action="/visits/{{ visit.id }}/close-free" style="display:inline;">
-            <button type="submit" class="btn btn-secondary btn-xs">Mark Free</button>
+            <button type="submit" class="btn btn-secondary btn-sm">Mark Free</button>
           </form>
         </div>
       </div>
@@ -368,7 +368,7 @@
       <div class="appt-time">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</div>
       {% if is_today and not visit and appt.status.value == 'scheduled' %}
       <form method="POST" action="/visits/check-in-appt/{{ appt.id }}" style="display:inline;" onclick="event.stopPropagation();">
-        <button type="submit" class="btn btn-xs" style="color:var(--success);border:1px solid rgba(74,222,128,.35);background:rgba(74,222,128,.07);">Check In</button>
+        <button type="submit" class="btn btn-sm" style="color:var(--success);border:1px solid rgba(74,222,128,.35);background:rgba(74,222,128,.07);">Check In</button>
       </form>
       {% endif %}
     </div>
@@ -489,48 +489,91 @@
 
     <form method="POST" id="billForm" style="display:flex;flex-direction:column;gap:16px;">
       <input type="hidden" id="billVisitId">
+      <input type="hidden" id="billGstAmountHidden" name="gst_amount" value="0">
+      <input type="hidden" id="billDiscountHidden" name="discount" value="0">
 
-      <!-- Line items -->
-      <div class="bill-items-section">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <span class="form-label" style="margin:0;">Items / Services</span>
+      <!-- ── Line items ── -->
+      <div>
+        <!-- Header row -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);">Items</span>
           <button type="button" class="btn btn-secondary btn-xs" onclick="addBillItem()">+ Add Item</button>
         </div>
-        <div id="billItemsList">
-          <div class="bill-item-row" id="billItemRow0">
-            <input type="text" name="item_name" class="form-input" placeholder="Consultation" style="flex:1;" value="Consultation">
-            <input type="number" name="item_price" id="billFee" class="form-input bill-item-price" placeholder="₹ Amount" min="0" step="1" style="width:120px;" oninput="updateTotal()" required>
-            <button type="button" class="bill-item-remove" onclick="removeBillItem(this)" style="display:none;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
+        <!-- Column labels -->
+        <div style="display:flex;align-items:center;gap:6px;padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:6px;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);">
+          <span style="flex:1;">Description</span>
+          <span style="width:68px;text-align:center;">Qty</span>
+          <span style="width:90px;text-align:right;">Unit Price</span>
+          <span style="width:72px;text-align:right;">Amount</span>
+          <span style="width:26px;"></span>
+        </div>
+        <div id="billItemsList"></div>
+      </div>
+
+      <!-- ── Optional: Discount / GST toggles ── -->
+      <div style="display:flex;gap:8px;">
+        <button type="button" id="discountToggle" onclick="toggleBillDiscount()"
+          style="background:none;border:1px dashed var(--border);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .15s;">
+          + Discount
+        </button>
+        <button type="button" id="gstToggle" onclick="toggleBillGst()"
+          style="background:none;border:1px dashed var(--border);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .15s;">
+          + GST %
+        </button>
+      </div>
+
+      <!-- Discount row (hidden) -->
+      <div id="discountSection" style="display:none;">
+        <label style="display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;">Discount (₹)</label>
+        <input type="number" id="billDiscountInput" class="form-input" min="0" step="1" value="0"
+               oninput="updateTotal()" style="max-width:160px;">
+      </div>
+
+      <!-- GST row (hidden) -->
+      <div id="gstSection" style="display:none;">
+        <label style="display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;">GST (%)</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="number" id="billGstInput" class="form-input" min="0" max="100" step="0.5"
+                 value="18" oninput="updateTotal()" style="max-width:100px;">
+          <span id="billGstCalc" style="font-size:13px;color:var(--muted);"></span>
         </div>
       </div>
 
-      <!-- Discount + payment mode -->
-      <div class="bill-fields" style="margin:0;">
-        <div>
-          <label class="form-label">Discount (₹)</label>
-          <input type="number" id="billDiscount" name="discount" class="form-input" min="0" step="1" value="0" oninput="updateTotal()">
+      <!-- ── Payment mode ── -->
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:8px;">Payment Mode</label>
+        <div style="display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+          <button type="button" class="bm-btn active" data-mode="cash"      onclick="selectPayMode(this)" style="flex:1;background:none;border:none;border-right:1px solid var(--border);padding:9px 4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;">Cash</button>
+          <button type="button" class="bm-btn"        data-mode="upi"       onclick="selectPayMode(this)" style="flex:1;background:none;border:none;border-right:1px solid var(--border);padding:9px 4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;">UPI</button>
+          <button type="button" class="bm-btn"        data-mode="card"      onclick="selectPayMode(this)" style="flex:1;background:none;border:none;border-right:1px solid var(--border);padding:9px 4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;">Card</button>
+          <button type="button" class="bm-btn"        data-mode="insurance" onclick="selectPayMode(this)" style="flex:1;background:none;border:none;border-right:1px solid var(--border);padding:9px 4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;">Insurance</button>
+          <button type="button" class="bm-btn"        data-mode="free"      onclick="selectPayMode(this)" style="flex:1;background:none;border:none;padding:9px 4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;">Free</button>
         </div>
-        <div>
-          <label class="form-label">Payment Mode</label>
-          <select id="billMode" name="payment_mode" class="form-input form-select">
-            <option value="cash">Cash</option>
-            <option value="upi">UPI</option>
-            <option value="card">Card</option>
-            <option value="insurance">Insurance</option>
-          </select>
-        </div>
-        <div style="grid-column:span 2;">
-          <label class="form-label">Notes</label>
-          <input type="text" id="billNotes" name="notes" class="form-input" placeholder="e.g. follow-up in 7 days">
-        </div>
+        <input type="hidden" name="payment_mode" id="billMode" value="cash">
       </div>
 
-      <div class="bill-total-row">
-        <span class="bill-total-label">Total</span>
-        <span class="bill-total-amount" id="billTotal">₹0</span>
+      <!-- ── Notes ── -->
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;">Notes</label>
+        <input type="text" id="billNotes" name="notes" class="form-input"
+               placeholder="e.g. follow-up in 7 days" style="width:100%;box-sizing:border-box;">
+      </div>
+
+      <!-- ── Total summary ── -->
+      <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+        <div id="bsSubtotalRow" style="display:none;justify-content:space-between;align-items:center;padding:8px 14px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--border);">
+          <span>Subtotal</span><span id="bsSubtotal">₹0</span>
+        </div>
+        <div id="bsDiscRow" style="display:none;justify-content:space-between;align-items:center;padding:8px 14px;font-size:13px;color:#b45309;border-bottom:1px solid var(--border);">
+          <span>Discount</span><span id="bsDisc">−₹0</span>
+        </div>
+        <div id="bsGstRow" style="display:none;justify-content:space-between;align-items:center;padding:8px 14px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--border);">
+          <span id="bsGstLabel">GST</span><span id="bsGst">₹0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;">
+          <span style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Total</span>
+          <span id="billTotal" style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--text);">₹0</span>
+        </div>
       </div>
 
       <div class="modal-actions">
@@ -593,76 +636,130 @@ document.addEventListener('DOMContentLoaded', function() {
 /* Auto-refresh removed — page reloads on every action anyway */
 
 /* ── Bill Modal ── */
-let billItemCount = 1;
+let _billDiscOn = false;
+let _billGstOn  = false;
+
+const REMOVE_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+function _mkItemRow(name, qty, price) {
+  name  = (name  || '').replace(/"/g, '&quot;');
+  qty   = qty   || 1;
+  price = price || '';
+  return `<div class="bill-item-row">
+    <input type="text"   name="item_name"  class="form-input" placeholder="e.g. Consultation" value="${name}"  style="flex:1;">
+    <input type="number" name="item_qty"   class="form-input bill-item-qty"   min="1" step="1"    value="${qty}"  style="width:68px;text-align:center;" oninput="updateTotal()">
+    <input type="number" name="item_price" class="form-input bill-item-price" min="0" step="0.01" value="${price}" placeholder="₹" style="width:90px;" oninput="updateTotal()">
+    <span class="bill-item-linetotal">₹0</span>
+    <button type="button" class="bill-item-remove" onclick="removeBillItem(this)">${REMOVE_SVG}</button>
+  </div>`;
+}
+
+function _refreshRemoveButtons() {
+  const rows = document.querySelectorAll('#billItemsList .bill-item-row');
+  rows.forEach(r => r.querySelector('.bill-item-remove').style.display = rows.length > 1 ? 'flex' : 'none');
+}
 
 function openBillModal(visitId, patientName) {
   document.getElementById('billPatientName').textContent = patientName;
   document.getElementById('billVisitId').value = visitId;
-  document.getElementById('billDiscount').value = '0';
-  document.getElementById('billMode').value = 'cash';
   document.getElementById('billNotes').value = '';
-  document.getElementById('billTotal').textContent = '₹0';
-  billItemCount = 1;
-  document.getElementById('billItemsList').innerHTML =
-    '<div class="bill-item-row" id="billItemRow0">' +
-    '<input type="text" name="item_name" class="form-input" placeholder="Consultation" style="flex:1;" value="Consultation">' +
-    '<input type="number" name="item_price" class="form-input bill-item-price" placeholder="₹" min="0" step="1" style="width:110px;" oninput="updateTotal()">' +
-    '<button type="button" class="bill-item-remove" onclick="removeBillItem(this)" style="display:none;">' +
-    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
-    '</button></div>';
-  document.getElementById('billModal').classList.add('open');
+  document.getElementById('pinnedItems').innerHTML = '';
 
+  // Reset discount / GST toggles
+  _billDiscOn = false; _billGstOn = false;
+  document.getElementById('discountSection').style.display = 'none';
+  document.getElementById('gstSection').style.display = 'none';
+  document.getElementById('discountToggle').classList.remove('active');
+  document.getElementById('gstToggle').classList.remove('active');
+  document.getElementById('billDiscountInput').value = '0';
+  document.getElementById('billGstInput').value = '18';
+
+  // Reset payment mode
+  document.querySelectorAll('.bm-btn').forEach(b => {
+    const active = b.dataset.mode === 'cash';
+    b.classList.toggle('active', active);
+    b.style.background = active ? 'rgba(175,145,105,.18)' : '';
+    b.style.color      = active ? 'var(--text)' : 'var(--muted)';
+    b.style.fontWeight = active ? '600' : '500';
+  });
+  document.getElementById('billMode').value = 'cash';
+
+  // Seed first item row
+  document.getElementById('billItemsList').innerHTML = _mkItemRow('Consultation', 1, '');
+  _refreshRemoveButtons();
+  document.getElementById('billModal').classList.add('open');
+  updateTotal();
+
+  // Fetch pinned catalog + default fee
   fetch('/visits/' + visitId + '/bill-prefill')
     .then(r => r.json())
     .then(data => {
       const pinned = document.getElementById('pinnedItems');
-      pinned.innerHTML = '';
       data.pinned.forEach(item => {
         const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'bill-quick-btn';
+        btn.type = 'button'; btn.className = 'bill-quick-btn';
         btn.textContent = item.name + ' — ₹' + item.price;
-        btn.onclick = () => addBillItem(item.name, item.price);
+        btn.onclick = () => addBillItem(item.name, 1, item.price);
         pinned.appendChild(btn);
       });
       if (data.default_fee > 0) {
         const fp = document.querySelector('#billItemsList .bill-item-price');
         if (fp) { fp.value = data.default_fee; updateTotal(); }
       }
-    });
+    }).catch(() => {});
 
-  setTimeout(() => {
-    const fp = document.querySelector('#billItemsList .bill-item-price');
-    if (fp) fp.focus();
-  }, 120);
+  setTimeout(() => document.querySelector('#billItemsList .bill-item-price')?.focus(), 120);
 }
 
-function addBillItem(name, price) {
-  name = name || '';
-  price = price || '';
+function addBillItem(name, qty, price) {
   const list = document.getElementById('billItemsList');
-  const idx  = billItemCount++;
-  const row  = document.createElement('div');
-  row.className = 'bill-item-row';
-  row.innerHTML =
-    '<input type="text" name="item_name" class="form-input" placeholder="e.g. Lab Test" style="flex:1;" value="' + name + '">' +
-    '<input type="number" name="item_price" class="form-input bill-item-price" placeholder="₹" min="0" step="1" style="width:110px;" value="' + price + '" oninput="updateTotal()">' +
-    '<button type="button" class="bill-item-remove" onclick="removeBillItem(this)">' +
-    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
-    '</button>';
-  list.appendChild(row);
-  row.querySelector('.bill-item-price').focus();
-  document.querySelectorAll('#billItemsList .bill-item-remove').forEach(b => b.style.display = 'flex');
+  list.insertAdjacentHTML('beforeend', _mkItemRow(name, qty, price));
+  _refreshRemoveButtons();
+  list.lastElementChild.querySelector('.bill-item-price').focus();
   updateTotal();
 }
 
 function removeBillItem(btn) {
-  const rows = document.querySelectorAll('#billItemsList .bill-item-row');
-  if (rows.length <= 1) return;
+  if (document.querySelectorAll('#billItemsList .bill-item-row').length <= 1) return;
   btn.closest('.bill-item-row').remove();
-  const remaining = document.querySelectorAll('#billItemsList .bill-item-row');
-  if (remaining.length === 1) remaining[0].querySelector('.bill-item-remove').style.display = 'none';
+  _refreshRemoveButtons();
   updateTotal();
+}
+
+function _styleToggleBtn(el, on) {
+  el.style.background   = on ? 'rgba(175,145,105,.12)' : 'none';
+  el.style.borderColor  = on ? 'var(--border-light)'   : 'var(--border)';
+  el.style.borderStyle  = on ? 'solid'                 : 'dashed';
+  el.style.color        = on ? 'var(--text)'           : 'var(--muted)';
+}
+
+function toggleBillDiscount() {
+  _billDiscOn = !_billDiscOn;
+  document.getElementById('discountSection').style.display = _billDiscOn ? '' : 'none';
+  _styleToggleBtn(document.getElementById('discountToggle'), _billDiscOn);
+  if (!_billDiscOn) document.getElementById('billDiscountInput').value = '0';
+  updateTotal();
+}
+
+function toggleBillGst() {
+  _billGstOn = !_billGstOn;
+  document.getElementById('gstSection').style.display = _billGstOn ? '' : 'none';
+  _styleToggleBtn(document.getElementById('gstToggle'), _billGstOn);
+  updateTotal();
+}
+
+function selectPayMode(btn) {
+  document.querySelectorAll('.bm-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.background = '';
+    b.style.color      = 'var(--muted)';
+    b.style.fontWeight = '500';
+  });
+  btn.classList.add('active');
+  btn.style.background = 'rgba(175,145,105,.18)';
+  btn.style.color      = 'var(--text)';
+  btn.style.fontWeight = '600';
+  document.getElementById('billMode').value = btn.dataset.mode;
 }
 
 function closeBillModal() {
@@ -671,12 +768,35 @@ function closeBillModal() {
 
 function updateTotal() {
   let subtotal = 0;
-  document.querySelectorAll('#billItemsList .bill-item-price').forEach(i => {
-    subtotal += parseFloat(i.value) || 0;
+  document.querySelectorAll('#billItemsList .bill-item-row').forEach(row => {
+    const qty   = Math.max(1, parseFloat(row.querySelector('.bill-item-qty')?.value)   || 1);
+    const price = parseFloat(row.querySelector('.bill-item-price')?.value) || 0;
+    const line  = qty * price;
+    subtotal += line;
+    const lt = row.querySelector('.bill-item-linetotal');
+    if (lt) lt.textContent = '₹' + line.toLocaleString('en-IN', {maximumFractionDigits: 0});
   });
-  const disc  = parseFloat(document.getElementById('billDiscount').value) || 0;
-  const total = Math.max(0, subtotal - disc);
-  document.getElementById('billTotal').textContent = '₹' + total.toLocaleString('en-IN');
+
+  const disc    = _billDiscOn ? Math.min(parseFloat(document.getElementById('billDiscountInput').value) || 0, subtotal) : 0;
+  const gstPct  = _billGstOn  ? (parseFloat(document.getElementById('billGstInput').value) || 0) : 0;
+  const gstAmt  = Math.round((subtotal - disc) * gstPct / 100 * 100) / 100;
+  const total   = Math.max(0, subtotal - disc + gstAmt);
+
+  // Update hidden fields
+  document.getElementById('billDiscountHidden').value   = disc.toFixed(2);
+  document.getElementById('billGstAmountHidden').value  = gstAmt.toFixed(2);
+
+  // Summary rows (use display:flex so justify-content works)
+  const hasExtra = disc > 0 || gstAmt > 0;
+  document.getElementById('bsSubtotalRow').style.display = hasExtra ? 'flex' : 'none';
+  document.getElementById('bsSubtotal').textContent = '₹' + subtotal.toLocaleString('en-IN', {maximumFractionDigits: 0});
+  document.getElementById('bsDiscRow').style.display = disc > 0 ? 'flex' : 'none';
+  document.getElementById('bsDisc').textContent = '−₹' + disc.toLocaleString('en-IN', {maximumFractionDigits: 0});
+  document.getElementById('bsGstRow').style.display = gstAmt > 0 ? 'flex' : 'none';
+  document.getElementById('bsGstLabel').textContent = `GST (${gstPct}%)`;
+  document.getElementById('bsGst').textContent = '₹' + gstAmt.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  document.getElementById('billGstCalc').textContent = gstAmt > 0 ? `= ₹${gstAmt.toLocaleString('en-IN', {maximumFractionDigits: 2})}` : '';
+  document.getElementById('billTotal').textContent = '₹' + total.toLocaleString('en-IN', {maximumFractionDigits: 0});
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBillModal(); });

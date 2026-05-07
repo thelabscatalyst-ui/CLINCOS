@@ -13,6 +13,9 @@
 {% if pin_error %}
 <div class="alert alert-error" style="margin-bottom:24px;">{{ pin_error }}</div>
 {% endif %}
+{% if account_error %}
+<div class="alert alert-error" style="margin-bottom:24px;">{{ account_error }}</div>
+{% endif %}
 
 <!-- ───────────────────────────────────────────────────── -->
 <!--  1. Working Hours                                      -->
@@ -164,11 +167,6 @@
           value="{{ doctor.city or '' }}" placeholder="Nashik" />
       </div>
       <div class="form-group">
-        <label for="specialization">Specialization</label>
-        <input type="text" id="specialization" name="specialization"
-          value="{{ doctor.specialization or '' }}" placeholder="General Physician" />
-      </div>
-      <div class="form-group">
         <label for="languages">Languages spoken</label>
         <input type="text" id="languages" name="languages"
           value="{{ doctor.languages or '' }}" placeholder="Hindi, Marathi, English" />
@@ -177,6 +175,44 @@
         <label for="clinic_address">Clinic address</label>
         <input type="text" id="clinic_address" name="clinic_address"
           value="{{ doctor.clinic_address or '' }}" placeholder="123, Main Road, Nashik" />
+      </div>
+    </div>
+  </div>
+</form>
+
+<!-- ───────────────────────────────────────────────────── -->
+<!--  2b. Account Details                                   -->
+<!-- ───────────────────────────────────────────────────── -->
+<form method="POST" action="/doctors/settings/account">
+  <div class="settings-card">
+    <div class="settings-card-header">
+      <div>
+        <div class="settings-card-title">Account Details</div>
+        <div class="settings-card-sub">Your personal contact information and login email</div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">Save Details</button>
+    </div>
+
+    <div class="settings-form-grid">
+      <div class="form-group">
+        <label for="account_name">Full name</label>
+        <input type="text" id="account_name" name="name"
+          value="{{ doctor.name or '' }}" placeholder="Dr. Rajesh Mehta" required />
+      </div>
+      <div class="form-group">
+        <label for="account_email">Email address</label>
+        <input type="email" id="account_email" name="email"
+          value="{{ doctor.email or '' }}" placeholder="doctor@example.com" required />
+      </div>
+      <div class="form-group">
+        <label for="account_phone">Phone number</label>
+        <input type="tel" id="account_phone" name="phone"
+          value="{{ doctor.phone or '' }}" placeholder="+91 98765 43210" />
+      </div>
+      <div class="form-group">
+        <label for="account_specialization">Specialization / Designation</label>
+        <input type="text" id="account_specialization" name="specialization"
+          value="{{ doctor.specialization or '' }}" placeholder="General Physician" />
       </div>
     </div>
   </div>
@@ -283,6 +319,8 @@
       <div class="settings-card-sub">
         {% if is_clinic_associate %}
           Access covered by clinic
+        {% elif is_clinic_account and latest_clinic_sub %}
+          Clinic Plan — renews on {{ latest_clinic_sub.end_date.strftime("%d %b %Y") }}
         {% elif plan_status == 'trial' %}
           Free Trial — {{ plan_days }} day{{ 's' if plan_days != 1 }} remaining
         {% elif plan_status == 'solo' %}
@@ -363,6 +401,50 @@
     </p>
     {% endif %}
 
+    {% if latest_clinic_sub %}
+    <!-- ── Active paid clinic plan — show billing details ─── -->
+    <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:20px;">
+      <!-- Left: plan info -->
+      <div style="padding:20px 24px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <span style="font-size:15px;font-weight:700;color:var(--text);font-family:'Playfair Display',serif;">Clinic Plan</span>
+          <span class="badge badge--scheduled" style="font-size:11px;padding:3px 9px;">Active</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">Multi-doctor clinic management</div>
+        <div style="font-size:26px;font-weight:700;color:var(--text);font-family:'Playfair Display',serif;margin-bottom:4px;">
+          ₹1,499 <span style="font-size:13px;font-weight:400;color:var(--muted);">/month</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">
+          Paid ₹{{ "{:,.0f}".format(latest_clinic_sub.amount / 100) }} on {{ latest_clinic_sub.start_date.strftime("%d %b %Y") }}
+        </div>
+        {% if razorpay_configured %}
+        <button type="button" class="btn btn-secondary btn-sm"
+                onclick="settingsPayment('clinic', 149900)">Renew Early</button>
+        {% endif %}
+      </div>
+      <!-- Divider -->
+      <div style="background:var(--border);"></div>
+      <!-- Right: billing details -->
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Next billing date</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text);">{{ latest_clinic_sub.end_date.strftime("%d %b %Y") }}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">{{ plan_days }} day{{ 's' if plan_days != 1 }} remaining</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Payment ID</div>
+          <div style="font-size:12px;color:var(--muted);font-family:monospace;word-break:break-all;">{{ latest_clinic_sub.payment_id or '—' }}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Subscription period</div>
+          <div style="font-size:12px;color:var(--text);">
+            {{ latest_clinic_sub.start_date.strftime("%d %b %Y") }} → {{ latest_clinic_sub.end_date.strftime("%d %b %Y") }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% else %}
     <div class="sub-plan-horizontal">
       <div class="sub-left">
         <div class="sub-plan-name">Clinic <span class="sub-pro-tag">Your Plan</span></div>
@@ -387,6 +469,7 @@
         </ul>
       </div>
     </div>
+    {% endif %}
     {% endif %}
 
   {% else %}
@@ -546,8 +629,12 @@
   <form method="POST" action="/price-catalog" class="catalog-add-form">
     <input type="text" name="name" class="input-sm" placeholder="e.g. New Patient Consultation" required style="flex:1;min-width:200px;">
     <input type="number" name="price" class="input-sm" placeholder="₹ Amount" min="0" step="1" required style="width:130px;">
-    <label class="catalog-pin-label">
-      <input type="checkbox" name="pinned" value="true"> Quick button
+    <label class="catalog-pin-label catalog-pin-toggle" id="catalogPinLabel">
+      <input type="checkbox" name="pinned" value="true" id="catalogPinCheck"
+             onchange="updatePinLabel(this)" style="position:absolute;opacity:0;width:0;height:0;pointer-events:none;">
+      <span class="btn btn-secondary btn-sm" id="catalogPinBtn" style="pointer-events:none;user-select:none;">
+        Quick button: Off
+      </span>
     </label>
     <button type="submit" class="btn btn-primary btn-sm">Add</button>
   </form>
@@ -775,6 +862,11 @@ function copyLink() {
     btn.textContent = 'Copied!';
     setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
   });
+}
+
+function updatePinLabel(cb) {
+  document.getElementById('catalogPinBtn').textContent =
+    cb.checked ? 'Quick button: On' : 'Quick button: Off';
 }
 
 function shareWhatsApp() {

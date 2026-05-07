@@ -294,3 +294,20 @@ def _run_migrations():
             "WHERE plan_type = 'clinic'"
         ))
         conn.commit()
+
+        # ── patient document vault ────────────────────────────────────────────
+        conn.execute(text(
+            "CREATE TABLE IF NOT EXISTS patient_documents ("
+            "  id            INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "  doctor_id     INTEGER NOT NULL REFERENCES doctors(id), "
+            "  patient_id    INTEGER NOT NULL REFERENCES patients(id), "
+            "  original_name VARCHAR(255) NOT NULL, "
+            "  stored_name   VARCHAR(255) NOT NULL, "
+            "  file_size     INTEGER NOT NULL, "
+            "  mime_type     VARCHAR(100), "
+            "  category      VARCHAR(50) DEFAULT 'other', "
+            "  description   TEXT, "
+            "  uploaded_at   DATETIME DEFAULT CURRENT_TIMESTAMP"
+            ")"
+        ))
+        conn.commit()

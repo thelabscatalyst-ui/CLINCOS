@@ -4990,6 +4990,163 @@ html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0
   border-color: rgba(248,113,113,.4);
 }
 
+/* ── Bill modal — item column labels ── */
+.bill-items-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.bill-col-labels {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 5px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.bill-item-linetotal {
+  width: 76px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+/* ── Toggle buttons (Discount / GST) ── */
+.bill-toggle-row {
+  display: flex;
+  gap: 8px;
+}
+.bill-toggle-btn {
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.bill-toggle-btn:hover {
+  border-color: var(--border-light);
+  color: var(--text);
+}
+.bill-toggle-btn.active {
+  background: rgba(175,145,105,0.1);
+  border-color: var(--border-light);
+  border-style: solid;
+  color: var(--text);
+}
+
+/* ── Payment mode row of buttons ── */
+.bill-mode-btns {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.bill-mode-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  border-right: 1px solid var(--border);
+  padding: 8px 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.bill-mode-btn:last-child { border-right: none; }
+.bill-mode-btn:hover { background: var(--bg-3); color: var(--text); }
+.bill-mode-btn.active {
+  background: rgba(175,145,105,0.18);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ── Summary breakdown block ── */
+.bill-summary-block {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.bill-summary-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.bill-summary-line:last-child { border-bottom: none; }
+.bill-summary-line--disc { color: #b45309; }
+.bill-summary-line--total {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  padding: 11px 14px;
+}
+
+/* ── Bill detail — items table ── */
+.bill-detail-items {
+  margin-bottom: 8px;
+}
+.bill-detail-items-head {
+  display: flex;
+  gap: 8px;
+  padding: 0 0 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.bill-detail-item-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.bill-detail-item-row:last-child { border-bottom: none; }
+
+/* ── Patient billing history item chips ── */
+.bill-history-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+.bill-history-item-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.bill-history-item-chip--more {
+  color: var(--muted);
+  background: none;
+  border-style: dashed;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Income Dashboard  (v59)
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -5943,16 +6100,19 @@ html.light .ac-status--done {
 .ac-inline-edit {
   font-size: 11px;
   font-weight: 600;
-  padding: 2px 8px;
+  padding: 4px 11px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--bg-3);
-  color: var(--dim);
+  color: var(--muted);
   cursor: pointer;
-  margin-left: 6px;
+  margin-left: 8px;
   transition: all .15s;
+  vertical-align: middle;
+  white-space: nowrap;
+  line-height: 1.4;
 }
-.ac-inline-edit:hover { color: var(--text); background: var(--bg-input); }
+.ac-inline-edit:hover { color: var(--text); background: var(--bg-input); border-color: var(--muted); }
 
 /* Special value pills */
 .ac-type-pill {

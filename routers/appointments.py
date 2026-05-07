@@ -650,13 +650,48 @@ async def save_follow_up(
         Appointment.id == appt_id,
         Appointment.doctor_id == doctor.id,
     ).first()
-    if appt:
+    if not appt:
+        return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+
+    # ── 1. Save follow_up_date on parent appointment ──
+    fu_date = None
+    if fu:
         try:
-            appt.follow_up_date = date.fromisoformat(fu) if fu else None
+            fu_date = date.fromisoformat(fu)
+            appt.follow_up_date = fu_date
         except ValueError:
             appt.follow_up_date = None
-        db.commit()
-    return JSONResponse({"ok": True})
+    else:
+        appt.follow_up_date = None
+
+    # ── 2. Auto-book first available slot on that date ──
+    new_appt_info = None
+    if fu_date:
+        slots = get_available_slots(doctor.id, fu_date, db, filter_past=False)
+        if slots:
+            first_slot = time.fromisoformat(slots[0])
+            # Use same duration as the parent appointment (or default 15 min)
+            duration = appt.duration_mins or 15
+            new_appt = Appointment(
+                doctor_id        = doctor.id,
+                patient_id       = appt.patient_id,
+                appointment_date = fu_date,
+                appointment_time = first_slot,
+                duration_mins    = duration,
+                appointment_type = AppointmentType.follow_up,
+                status           = AppointmentStatus.scheduled,
+                booked_by        = BookedBy.doctor,
+            )
+            db.add(new_appt)
+            db.flush()
+            new_appt_info = {
+                "id":   new_appt.id,
+                "date": fu_date.strftime("%d %b %Y"),
+                "time": datetime.combine(fu_date, first_slot).strftime("%I:%M %p").lstrip("0"),
+            }
+
+    db.commit()
+    return JSONResponse({"ok": True, "new_appt": new_appt_info})
 
 
 # ------------------------------------------------------------------ #

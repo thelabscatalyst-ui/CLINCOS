@@ -2,120 +2,171 @@
 {% block title %}Bill #{{ bill.id }} — ClinicOS{% endblock %}
 {% block content %}
 
+<!-- ── Page header ── -->
 <div class="page-header">
   <div>
-    <h1 class="page-title">Bill #{{ bill.id }}</h1>
-    <div class="page-date">
+    <h1 class="page-title">Bill <span style="color:var(--muted);font-weight:400;">#{{ bill.id }}</span></h1>
+    <div class="page-sub">
       {{ bill.paid_at.strftime("%A, %d %B %Y · %I:%M %p").lstrip("0") if bill.paid_at else bill.created_at.strftime("%A, %d %B %Y") }}
     </div>
   </div>
-  <div style="display:flex;gap:8px;align-items:center;">
+  <div style="display:flex;gap:8px;">
     <a href="/patients/{{ bill.patient_id }}" class="btn btn-secondary btn-sm">← Patient</a>
+    <a href="/bills/{{ bill.id }}/pdf" class="btn btn-secondary btn-sm" style="display:flex;align-items:center;gap:6px;">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 13h8M8 3v7M5 7l3 3 3-3"/>
+      </svg>
+      PDF
+    </a>
   </div>
 </div>
 
-<div class="bill-detail-grid">
+<!-- ── Context strip: Patient · Visit · Doctor ── -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
 
-  <!-- Left: Bill summary -->
-  <div class="settings-card" style="gap:0;">
-
-    <!-- Patient + doctor -->
-    <div class="bill-detail-parties">
-      <div>
-        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:4px;">Patient</div>
-        <div style="font-size:1rem;font-weight:600;color:var(--text);">{{ bill.visit.patient.name }}</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:4px;">Doctor</div>
-        <div style="font-size:1rem;font-weight:600;color:var(--text);">Dr. {{ doctor.name }}</div>
-        {% if doctor.clinic_name %}
-        <div style="font-size:12px;color:var(--muted);">{{ doctor.clinic_name }}</div>
-        {% endif %}
-      </div>
+  <!-- Patient -->
+  <div style="background:var(--bg-2);padding:20px 24px;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:10px;">Patient</div>
+    <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:4px;">{{ bill.visit.patient.name }}</div>
+    {% if bill.visit.patient.phone %}
+    <div style="font-size:13px;color:var(--muted);">{{ bill.visit.patient.phone }}</div>
+    {% endif %}
+    <div style="font-size:12px;color:var(--dim);margin-top:4px;">
+      {% if bill.visit.patient.age %}{{ bill.visit.patient.age }} yrs{% endif %}
+      {% if bill.visit.patient.gender %} · {{ bill.visit.patient.gender | title }}{% endif %}
+      {% if bill.visit.patient.blood_group %} · {{ bill.visit.patient.blood_group }}{% endif %}
     </div>
+  </div>
 
-    <div style="height:1px;background:var(--border);margin:20px 0;"></div>
-
-    <!-- Breakdown -->
-    <div class="bill-detail-lines">
-      <div class="bill-detail-line">
-        <span>Consultation Fee</span>
-        <span>₹{{ "{:,.0f}".format(bill.subtotal) }}</span>
-      </div>
-      {% if bill.discount and bill.discount > 0 %}
-      <div class="bill-detail-line" style="color:var(--muted);">
-        <span>Discount</span>
-        <span>− ₹{{ "{:,.0f}".format(bill.discount) }}</span>
-      </div>
+  <!-- Visit -->
+  <div style="background:var(--bg-2);padding:20px 24px;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:10px;">Visit</div>
+    <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px;">
+      <span style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--text);">#{{ bill.visit.token_number }}</span>
+      <span style="font-size:12px;color:var(--muted);">Token</span>
+    </div>
+    <div style="font-size:13px;color:var(--muted);line-height:1.8;">
+      <div>{{ bill.visit.visit_date.strftime("%d %b %Y") }}</div>
+      {% if bill.visit.check_in_time %}
+      <div>Check-in {{ bill.visit.check_in_time.strftime("%I:%M %p").lstrip("0") }}</div>
       {% endif %}
-      {% if bill.gst_amount and bill.gst_amount > 0 %}
-      <div class="bill-detail-line" style="color:var(--muted);">
-        <span>GST</span>
-        <span>+ ₹{{ "{:,.0f}".format(bill.gst_amount) }}</span>
-      </div>
+      {% if bill.visit.appointment %}
+      <div>{{ bill.visit.appointment.appointment_type.value.replace("_"," ").title() }}</div>
       {% endif %}
     </div>
+  </div>
 
-    <div style="height:1px;background:var(--border);margin:16px 0;"></div>
+  <!-- Doctor -->
+  <div style="background:var(--bg-2);padding:20px 24px;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:10px;">Doctor</div>
+    <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:4px;">Dr. {{ doctor.name }}</div>
+    {% if doctor.specialization %}
+    <div style="font-size:13px;color:var(--muted);">{{ doctor.specialization }}</div>
+    {% endif %}
+    {% if doctor.clinic_name %}
+    <div style="font-size:12px;color:var(--dim);margin-top:4px;">{{ doctor.clinic_name }}</div>
+    {% endif %}
+  </div>
 
-    <div class="bill-detail-total-row">
-      <span class="bill-total-label">Total Paid</span>
-      <span class="bill-total-amount">₹{{ "{:,.0f}".format(bill.total) }}</span>
+</div>
+
+<!-- ── Items card ── -->
+<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;">
+
+  <!-- Card header -->
+  <div style="padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+    <span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);">Items</span>
+    <span style="font-size:12px;color:var(--muted);">{{ bill.items | length if bill.items else 1 }} item{{ 's' if (bill.items | length if bill.items else 1) != 1 else '' }}</span>
+  </div>
+
+  <!-- Column headers -->
+  <div style="display:grid;grid-template-columns:1fr 64px 100px 100px;gap:0;padding:10px 24px;background:var(--bg-3);border-bottom:1px solid var(--border);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);">
+    <span>Description</span>
+    <span style="text-align:center;">Qty</span>
+    <span style="text-align:right;">Unit Price</span>
+    <span style="text-align:right;">Amount</span>
+  </div>
+
+  <!-- Item rows -->
+  {% if bill.items %}
+    {% for item in bill.items %}
+    <div style="display:grid;grid-template-columns:1fr 64px 100px 100px;gap:0;padding:14px 24px;border-bottom:{% if not loop.last %}1px solid var(--border){% else %}none{% endif %};align-items:center;">
+      <span style="font-size:14px;color:var(--text);font-weight:500;">{{ item.description }}</span>
+      <span style="text-align:center;font-size:13px;color:var(--muted);">{{ item.quantity }}</span>
+      <span style="text-align:right;font-size:13px;color:var(--muted);">₹{{ "{:,.0f}".format(item.unit_price) }}</span>
+      <span style="text-align:right;font-size:14px;font-weight:600;color:var(--text);">₹{{ "{:,.0f}".format(item.total) }}</span>
     </div>
+    {% endfor %}
+  {% else %}
+    <div style="display:grid;grid-template-columns:1fr 64px 100px 100px;gap:0;padding:14px 24px;align-items:center;">
+      <span style="font-size:14px;color:var(--text);font-weight:500;">Consultation</span>
+      <span style="text-align:center;font-size:13px;color:var(--muted);">1</span>
+      <span style="text-align:right;font-size:13px;color:var(--muted);">₹{{ "{:,.0f}".format(bill.subtotal) }}</span>
+      <span style="text-align:right;font-size:14px;font-weight:600;color:var(--text);">₹{{ "{:,.0f}".format(bill.subtotal) }}</span>
+    </div>
+  {% endif %}
 
-    <!-- Payment mode -->
-    <div style="margin-top:16px;display:flex;align-items:center;gap:10px;">
-      <span style="font-size:12px;color:var(--muted);">Payment via</span>
-      <span class="badge-channel badge-channel--{{ bill.payment_mode.value if bill.payment_mode else 'free' }}">
+</div>
+
+<!-- ── Totals + Payment row ── -->
+<div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;margin-bottom:16px;">
+
+  <!-- Payment method card -->
+  <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:12px;">Payment</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:{% if bill.paid_at %}8px{% else %}0{% endif %};">
+      <span style="font-size:13px;color:var(--muted);">Paid via</span>
+      <span class="badge-channel badge-channel--{{ bill.payment_mode.value if bill.payment_mode else 'free' }}" style="font-size:12px;">
         {{ bill.payment_mode.value.title() if bill.payment_mode else 'Free' }}
       </span>
     </div>
-
+    {% if bill.paid_at %}
+    <div style="font-size:12px;color:var(--dim);">{{ bill.paid_at.strftime("%d %b %Y · %I:%M %p").lstrip("0") }}</div>
+    {% endif %}
     {% if bill.notes %}
-    <div style="margin-top:14px;padding:12px 14px;background:var(--bg-3);border-radius:var(--radius-sm);font-size:13px;color:var(--muted);">
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;color:var(--muted);line-height:1.55;">
+      <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);display:block;margin-bottom:4px;">Note</span>
       {{ bill.notes }}
     </div>
     {% endif %}
-
   </div>
 
-  <!-- Right: Visit info -->
-  <div class="settings-card" style="gap:16px;">
-    <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);">Visit Info</div>
-
-    <div class="bill-info-rows">
-      <div class="bill-info-row">
-        <span class="bill-info-label">Token</span>
-        <span class="bill-info-val">#{{ bill.visit.token_number }}</span>
-      </div>
-      <div class="bill-info-row">
-        <span class="bill-info-label">Date</span>
-        <span class="bill-info-val">{{ bill.visit.visit_date.strftime("%d %b %Y") }}</span>
-      </div>
-      <div class="bill-info-row">
-        <span class="bill-info-label">Check-in</span>
-        <span class="bill-info-val">{{ bill.visit.check_in_time.strftime("%I:%M %p").lstrip("0") if bill.visit.check_in_time else "—" }}</span>
-      </div>
-      {% if bill.visit.appointment %}
-      <div class="bill-info-row">
-        <span class="bill-info-label">Type</span>
-        <span class="bill-info-val">{{ bill.visit.appointment.appointment_type.value.replace("_"," ").title() }}</span>
-      </div>
-      {% endif %}
-      <div class="bill-info-row">
-        <span class="bill-info-label">Status</span>
-        <span class="badge-channel badge-channel--completed">Closed</span>
-      </div>
-    </div>
-
-    {% if bill.visit.appointment and bill.visit.appointment.doctor_notes %}
-    <div style="padding-top:12px;border-top:1px solid var(--border);">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:8px;">Doctor's Notes</div>
-      <div style="font-size:13px;color:var(--text);line-height:1.6;">{{ bill.visit.appointment.doctor_notes }}</div>
+  <!-- Totals block -->
+  <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;min-width:280px;">
+    {% if (bill.discount and bill.discount > 0) or (bill.gst_amount and bill.gst_amount > 0) %}
+    <!-- Subtotal row -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;color:var(--muted);">Subtotal</span>
+      <span style="font-size:13px;color:var(--muted);">₹{{ "{:,.2f}".format(bill.subtotal) }}</span>
     </div>
     {% endif %}
+    {% if bill.discount and bill.discount > 0 %}
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;color:#b45309;">Discount</span>
+      <span style="font-size:13px;color:#b45309;">− ₹{{ "{:,.2f}".format(bill.discount) }}</span>
+    </div>
+    {% endif %}
+    {% if bill.gst_amount and bill.gst_amount > 0 %}
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;color:var(--muted);">GST</span>
+      <span style="font-size:13px;color:var(--muted);">+ ₹{{ "{:,.2f}".format(bill.gst_amount) }}</span>
+    </div>
+    {% endif %}
+    <!-- Total paid -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 20px;background:var(--bg-3);">
+      <span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);">Total Paid</span>
+      <span style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--text);">₹{{ "{:,.0f}".format(bill.total) }}</span>
+    </div>
   </div>
 
 </div>
+
+<!-- ── Doctor's notes (if any) ── -->
+{% if bill.visit.appointment and bill.visit.appointment.doctor_notes %}
+<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;">
+  <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:10px;">Doctor's Notes</div>
+  <div style="font-size:14px;color:var(--text);line-height:1.7;">{{ bill.visit.appointment.doctor_notes }}</div>
+</div>
+{% endif %}
 
 {% endblock %}

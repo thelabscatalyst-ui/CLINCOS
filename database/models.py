@@ -177,6 +177,7 @@ class Doctor(Base):
     clinic_memberships = relationship("ClinicDoctor", back_populates="doctor")
     pinned_patients    = relationship("PinnedPatient", back_populates="doctor", cascade="all, delete-orphan")
     visits             = relationship("Visit", back_populates="doctor", cascade="all, delete-orphan")
+    patient_documents  = relationship("PatientDocument", back_populates="doctor", cascade="all, delete-orphan")
 
 
 # --------------------------------------------------------------------------- #
@@ -210,6 +211,7 @@ class Patient(Base):
         cascade="all, delete-orphan",
         order_by="PatientNote.created_at.desc()",
     )
+    documents    = relationship("PatientDocument", back_populates="patient", cascade="all, delete-orphan")
 
 
 # --------------------------------------------------------------------------- #
@@ -240,6 +242,38 @@ class NoteFile(Base):
     uploaded_at   = Column(DateTime, default=datetime.utcnow)
 
     note = relationship("PatientNote", back_populates="files")
+
+
+# --------------------------------------------------------------------------- #
+#  Patient Document Vault                                                       #
+# --------------------------------------------------------------------------- #
+
+DOCUMENT_CATEGORIES = {
+    "invoice":           "Invoice / Bill",
+    "lab_report":        "Lab Report",
+    "prescription":      "Prescription",
+    "xray_scan":         "X-Ray / Scan",
+    "discharge_summary": "Discharge Summary",
+    "insurance":         "Insurance",
+    "other":             "Other",
+}
+
+class PatientDocument(Base):
+    __tablename__ = "patient_documents"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    doctor_id     = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    patient_id    = Column(Integer, ForeignKey("patients.id"), nullable=False, index=True)
+    original_name = Column(String(255), nullable=False)
+    stored_name   = Column(String(255), nullable=False)
+    file_size     = Column(Integer, nullable=False)      # bytes
+    mime_type     = Column(String(100), nullable=True)
+    category      = Column(String(50), default="other")  # lab_report | prescription | xray_scan | discharge_summary | insurance | other
+    description   = Column(Text, nullable=True)
+    uploaded_at   = Column(DateTime, default=datetime.utcnow)
+
+    doctor  = relationship("Doctor",  back_populates="patient_documents")
+    patient = relationship("Patient", back_populates="documents")
 
 
 # --------------------------------------------------------------------------- #
@@ -414,11 +448,13 @@ class Visit(Base):
     notes      = Column(Text, nullable=True)
     created_by = Column(Integer, nullable=True)   # staff/doctor id who checked in
 
-    doctor  = relationship("Doctor", back_populates="visits")
-    patient = relationship("Patient")
-    bill    = relationship("Bill", back_populates="visit", uselist=False,
-                           primaryjoin="Visit.id == Bill.visit_id",
-                           foreign_keys="Bill.visit_id")
+    doctor      = relationship("Doctor", back_populates="visits")
+    patient     = relationship("Patient")
+    appointment = relationship("Appointment", primaryjoin="Visit.appointment_id == Appointment.id",
+                               foreign_keys="[Visit.appointment_id]", uselist=False)
+    bill        = relationship("Bill", back_populates="visit", uselist=False,
+                               primaryjoin="Visit.id == Bill.visit_id",
+                               foreign_keys="Bill.visit_id")
 
 
 # --------------------------------------------------------------------------- #

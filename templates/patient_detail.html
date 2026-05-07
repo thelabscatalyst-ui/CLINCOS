@@ -8,9 +8,15 @@
     <h1 class="page-title">{{ patient.name }}</h1>
     <div class="page-sub">{{ patient.phone }}{% if patient.language_pref and patient.language_pref != 'english' %} · {{ patient.language_pref | title }}{% endif %}</div>
   </div>
-  <div style="display:flex;gap:8px;">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <a href="/patients" class="btn btn-secondary btn-sm">← Patients</a>
     <button type="button" class="btn btn-secondary btn-sm" onclick="openEditModal()">Edit Patient</button>
+    <a href="/patients/{{ patient.id }}/vault" class="btn btn-secondary btn-sm" style="position:relative;">
+      Documents
+      {% if doc_count > 0 %}
+      <span style="position:absolute;top:-6px;right:-6px;background:var(--text);color:var(--bg);font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;line-height:1;">{{ doc_count }}</span>
+      {% endif %}
+    </a>
     <a href="/appointments/new?patient_id={{ patient.id }}" class="btn btn-primary btn-sm">+ Book Appointment</a>
   </div>
 </div>
@@ -264,11 +270,24 @@
       </div>
     </div>
     <div class="bill-history-center">
-      {% if bill.notes %}
-      <div class="bill-history-notes">{{ bill.notes }}</div>
-      {% endif %}
+      <!-- Item names -->
+      <div class="bill-history-items">
+        {% if bill.items %}
+          {% for item in bill.items[:3] %}
+          <span class="bill-history-item-chip">{{ item.description }}{% if item.quantity > 1 %} ×{{ item.quantity }}{% endif %}</span>
+          {% endfor %}
+          {% if bill.items | length > 3 %}
+          <span class="bill-history-item-chip bill-history-item-chip--more">+{{ bill.items | length - 3 }} more</span>
+          {% endif %}
+        {% else %}
+          <span class="bill-history-item-chip">Consultation</span>
+        {% endif %}
+      </div>
       {% if bill.discount and bill.discount > 0 %}
       <div class="bill-history-discount">Discount ₹{{ "{:,.0f}".format(bill.discount) }}</div>
+      {% endif %}
+      {% if bill.notes %}
+      <div class="bill-history-notes">{{ bill.notes }}</div>
       {% endif %}
     </div>
     <div class="bill-history-right">
