@@ -56,18 +56,33 @@ Before making any changes, check if `docs/design-tokens.md` exists.
 
 ## ClinicOS DESIGN SYSTEM (built-in knowledge)
 
-You already know this system. Apply it consistently:
+**⚠️ ALWAYS read `docs/design-tokens.md` first — it is the authoritative source of truth. The values below are a quick reference only; design-tokens.md takes precedence.**
 
-**Dark theme (default):**
-- Background: `#080808`, Cards: `#111111`, Inputs: `#1a1a1a`
-- Text: `#f0f0f0`, Muted: `#888`, Dim: `#555`, Border: `#252525`
+The palette is **warm sepia/parchment** — NOT neutral grey. Both themes share a brown-amber aesthetic. Never introduce cold greys or pure white/black.
+
+**Dark theme (default — `:root`):**
+- Background: `#1a1612`, Cards: `#211d18`, Inputs: `#302b25`
+- Text: `#ede8e2`, Muted: `#9a8f85`, Dim: `#5e5650`, Border: `#3d3630`, Border-light: `#4e4640`
+- CSS tokens: `--bg`, `--bg-2`, `--bg-3`, `--bg-input`, `--text`, `--muted`, `--dim`, `--border`, `--border-light`
 
 **Light theme (`html.light`):**
-- Background: `#f4f4f5`, Cards: `#ffffff`, Inputs: `#e8e8ea`
-- Text: `#111111`, Muted: `#666`, Dim: `#aaa`, Border: `#e0e0e2`
+- Background: `#ede7de`, Cards: `#e4ddd4`, Inputs: `#d2cabf`
+- Text: `#1a1410`, Muted: `#6b5f55`, Dim: `#a89e94`, Border: `#c2a98a`, Border-light: `#a8906e`
+
+**Fixed (always dark brown, both themes):**
+- Navbar/Dock bg: `#2e1e0c`
+- Navbar brand text: `#f0e6d4`, hover: `#fff8f0`
+- Dock icon color: `#a0886a`, active text: `#ede4d6`
+
+**Accent & status colors:**
+- Danger/red: `#f87171`, hover: `#ef4444`
+- Warning: `#fbbf24`
+- Success tint: `#c8b49a` (warm beige — NOT green)
+- Pagination/stripe accent bg: `#6b4a28` (deep brown), text: `#e8d5bc`
+- Emergency border tint: `#22c55e` (only for serving appointment row border)
 
 **Common:**
-- No color accents — white/grey palette only
+- Warm sepia palette throughout — no cold greys, no pure black/white surfaces
 - Cards/buttons: soft glow (`--glow`) + `translateY + scale` pop on hover (`--transition-pop`)
 - Fonts: `Playfair Display` (headings, logo, titles) + `Inter` (body)
 - `--radius: 20px` (cards), `--radius-sm: 10px` (inputs, buttons, badges)
@@ -81,11 +96,15 @@ You already know this system. Apply it consistently:
 - Select dropdowns use `appearance: none` + custom SVG arrow background-image
 - Jinja2 TemplateResponse: `templates.TemplateResponse(request, "file.html", context)` — do not alter this
 
-**Booking channel badges:**
-- `walk_in` → `.badge-channel--walkin` (gold)
-- `staff_shared` → `.badge-channel--staff` (purple)
-- `doctor` → `.badge-channel--doctor` (green `#22c55e`)
-- `patient` → `.badge-channel--patient` (grey `#a0a0a0`)
+**Booking channel badges (all use warm beige base — `#c4b09a` text dark / `#1a1208` text light):**
+- `walk_in` → `.badge-channel--walkin` (warm gold tint)
+- `staff_shared` → `.badge-channel--staff` (muted purple tint)
+- `doctor` → `.badge-channel--doctor` (warm green tint)
+- `patient` → `.badge-channel--patient` (neutral warm tint)
+
+**Badge palette (universal — replaces any cold grey or green badges):**
+- Dark theme: `background: rgba(175,145,105,0.12)`, `border: rgba(155,125,85,0.25)`, `color: #c4b09a`
+- Light theme: `background: rgba(175,145,105,0.16)`, `border: rgba(155,125,85,0.28)`, `color: #1a1208`
 
 ---
 
@@ -117,7 +136,7 @@ For every task:
 - [Specific change 2]
 
 ### Design Token Updates
-- Added `--shadow-card: 0 4px 24px rgba(0,0,0,0.4)` to docs/design-tokens.md § Shadows
+- Added `--shadow-card: 0 4px 24px rgba(10,6,3,0.45)` to docs/design-tokens.md § Shadows
 - No new tokens introduced
 
 ### Obstacles Encountered
@@ -133,7 +152,7 @@ Do not add filler sentences. Do not say "let me know if you need anything." Do n
 
 ## EDGE CASE HANDLING
 
-**Conflicting instructions:** If a request conflicts with the established design system (e.g., "add a blue accent color"), implement it but note the deviation in the Design Token Updates section and flag it as a design system divergence.
+**Conflicting instructions:** If a request conflicts with the established design system (e.g., "add a blue accent color" or "use a white background card"), implement it but note the deviation in the Design Token Updates section and flag it as a design system divergence. Prefer warm-tinted alternatives (e.g., `#e8d5bc` instead of pure white, `#302b25` instead of cold grey input).
 
 **Ambiguous scope:** If a request is vague ("make it look better"), focus on the most impactful visual improvements: spacing consistency, hover states, typography hierarchy, and dark/light theme correctness.
 

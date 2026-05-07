@@ -314,19 +314,24 @@ Auth column: **No** = public, **Auth** = JWT only, **Plan** = JWT + active trial
 
 ---
 
-## Design System (main.css — currently v55)
+## Design System (main.css — currently v113)
 Supports **dark** (default) and **light** themes. Theme toggled via navbar button, saved to `localStorage`, applied to `<html>` element (`html.light` class).
 
-### Dark theme (default)
-- Background: `#080808`, Cards: `#111111`, Inputs: `#1a1a1a`
-- Text: `#f0f0f0`, Muted: `#888`, Dim: `#555`, Border: `#252525`
+**Palette: warm sepia/parchment** — NOT neutral grey. Both themes share a brown-amber aesthetic.
+The authoritative token reference is `docs/design-tokens.md`. Always read that file before touching CSS or templates.
+
+### Dark theme (default — `:root`)
+- Background: `#1a1612`, Cards: `#211d18`, Inputs: `#302b25`
+- Text: `#ede8e2`, Muted: `#9a8f85`, Dim: `#5e5650`, Border: `#3d3630`
+- Navbar/Dock bg: `#2e1e0c` (always dark brown, both themes)
 
 ### Light theme (`html.light`)
-- Background: `#f4f4f5`, Cards: `#ffffff`, Inputs: `#e8e8ea`
-- Text: `#111111`, Muted: `#666`, Dim: `#aaa`, Border: `#e0e0e2`
+- Background: `#ede7de`, Cards: `#e4ddd4`, Inputs: `#d2cabf`
+- Text: `#1a1410`, Muted: `#6b5f55`, Dim: `#a89e94`, Border: `#c2a98a`
+- Navbar/Dock bg: `#2e1e0c` (always dark brown, both themes)
 
 ### Common
-- No colour accents — white/grey only throughout
+- Warm sepia/parchment palette throughout — no cold greys or pure white/black
 - Every card and button: soft glow (`--glow`) + `translateY + scale` pop on hover (`--transition-pop`)
 - Fonts: `Playfair Display` (headings, logo, page titles) + `Inter` (body)
 - Border radius: `--radius: 20px` (cards), `--radius-sm: 10px` (inputs, buttons, badges)
