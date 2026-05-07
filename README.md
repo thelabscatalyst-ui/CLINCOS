@@ -1,40 +1,73 @@
 # ClinicOS
 
-Appointment management SaaS for independent doctors in Indian Tier 2/3 cities.
+Appointment and clinic management SaaS for independent doctors in Indian Tier 2/3 cities.
 
-Doctors get a personal booking page, WhatsApp reminders, patient records, and a reports dashboard — all for ₹299–499/month. No app download needed for patients.
+Doctors get a personal booking page, live token queue, WhatsApp reminders, patient records, billing, and an income dashboard — all for ₹399/month. No app download needed for patients. Zero setup.
 
 ---
 
 ## Features
 
-**For doctors**
-- Dashboard with today's schedule and weekly stats
-- Create, edit, and reschedule appointments with a split-layout booking form
-- Walk-in quick booking from the appointments page
-- Monthly calendar view with today's date ring indicator
-- Patient records — list, search, edit name/phone, doctor's notes, visit history
-- Remove a patient (PIN-protected, deletes all appointments)
-- Pre-filled booking form when booking from a patient's profile (name, phone, last-seen doctor)
-- Reports — completion rates, no-show rates, top patients, monthly trend chart
-- Configurable working hours, slot duration, and blocked dates
-- PIN protection for sensitive pages (reports, settings, billing, patient delete)
-- Dark / light theme toggle persisted via localStorage
+### Appointments & Queue
+- Live token queue on the appointments page — check in walk-ins, serve, skip, promote emergencies
+- Queue state machine: Waiting → Serving → Billing Pending → Done
+- Walk-in quick booking with auto check-in to queue
+- Scheduled appointments with slot-based booking (no double booking)
+- Create, edit, and reschedule appointments
+- Appointment detail card overlay — view history, doctor notes, status
+- Booking channel badges: Walk-in · Doctor · Patient · Reception
+- Monthly calendar view with today's date indicator
+- Public TV display screen at `/queue/{slug}` — shows who is currently being served
 
-**Appointments**
-- Booking channel badges: Walk-in (gold), Reception (purple), Doctor (green), Patient (grey)
-- Appointment status: Scheduled, Completed, No-show, Cancelled
+### Billing & Income
+- Collect Payment modal — line items, discount, payment mode (Cash / UPI / Card / Insurance / Free)
+- Price catalog in Settings — pre-set consultation fees as quick-fill buttons in the billing modal
+- Income dashboard — daily and monthly revenue, transaction history, charts
+- Expense tracker — log clinic expenses by category with recurring expense support
+- All income and billing pages are PIN-protected
 
-**For patients**
-- Book appointments via a public URL — no login, no app
+### Patients
+- Patient list with search
+- Patient profile — visit history, notes, age, gender, blood group, allergies
+- Edit name, phone, and medical details
+- Delete patient (PIN-protected, removes all linked appointments)
+- Pre-fill booking form from patient profile
+
+### Settings & Security
+- Configurable working hours, slot duration per day of week
+- Block specific dates and time windows
+- 6-digit PIN protection for sensitive sections: Income, Reports, Billing, Settings, Patient detail
+- One login shared with receptionist — PIN locks the sensitive sections only
+- Dark / light theme toggle persisted in localStorage
+
+### Reports
+- Completion and no-show rates
+- Top patients by visit count
+- Monthly appointment trend (curved chart)
+- PIN-protected
+
+### Notifications
 - WhatsApp confirmation immediately after booking
-- Automatic reminders 24 hours and 2 hours before the appointment
+- Automatic reminders 24 hours and 2 hours before appointment
+- Falls back to SMS if WhatsApp is unavailable
+- Walk-in bookings skip the confirmation notification
 
-**Platform**
-- 14-day free trial, then ₹399/month (Solo plan)
-- Clinic / multi-doctor plan at ₹1,499/month
-- Razorpay payments — UPI, cards, net banking
-- Admin panel for platform owner to monitor all doctors and revenue
+### Public Booking (Patients)
+- Book via a personal URL — no login, no app download
+- WhatsApp confirmation sent immediately after booking
+- Google Calendar link on confirmation page
+- Rate-limited (max 5 bookings per phone per 24 hours)
+
+### Clinic Plan (Multi-Doctor)
+- Up to 5 doctors under one clinic
+- Clinic admin dashboard — aggregated stats, doctor schedules, today's appointments across all doctors
+- Unified public booking page at `/book/clinic/{slug}`
+- Clinic plan billing separate from individual doctor plans
+- Associate doctors' access is covered by the clinic owner's plan
+
+### Platform Admin
+- Admin panel at `/admin` — all registered doctors, active trials, paid plans, expired accounts
+- Platform-level revenue overview
 
 ---
 
@@ -42,15 +75,15 @@ Doctors get a personal booking page, WhatsApp reminders, patient records, and a 
 
 | Layer | Tool |
 |---|---|
-| Backend | FastAPI (Python) |
+| Backend | FastAPI (Python 3.14) |
 | Templates | Jinja2 (server-side rendering) |
 | Database (dev) | SQLite |
 | Database (prod) | PostgreSQL |
 | ORM | SQLAlchemy |
-| Auth | JWT in HTTP-only cookie (Passlib + bcrypt) |
+| Auth | JWT in HTTP-only cookie (Passlib + bcrypt 4.0.1) |
 | Notifications | Twilio WhatsApp + SMS |
-| Payments | Razorpay |
-| Scheduler | APScheduler |
+| Payments | Razorpay (UPI, cards, net banking) |
+| Scheduler | APScheduler (background reminder jobs) |
 | Deployment | Railway.app |
 
 ---
@@ -71,20 +104,20 @@ source venv/bin/activate          # Windows: venv\Scripts\activate
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Create .env file
-cp .env.example .env              # then fill in your values (see below)
+# 4. Create .env file (see Environment Variables below)
+cp .env.example .env
 
 # 5. Run
 uvicorn main:app --reload
 ```
 
-Open `http://127.0.0.1:8000` — you'll be redirected to the login page.
+Open `http://127.0.0.1:8000` — redirects to the login page.
+
+If the port is in use: `kill $(lsof -ti:8000)` then restart.
 
 ---
 
 ## Environment Variables
-
-Create a `.env` file in the project root:
 
 ```env
 # Core
@@ -98,7 +131,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=your_auth_token
 TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
-TWILIO_SMS_FROM=
+TWILIO_SMS_FROM=                            # optional fallback SMS number
 
 # Razorpay — payments
 # Get from: dashboard.razorpay.com → Settings → API Keys
@@ -106,7 +139,7 @@ RAZORPAY_KEY_ID=rzp_test_XXXXXXXXXXXXXXXX
 RAZORPAY_KEY_SECRET=XXXXXXXXXXXXXXXXXXXXXXXX
 
 # Admin panel
-# Must match the email used to register your doctor account
+# Must match the email used to register the admin doctor account
 ADMIN_EMAIL=your-email@example.com
 ```
 
@@ -115,7 +148,7 @@ Generate a strong `SECRET_KEY`:
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Twilio and Razorpay keys are optional for local development. The app runs without them — notifications log as `failed` and the payment button shows "not configured".
+Twilio and Razorpay are optional for local development — the app runs without them. Notifications log as `failed` and the payment button shows "not configured".
 
 ---
 
@@ -123,57 +156,105 @@ Twilio and Razorpay keys are optional for local development. The app runs withou
 
 ```
 ClinicOS/
-├── main.py                 # App entry point — routers + scheduler lifespan
-├── config.py               # Settings loaded from .env
+├── main.py                      # App entry point — routers, middleware, exception handlers
+├── config.py                    # Settings loaded from .env via pydantic-settings
 ├── requirements.txt
-├── Procfile                # Railway deployment command
+├── Procfile                     # Railway: uvicorn main:app --host 0.0.0.0 --port $PORT
 │
 ├── database/
-│   ├── connection.py       # SQLAlchemy engine + session + create_tables()
-│   └── models.py           # All ORM models and enums
+│   ├── connection.py            # Engine, SessionLocal, create_tables(), _run_migrations()
+│   └── models.py                # All ORM models and enums
 │
 ├── routers/
-│   ├── auth.py             # /register, /login, /logout
-│   ├── doctors.py          # /dashboard, /calendar, /reports, /billing, /doctors/settings/*
-│   ├── appointments.py     # /appointments — full CRUD
-│   ├── patients.py         # /patients — list, profiles, notes
-│   ├── public.py           # /book/{slug} — public booking (no auth)
-│   └── admin.py            # /admin — platform owner only
+│   ├── auth.py                  # /register, /login, /logout
+│   ├── doctors.py               # /dashboard, /calendar, /reports, /billing, /doctors/settings/*
+│   ├── appointments.py          # /appointments — queue + schedule, CRUD, walk-in
+│   ├── visits.py                # /visits/* — queue state machine, public display screen
+│   ├── billing_ops.py           # /billing/* — Razorpay order + verify, price catalog
+│   ├── income.py                # /income — revenue dashboard, expenses
+│   ├── patients.py              # /patients — list, profiles, notes, delete
+│   ├── clinic.py                # /clinic/* — clinic admin dashboard, doctor management
+│   ├── public.py                # /book/{slug} — public booking (no auth, rate-limited)
+│   └── admin.py                 # /admin — platform owner only
 │
 ├── services/
-│   ├── auth_service.py         # JWT + plan gating dependencies
-│   ├── appointment_service.py  # Slot logic, patient upsert
-│   ├── notification_service.py # Twilio WhatsApp/SMS
-│   ├── payment_service.py      # Razorpay order + verification
-│   └── scheduler_service.py    # APScheduler reminder jobs
+│   ├── auth_service.py          # JWT auth, PIN session, all get_*_doctor dependencies
+│   ├── appointment_service.py   # Slot availability, patient upsert
+│   ├── visit_service.py         # Queue logic — check_in, call_next, done, skip, emergency
+│   ├── notification_service.py  # Twilio WhatsApp + SMS
+│   ├── payment_service.py       # Razorpay order create + HMAC signature verify
+│   └── scheduler_service.py     # APScheduler — T-24h and T-2h reminder jobs
 │
-├── templates/              # Jinja2 HTML templates
-└── static/
-    └── css/main.css        # Dark/light theme design system
+├── templates/                   # Jinja2 HTML templates
+│   ├── base.html                # Master layout — navbar, dock, PIN overlay
+│   ├── clinic/                  # Clinic admin templates
+│   └── ...
+│
+├── static/
+│   └── css/main.css             # Warm sepia/parchment design system — dark + light themes
+│
+└── docs/
+    └── design-tokens.md         # Design system source of truth — colors, spacing, typography
 ```
+
+---
+
+## Queue / Token System
+
+Appointments and walk-ins flow through a live queue on the Appointments page:
+
+```
+Walk-in check-in  ──→  WAITING  ──→  SERVING  ──→  BILLING PENDING  ──→  DONE
+                            ↓              ↓
+                         SKIPPED       CANCELLED
+```
+
+- **Token number** — auto-assigned per doctor per day, monotonically increasing
+- **Queue position** — mutable; reordered by Skip, Emergency, and Move actions
+- **Emergency** — promotes a patient to the front of the waiting queue
+- **Done** — moves to Billing Pending and auto-calls the next waiting patient
+- **Free / Close** — closes visit with zero charge, bypasses billing
+- **Public display** — `/queue/{slug}` shows the current serving token on a TV screen, auto-refreshing
+
+---
+
+## PIN Protection
+
+One doctor account is shared with the receptionist at the desk. Sensitive sections are locked behind a 6-digit PIN set by the doctor:
+
+| Locked (PIN required) | Open (no PIN needed) |
+|---|---|
+| Income & Revenue | Appointments & Queue |
+| Reports & Analytics | Walk-in check-in |
+| Billing & Subscription | Patient list |
+| Settings | Calendar |
+| Patient detail | Add expenses |
+
+The PIN session lasts 30 minutes. Wrong PIN shows an error on the blur overlay without redirecting.
 
 ---
 
 ## How Notifications Work
 
-1. Appointment booked (by doctor or patient) → WhatsApp confirmation sent immediately
-2. Falls back to SMS if WhatsApp fails and `TWILIO_SMS_FROM` is set
-3. Background scheduler checks every 15 minutes:
+1. Appointment booked → WhatsApp confirmation sent immediately
+2. Falls back to SMS if `TWILIO_SMS_FROM` is set and WhatsApp fails
+3. Background scheduler runs every 15 minutes:
    - Sends 24-hour reminder when appointment is 23–25 hours away
    - Sends 2-hour reminder when appointment is 90–150 minutes away
-4. Every send is logged in the `notifications_log` table with status `sent` or `failed`
-
-For production, join the Twilio WhatsApp sandbox for testing, or apply for a WhatsApp Business number. See [Twilio WhatsApp docs](https://www.twilio.com/docs/whatsapp).
+4. Every send logged in `notifications_log` table with `sent` or `failed` status
+5. Walk-in bookings skip the confirmation (patient is already at the clinic)
+6. All notification calls are wrapped in `try/except` — a failure never blocks a booking
 
 ---
 
 ## How Payments Work
 
-1. Doctor clicks Subscribe → `POST /billing/create-order?plan=basic|pro`
-2. Razorpay checkout popup opens in-browser
-3. On payment: Razorpay signature verified server-side with HMAC-SHA256
-4. Plan activated: `doctor.plan_expires_at = now + 30 days`
-5. Subscription recorded in `subscriptions` table
+1. Doctor clicks Subscribe → `POST /billing/create-order?plan=solo|clinic`
+2. Razorpay checkout popup opens in-browser (loaded from CDN)
+3. Patient completes UPI / card payment
+4. `POST /billing/verify` — server verifies HMAC-SHA256 signature
+5. On success: `doctor.plan_expires_at = now + 30 days`, subscription row created
+6. For clinic plan: `clinic.plan_type = 'clinic'`, `clinic.plan_expires_at` set
 
 Use Razorpay test keys for development — no real charges.
 
@@ -181,36 +262,40 @@ Use Razorpay test keys for development — no real charges.
 
 ## Subscription Plans
 
-| Plan | Price | Notes |
+| Plan | Price | For |
 |---|---|---|
 | Free Trial | 14 days | Full access, no card needed |
-| Solo | ₹399/month | Primary plan — individual doctor |
-| Clinic | ₹1,499/month | Multi-doctor clinic with reception workspace |
-| Basic | ₹299/month | Legacy |
-| Pro | ₹499/month | Legacy |
+| Solo | ₹399/month | Individual doctor |
+| Clinic | ₹1,499/month | Multi-doctor clinic (up to 5 doctors) |
 
----
-
-## Admin Panel
-
-Visit `/admin/dashboard` while logged in with the email set in `ADMIN_EMAIL`.
-
-Shows: total registered doctors, active trials, paid plans, expired accounts, month-to-date revenue, and a full doctors table.
+Solo doctors see only the Solo plan in Settings. Clinic owners see only the Clinic plan. Associate doctors see a "managed by clinic" notice — no billing required from them.
 
 ---
 
 ## Deployment (Railway.app)
 
-1. Push this repo to GitHub
+1. Push repo to GitHub
 2. Create a new project on [railway.app](https://railway.app)
-3. Add a PostgreSQL service — Railway provides `DATABASE_URL` automatically
+3. Add a PostgreSQL service — Railway injects `DATABASE_URL` automatically
 4. Set all environment variables in Railway's Variables tab
 5. Railway auto-deploys on every push to `main`
 
-The `Procfile` tells Railway how to start the app:
 ```
 web: uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
+
+---
+
+## Design System
+
+Warm sepia / parchment palette — both dark and light themes share a brown-amber aesthetic.
+
+| Theme | Background | Cards | Text |
+|---|---|---|---|
+| Dark (default) | `#1a1612` | `#211d18` | `#ede8e2` |
+| Light | `#ede7de` | `#e4ddd4` | `#1a1410` |
+
+Navbar and dock are always dark brown (`#2e1e0c`) regardless of theme. Full token reference in `docs/design-tokens.md`.
 
 ---
 
