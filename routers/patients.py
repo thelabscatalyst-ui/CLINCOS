@@ -3,7 +3,7 @@ import mimetypes
 import uuid
 from datetime import date
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import aiofiles
 from fastapi import APIRouter, Request, Depends, Form, Query, File, UploadFile
@@ -609,6 +609,12 @@ def edit_patient(
     patient_id: int,
     name: str = Form(...),
     phone: str = Form(...),
+    age: Optional[int] = Form(None),
+    gender: Optional[str] = Form(None),
+    blood_group: Optional[str] = Form(None),
+    allergies: Optional[str] = Form(None),
+    preferred_contact: Optional[str] = Form(None),
+    language_pref: Optional[str] = Form(None),
     doctor: Doctor = Depends(get_paying_doctor),
     db: Session = Depends(get_db),
 ):
@@ -620,8 +626,14 @@ def edit_patient(
     if not phone_clean.isdigit() or len(phone_clean) != 10:
         return RedirectResponse(url=f"/patients/{patient_id}?error=invalid_phone", status_code=303)
     if patient:
-        patient.name  = name.strip()
-        patient.phone = phone_clean
+        patient.name              = name.strip()
+        patient.phone             = phone_clean
+        patient.age               = age if age and age > 0 else None
+        patient.gender            = gender if gender else None
+        patient.blood_group       = blood_group.strip() if blood_group and blood_group.strip() else None
+        patient.allergies         = allergies.strip() if allergies and allergies.strip() else None
+        patient.preferred_contact = preferred_contact if preferred_contact else "phone"
+        patient.language_pref     = language_pref if language_pref else "english"
         db.commit()
     return RedirectResponse(url=f"/patients/{patient_id}", status_code=303)
 

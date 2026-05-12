@@ -53,7 +53,7 @@ def _fmt_inr(value) -> str:
         return "Rs. 0.00"
 
 
-# ── Public entry point ─────────────────────────────────────────────────────── #
+# ── Public entry points ────────────────────────────────────────────────────── #
 
 def generate_and_store_bill_pdf(bill: Bill, db) -> None:
     """Failures are silently swallowed — billing must never be blocked."""
@@ -61,6 +61,36 @@ def generate_and_store_bill_pdf(bill: Bill, db) -> None:
         _do_generate(bill, db)
     except Exception:
         pass
+
+
+def regenerate_bill_pdf(bill: Bill, db) -> None:
+    """Delete old vault PDF for this bill and generate a fresh one."""
+    try:
+        bill_id = bill.id
+        _delete_existing_bill_pdf(bill, db)
+        fresh = db.query(Bill).filter(Bill.id == bill_id).first()
+        if fresh:
+            _do_generate(fresh, db)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"regenerate_bill_pdf failed for bill {bill.id}: {e}", exc_info=True)
+
+
+def _delete_existing_bill_pdf(bill: Bill, db) -> None:
+    upload_dir = _upload_dir(bill.doctor_id, bill.patient_id)
+    prefix = f"bill_{bill.id}_"
+    existing = db.query(PatientDocument).filter(
+        PatientDocument.doctor_id  == bill.doctor_id,
+        PatientDocument.patient_id == bill.patient_id,
+        PatientDocument.stored_name.like(f"{prefix}%"),
+    ).all()
+    for doc in existing:
+        try:
+            (upload_dir / doc.stored_name).unlink(missing_ok=True)
+        except Exception:
+            pass
+        db.delete(doc)
+    db.commit()
 
 
 def _do_generate(bill: Bill, db) -> None:

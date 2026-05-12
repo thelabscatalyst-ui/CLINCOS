@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}Edit Bill #{{ bill.id }} — ClinicOS{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Edit Bill <span style="color:var(--muted);font-weight:400;">#{{ bill.id }}</span></h1>
+    <div class="page-sub">{{ bill.visit.patient.name }} · {{ bill.visit.visit_date.strftime("%d %b %Y") if bill.visit else "" }}</div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <a href="/patients/{{ bill.patient_id }}" class="btn btn-secondary btn-sm">← Patient</a>
+    <a href="/bills/{{ bill.id }}" class="btn btn-secondary btn-sm">View Bill</a>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;">
+
+  <!-- LEFT: edit form -->
+  <div class="settings-card">
+
+    <!-- Quick-add pinned catalog items -->
+    {% if price_catalog %}
+    {% set pinned = price_catalog | selectattr("is_pinned") | list %}
+    {% if pinned %}
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:10px;">Quick Add</div>
+      <div class="bill-pinned-row">
+        {% for item in pinned %}
+        <button type="button" class="bill-quick-btn"
+                onclick="addItem('{{ item.name | replace("'", "\\'") }}', {{ item.default_price }})">
+          {{ item.name }} — ₹{{ "{:,.0f}".format(item.default_price) }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <form method="POST" action="/bills/{{ bill.id }}/edit">
+
+      <!-- Items -->
+      <div class="bill-items-section" style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <span class="form-label" style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:.08em;">Items / Services</span>
+          <button type="button" class="btn btn-secondary btn-xs" onclick="addItem()">+ Add Item</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 80px 80px 32px;gap:6px;padding:0 0 6px;border-bottom:1px solid var(--border);margin-bottom:6px;">
+          <span style="font-size:11px;color:var(--dim);font-weight:600;">Description</span>
+          <span style="font-size:11px;color:var(--dim);font-weight:600;text-align:right;">Price (₹)</span>
+          <span style="font-size:11px;color:var(--dim);font-weight:600;text-align:right;">Qty</span>
+          <span></span>
+        </div>
+
+        <div id="itemsList">
+          {% if bill.items %}
+            {% for item in bill.items %}
+            <div class="bill-item-row" style="grid-template-columns:1fr 80px 80px 32px;">
+              <input type="text" name="item_name" class="form-input" style="flex:unset;" value="{{ item.description }}" placeholder="Service / item">
+              <input type="number" name="item_price" class="form-input bill-item-price" style="text-align:right;"
+                     value="{{ item.unit_price|int }}" min="0" oninput="updateTotal()">
+              <input type="number" name="item_qty" class="form-input" style="text-align:right;"
+                     value="{{ item.quantity|int }}" min="1" max="999" oninput="updateTotal()">
+              <button type="button" class="bill-item-remove" onclick="removeItem(this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="bill-item-row" style="grid-template-columns:1fr 80px 80px 32px;">
+              <input type="text" name="item_name" class="form-input" style="flex:unset;" value="Consultation">
+              <input type="number" name="item_price" class="form-input bill-item-price" style="text-align:right;"
+                     value="{{ bill.subtotal|int }}" min="0" oninput="updateTotal()">
+              <input type="number" name="item_qty" class="form-input" style="text-align:right;"
+                     value="1" min="1" max="999" oninput="updateTotal()">
+              <button type="button" class="bill-item-remove" onclick="removeItem(this)" style="visibility:hidden;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Discount / GST / Payment -->
+      <div class="bill-fields" style="margin-bottom:20px;">
+        <div class="form-group">
+          <label class="form-label">Discount (₹)</label>
+          <input type="number" id="discountInput" name="discount" class="form-input"
+                 min="0" step="1" value="{{ bill.discount|int }}" oninput="updateTotal()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">GST (₹)</label>
+          <input type="number" id="gstInput" name="gst_amount" class="form-input"
+                 min="0" step="1" value="{{ bill.gst_amount|int }}" oninput="updateTotal()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Payment Mode</label>
+          <select name="payment_mode" class="form-input form-select">
+            <option value="cash"      {% if bill.payment_mode and bill.payment_mode.value == 'cash'      %}selected{% endif %}>Cash</option>
+            <option value="upi"       {% if bill.payment_mode and bill.payment_mode.value == 'upi'       %}selected{% endif %}>UPI</option>
+            <option value="card"      {% if bill.payment_mode and bill.payment_mode.value == 'card'      %}selected{% endif %}>Card</option>
+            <option value="insurance" {% if bill.payment_mode and bill.payment_mode.value == 'insurance' %}selected{% endif %}>Insurance</option>
+            <option value="free"      {% if bill.payment_mode and bill.payment_mode.value == 'free'      %}selected{% endif %}>Free</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:span 2;">
+          <label class="form-label">Notes (optional)</label>
+          <input type="text" name="notes" class="form-input"
+                 placeholder="e.g. follow-up in 7 days" value="{{ bill.notes or '' }}">
+        </div>
+      </div>
+
+      <!-- Total row -->
+      <div class="bill-total-row" style="margin-bottom:24px;">
+        <span class="bill-total-label">Total</span>
+        <span class="bill-total-amount" id="billTotal">₹{{ "{:,.0f}".format(bill.total) }}</span>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <a href="/patients/{{ bill.patient_id }}" class="btn btn-secondary btn-sm">Cancel</a>
+        <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- RIGHT: clinic / billing info panel -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <!-- Clinic identity -->
+    <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:28px 24px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:14px;">Billing From</div>
+      <div style="font-family:'Playfair Display',Georgia,serif;font-size:1.7rem;font-weight:700;color:var(--text);line-height:1.2;margin-bottom:8px;">
+        {{ doctor.clinic_name or ("Dr. " ~ doctor.name) }}
+      </div>
+      {% if doctor.specialization %}
+      <div style="font-size:13px;color:var(--muted);margin-bottom:4px;">{{ doctor.specialization }}</div>
+      {% endif %}
+      {% if doctor.clinic_address %}
+      <div style="font-size:12px;color:var(--dim);line-height:1.6;">
+        {{ doctor.clinic_address }}{% if doctor.city %}, {{ doctor.city }}{% endif %}
+      </div>
+      {% endif %}
+      {% if doctor.phone %}
+      <div style="font-size:12px;color:var(--dim);margin-top:4px;">{{ doctor.phone }}</div>
+      {% endif %}
+    </div>
+
+    <!-- Patient + bill meta -->
+    <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+      <div style="padding:14px 20px;border-bottom:1px solid var(--border);">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:8px;">Patient</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px;">{{ bill.visit.patient.name }}</div>
+        {% if bill.visit.patient.phone %}
+        <div style="font-size:12px;color:var(--muted);">{{ bill.visit.patient.phone }}</div>
+        {% endif %}
+        <div style="font-size:12px;color:var(--dim);margin-top:4px;">
+          {% if bill.visit.patient.age %}{{ bill.visit.patient.age }} yrs{% endif %}
+          {% if bill.visit.patient.gender %} · {{ bill.visit.patient.gender | title }}{% endif %}
+        </div>
+      </div>
+      <div style="padding:14px 20px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:8px;">Bill Details</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+          <span style="font-size:12px;color:var(--muted);">Bill #</span>
+          <span style="font-size:12px;color:var(--text);font-weight:600;">{{ bill.id }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+          <span style="font-size:12px;color:var(--muted);">Date</span>
+          <span style="font-size:12px;color:var(--text);">{{ bill.visit.visit_date.strftime("%d %b %Y") if bill.visit else "—" }}</span>
+        </div>
+        {% if bill.visit and bill.visit.appointment %}
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:12px;color:var(--muted);">Type</span>
+          <span style="font-size:12px;color:var(--text);">{{ bill.visit.appointment.appointment_type.value.replace("_"," ").title() }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div><!-- /right panel -->
+
+</div><!-- /grid -->
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addItem(name, price) {
+  const list = document.getElementById('itemsList');
+  const row  = document.createElement('div');
+  row.className = 'bill-item-row';
+  row.style.gridTemplateColumns = '1fr 80px 80px 32px';
+  row.innerHTML =
+    '<input type="text" name="item_name" class="form-input" style="flex:unset;" value="' + (name || '') + '" placeholder="Service / item">' +
+    '<input type="number" name="item_price" class="form-input bill-item-price" style="text-align:right;" value="' + (price || '') + '" min="0" placeholder="0" oninput="updateTotal()">' +
+    '<input type="number" name="item_qty" class="form-input" style="text-align:right;" value="1" min="1" max="999" oninput="updateTotal()">' +
+    '<button type="button" class="bill-item-remove" onclick="removeItem(this)">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+        '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' +
+      '</svg>' +
+    '</button>';
+  list.appendChild(row);
+  updateTotal();
+  row.querySelector('input[name="item_name"]').focus();
+}
+
+function removeItem(btn) {
+  const list = document.getElementById('itemsList');
+  if (list.querySelectorAll('.bill-item-row').length > 1) {
+    btn.closest('.bill-item-row').remove();
+    updateTotal();
+  }
+}
+
+function updateTotal() {
+  let subtotal = 0;
+  document.querySelectorAll('#itemsList .bill-item-row').forEach(function(row) {
+    const price = parseFloat(row.querySelector('[name="item_price"]').value) || 0;
+    const qty   = parseInt(row.querySelector('[name="item_qty"]').value)    || 1;
+    subtotal += price * qty;
+  });
+  const discount = parseFloat(document.getElementById('discountInput').value) || 0;
+  const gst      = parseFloat(document.getElementById('gstInput').value)      || 0;
+  const total    = Math.max(0, subtotal - Math.min(discount, subtotal) + gst);
+  document.getElementById('billTotal').textContent =
+    '₹' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(total);
+}
+
+document.addEventListener('DOMContentLoaded', updateTotal);
+</script>
+{% endblock %}

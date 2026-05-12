@@ -222,6 +222,35 @@ async def create_bill(
 
 # ── Edit bill ────────────────────────────────────────────────────────────── #
 
+@router.get("/bills/{bill_id}/edit", response_class=HTMLResponse)
+async def edit_bill_page(
+    bill_id: int,
+    request: Request,
+    db: Session    = Depends(get_db),
+    doctor: Doctor = Depends(get_paying_doctor),
+):
+    bill = db.query(Bill).filter(
+        Bill.id == bill_id,
+        Bill.doctor_id == doctor.id,
+    ).first()
+    if not bill:
+        return RedirectResponse("/appointments", status_code=303)
+
+    price_catalog = (
+        db.query(PriceCatalog)
+        .filter(PriceCatalog.doctor_id == doctor.id, PriceCatalog.is_active == True)
+        .order_by(PriceCatalog.sort_order, PriceCatalog.name)
+        .all()
+    )
+
+    return templates.TemplateResponse(request, "bill_edit.html", {
+        "active":        "appointments",
+        "doctor":        doctor,
+        "bill":          bill,
+        "price_catalog": price_catalog,
+    })
+
+
 @router.post("/bills/{bill_id}/edit")
 async def edit_bill(
     bill_id: int,
@@ -304,11 +333,22 @@ async def edit_bill(
 
     db.commit()
 
-    # Redirect back to appointment detail if we know the appt
-    appt_id = bill.visit.appointment_id if bill.visit else None
-    if appt_id:
-        return RedirectResponse(f"/appointments/{appt_id}", status_code=303)
-    return RedirectResponse(f"/bills/{bill_id}", status_code=303)
+    import logging as _logging
+    _log = _logging.getLogger("billing_ops")
+    try:
+        from services.bill_pdf_service import regenerate_bill_pdf
+        _log.info(f"regenerate_bill_pdf: starting for bill {bill.id}")
+        regenerate_bill_pdf(bill, db)
+        _log.info(f"regenerate_bill_pdf: done for bill {bill.id}")
+    except Exception as _e:
+        _log.error(f"regenerate_bill_pdf error: {_e}", exc_info=True)
+    try:
+        from services.notification_service import notify_bill_receipt
+        notify_bill_receipt(bill, doctor, db)
+    except Exception:
+        pass
+
+    return RedirectResponse(f"/patients/{bill.patient_id}", status_code=303)
 
 
 # ── Mark bill as paid (from pending-collections) ─────────────────────────── #

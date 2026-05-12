@@ -23,21 +23,86 @@
 
 <!-- Edit Patient Modal -->
 <div id="editPatientModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
-  <div class="settings-card" style="width:100%;max-width:420px;margin:0 24px;padding:28px;">
+  <div class="settings-card" style="width:100%;max-width:520px;margin:0 24px;padding:28px;max-height:90vh;overflow-y:auto;">
     <div class="settings-card-title" style="margin-bottom:20px;">Edit Patient</div>
     <form method="post" action="/patients/{{ patient.id }}/edit">
-      <div class="form-group" style="margin-bottom:14px;">
-        <label class="form-label">Full Name</label>
-        <input type="text" name="name" value="{{ patient.name }}" class="input-sm" required style="width:100%;box-sizing:border-box;">
+
+      <p class="form-section-label">Basic Info</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" name="name" value="{{ patient.name }}" class="input-sm" required style="width:100%;box-sizing:border-box;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input type="tel" name="phone" value="{{ patient.phone }}" class="input-sm" required
+                 pattern="[0-9]{10}" minlength="10" maxlength="10"
+                 title="Enter a 10-digit phone number"
+                 style="width:100%;box-sizing:border-box;">
+        </div>
       </div>
-      <div class="form-group" style="margin-bottom:20px;">
-        <label class="form-label">Phone</label>
-        <input type="tel" name="phone" value="{{ patient.phone }}" class="input-sm" required
-               pattern="[0-9]{10}" minlength="10" maxlength="10"
-               title="Enter a 10-digit phone number"
-               style="width:100%;box-sizing:border-box;">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Age</label>
+          <input type="number" name="age" value="{{ patient.age or '' }}" min="0" max="120" class="input-sm" style="width:100%;box-sizing:border-box;" placeholder="e.g. 35">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select name="gender" class="input-sm" style="width:100%;box-sizing:border-box;">
+            <option value="">— Select —</option>
+            <option value="male"   {% if patient.gender == 'male'   %}selected{% endif %}>Male</option>
+            <option value="female" {% if patient.gender == 'female' %}selected{% endif %}>Female</option>
+            <option value="other"  {% if patient.gender == 'other'  %}selected{% endif %}>Other</option>
+          </select>
+        </div>
       </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Blood Group</label>
+          <select name="blood_group" class="input-sm" style="width:100%;box-sizing:border-box;">
+            <option value="">— Select —</option>
+            {% for bg in ['A+','A-','B+','B-','AB+','AB-','O+','O-'] %}
+            <option value="{{ bg }}" {% if patient.blood_group == bg %}selected{% endif %}>{{ bg }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Preferred Contact</label>
+          <select name="preferred_contact" class="input-sm" style="width:100%;box-sizing:border-box;">
+            <option value="phone"     {% if (patient.preferred_contact or 'phone') == 'phone'     %}selected{% endif %}>Phone Call</option>
+            <option value="whatsapp"  {% if patient.preferred_contact == 'whatsapp'               %}selected{% endif %}>WhatsApp</option>
+            <option value="none"      {% if patient.preferred_contact == 'none'                   %}selected{% endif %}>No Contact</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Language Preference</label>
+          <select name="language_pref" class="input-sm" style="width:100%;box-sizing:border-box;">
+            <option value="english" {% if (patient.language_pref or 'english') == 'english' %}selected{% endif %}>English</option>
+            <option value="hindi"   {% if patient.language_pref == 'hindi'   %}selected{% endif %}>Hindi</option>
+            <option value="marathi" {% if patient.language_pref == 'marathi' %}selected{% endif %}>Marathi</option>
+            <option value="tamil"   {% if patient.language_pref == 'tamil'   %}selected{% endif %}>Tamil</option>
+            <option value="telugu"  {% if patient.language_pref == 'telugu'  %}selected{% endif %}>Telugu</option>
+            <option value="kannada" {% if patient.language_pref == 'kannada' %}selected{% endif %}>Kannada</option>
+            <option value="bengali" {% if patient.language_pref == 'bengali' %}selected{% endif %}>Bengali</option>
+            <option value="gujarati"{% if patient.language_pref == 'gujarati'%}selected{% endif %}>Gujarati</option>
+          </select>
+        </div>
+        <div class="form-group"></div>
+      </div>
+
+      <div class="form-row" style="grid-template-columns:1fr;">
+        <div class="form-group">
+          <label class="form-label">Known Allergies</label>
+          <textarea name="allergies" rows="2" class="input-sm" style="width:100%;box-sizing:border-box;resize:vertical;" placeholder="e.g. Penicillin, Sulfa drugs…">{{ patient.allergies or '' }}</textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
         <button type="button" class="btn btn-secondary btn-sm" onclick="closeEditModal()">Cancel</button>
         <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
       </div>
@@ -45,130 +110,283 @@
   </div>
 </div>
 
-<!-- Stats Row -->
-<div class="stats-row" style="grid-template-columns: repeat(3, 1fr);">
-  <div class="stat-card">
-    <div class="stat-label">Total Visits</div>
-    <div class="stat-value">{{ patient.visit_count or 0 }}</div>
-    <div class="stat-sub">All time</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">First Visit</div>
-    <div class="stat-value stat-value--sm">
-      {{ patient.first_visit.strftime("%d %b %Y") if patient.first_visit else "—" }}
+<!-- ── Patient Detail Split Layout ─────────────────────────────────────── -->
+<div class="patient-detail-split">
+
+  <!-- LEFT 40%: Doctor's Notes -->
+  <div class="patient-notes-col">
+    <div class="settings-card" style="height:100%;">
+      <div class="settings-card-header" style="margin-bottom:20px;">
+        <div>
+          <div class="settings-card-title">Doctor's Notes</div>
+          <div class="settings-card-sub">Private — visible only to you</div>
+        </div>
+      </div>
+
+      <!-- Saved notes timeline -->
+      <div class="note-timeline" id="noteTimeline">
+        {% if notes_data %}
+          {% for note in notes_data %}
+          <div class="note-entry" id="note-{{ note.id }}">
+            <div class="note-entry-date"><span>{{ note.date_label }}</span></div>
+            <div class="note-entry-body">
+              <p class="note-entry-text">{{ note.text }}</p>
+              {% if note.files %}
+              <div class="note-entry-files">
+                {% for f in note.files %}
+                <a href="/patients/{{ patient.id }}/files/{{ f.id }}"
+                   class="note-file-chip"
+                   data-file-id="{{ f.id }}"
+                   data-file-name="{{ f.name }}"
+                   data-file-size="{{ f.size }}"
+                   target="_blank" rel="noopener">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19
+                             a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+                  </svg>
+                  <span class="note-file-chip-name">{{ f.name }}</span>
+                  {% if f.size %}<span class="note-file-chip-size">{{ f.size }}</span>{% endif %}
+                </a>
+                {% endfor %}
+              </div>
+              {% endif %}
+              <div class="note-entry-actions">
+                <button type="button" class="note-entry-action-btn"
+                        onclick="enterEditMode({{ note.id }})" title="Edit note">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+                <button type="button" class="note-entry-action-btn note-entry-action-btn--danger"
+                        onclick="deleteNote({{ note.id }}, this)" title="Delete note">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2.2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                    <path d="M10 11v6M14 11v6"/>
+                    <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="note-empty-state" id="noteEmptyState">
+            No notes yet — add your first note below.
+          </div>
+        {% endif %}
+      </div><!-- /note-timeline -->
+
+      <!-- Compose new note -->
+      <div class="note-compose">
+        <textarea id="noteTextarea"
+                  placeholder="Allergies, chronic conditions, medication, personal notes…"
+                  rows="3"></textarea>
+        <div class="note-file-queue" id="noteFileQueue" style="display:none;"></div>
+        <div class="note-compose-actions">
+          <span class="note-save-error" id="noteSaveError"></span>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="openFileModal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-1px;">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19
+                       a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+            </svg>Attach Files
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" id="saveNoteBtn" onclick="saveNote()">
+            Save Note
+          </button>
+        </div>
+      </div>
     </div>
-    <div class="stat-sub">&nbsp;</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Last Visit</div>
-    <div class="stat-value stat-value--sm">
-      {{ patient.last_visit.strftime("%d %b %Y") if patient.last_visit else "—" }}
-    </div>
-    <div class="stat-sub">
-      {% if upcoming > 0 %}{{ upcoming }} upcoming{% else %}&nbsp;{% endif %}
-    </div>
-  </div>
+  </div><!-- /patient-notes-col -->
+
+  <!-- RIGHT 60%: Patient Info + History -->
+  <div class="patient-info-col">
+
+    <!-- Patient Info Card -->
+    <div class="settings-card">
+      <div class="settings-card-title" style="margin-bottom:18px;">Patient Information</div>
+
+      <!-- Stats row inside card -->
+      <div class="patient-info-stats">
+        <div class="patient-info-stat">
+          <div class="patient-info-stat-label">Total Visits</div>
+          <div class="patient-info-stat-value">{{ patient.visit_count or 0 }}</div>
+        </div>
+        <div class="patient-info-stat">
+          <div class="patient-info-stat-label">First Visit</div>
+          <div class="patient-info-stat-value patient-info-stat-value--sm">
+            {{ patient.first_visit.strftime("%d %b %Y") if patient.first_visit else "—" }}
+          </div>
+        </div>
+        <div class="patient-info-stat">
+          <div class="patient-info-stat-label">Last Visit</div>
+          <div class="patient-info-stat-value patient-info-stat-value--sm">
+            {{ patient.last_visit.strftime("%d %b %Y") if patient.last_visit else "—" }}
+          </div>
+        </div>
+        {% if upcoming > 0 %}
+        <div class="patient-info-stat">
+          <div class="patient-info-stat-label">Upcoming</div>
+          <div class="patient-info-stat-value">{{ upcoming }}</div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Info grid — mirrors appointment card style -->
+      <div class="patient-info-grid">
+        <div class="patient-info-row">
+          <span class="patient-info-label">Phone</span>
+          <span class="patient-info-value">{{ patient.phone }}</span>
+        </div>
+        <div class="patient-info-row">
+          <span class="patient-info-label">Age</span>
+          <span class="patient-info-value">{{ patient.age ~ ' yrs' if patient.age else '—' }}</span>
+        </div>
+        <div class="patient-info-row">
+          <span class="patient-info-label">Gender</span>
+          <span class="patient-info-value">{{ patient.gender.title() if patient.gender else '—' }}</span>
+        </div>
+        <div class="patient-info-row">
+          <span class="patient-info-label">Blood Group</span>
+          <span class="patient-info-value">{{ patient.blood_group if patient.blood_group else '—' }}</span>
+        </div>
+        <div class="patient-info-row">
+          <span class="patient-info-label">Language</span>
+          <span class="patient-info-value">{{ (patient.language_pref or 'English').title() }}</span>
+        </div>
+        <div class="patient-info-row">
+          <span class="patient-info-label">Contact Pref</span>
+          <span class="patient-info-value">{{ (patient.preferred_contact or 'Phone').replace('_',' ').title() }}</span>
+        </div>
+        {% if patient.allergies %}
+        <div class="patient-info-row patient-info-row--full">
+          <span class="patient-info-label">Allergies</span>
+          <span class="patient-info-value">{{ patient.allergies }}</span>
+        </div>
+        {% endif %}
+        {% if patient.notes %}
+        <div class="patient-info-row patient-info-row--full">
+          <span class="patient-info-label">General Notes</span>
+          <span class="patient-info-value" style="color:var(--muted);">{{ patient.notes }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div><!-- /patient info card -->
+
+  </div><!-- /patient-info-col -->
+</div><!-- /patient-detail-split -->
+
+<!-- ── Appointment History — full width ─────────────────────────────────── -->
+<div class="section-header" style="margin-top:24px;">
+  <h2 class="section-title">Appointment History</h2>
+  <span class="section-link">{{ appointments | length }} total</span>
 </div>
 
-<!-- ── Notes Card ──────────────────────────────────────────────────────── -->
-<div class="settings-card">
-  <div class="settings-card-header" style="margin-bottom:20px;">
-    <div>
-      <div class="settings-card-title">Doctor's Notes</div>
-      <div class="settings-card-sub">Private records — visible only to you</div>
+{% if appointments %}
+<div class="appt-list">
+  {% for appt in appointments %}
+  <div class="appt-row {% if appt.status.value == 'completed' %}appt-row--done{% elif appt.status.value == 'no_show' %}appt-row--noshow{% endif %}">
+    <div class="appt-time">
+      {{ appt.appointment_date.strftime("%d %b") }}<br>
+      <span style="font-weight:400;font-size:11px;">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</span>
+    </div>
+    <div class="appt-info">
+      <div class="appt-name">{{ appt.appointment_type.value.replace("_", " ").title() }}</div>
+      <div class="appt-meta">
+        {{ appt.duration_mins }} min
+        {% if appt.doctor_notes %} · {{ appt.doctor_notes | truncate(60, true, '…') }}{% endif %}
+      </div>
+    </div>
+    <div class="appt-status">
+      <span class="badge badge--{{ appt.status.value }}">
+        {{ appt.status.value.replace("_", " ").title() }}
+      </span>
+    </div>
+    <div class="appt-actions">
+      <button type="button" class="btn btn-secondary btn-xs" onclick="openApptCard({{ appt.id }})">View</button>
     </div>
   </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state" style="padding:40px 24px;">
+  <div class="empty-title">No appointments yet</div>
+  <div class="empty-sub">Book the first appointment for this patient.</div>
+</div>
+{% endif %}
 
-  <!-- Saved notes timeline -->
-  <div class="note-timeline" id="noteTimeline">
-
-    {% if notes_data %}
-      {% for note in notes_data %}
-      <div class="note-entry" id="note-{{ note.id }}">
-        <div class="note-entry-date">
-          <span>{{ note.date_label }}</span>
-        </div>
-        <div class="note-entry-body">
-          <p class="note-entry-text">{{ note.text }}</p>
-          {% if note.files %}
-          <div class="note-entry-files">
-            {% for f in note.files %}
-            <a href="/patients/{{ patient.id }}/files/{{ f.id }}"
-               class="note-file-chip"
-               data-file-id="{{ f.id }}"
-               data-file-name="{{ f.name }}"
-               data-file-size="{{ f.size }}"
-               target="_blank" rel="noopener">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19
-                         a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
-              </svg>
-              <span class="note-file-chip-name">{{ f.name }}</span>
-              {% if f.size %}<span class="note-file-chip-size">{{ f.size }}</span>{% endif %}
-            </a>
-            {% endfor %}
-          </div>
+<!-- ── Billing History — full width ─────────────────────────────────────── -->
+{% if bills %}
+<div class="section-header" style="margin-top:28px;">
+  <h2 class="section-title">Billing History</h2>
+  <span class="section-link">{{ bills | length }} bill{{ 's' if bills|length != 1 else '' }}</span>
+</div>
+<div class="bill-history-list">
+  {% for bill in bills %}
+  <div class="bill-history-row">
+    <div class="bill-history-left">
+      <div class="bill-history-date">{{ bill.paid_at.strftime("%d %b %Y") if bill.paid_at else bill.created_at.strftime("%d %b %Y") }}</div>
+      <div class="bill-history-mode">
+        <span class="badge-channel badge-channel--{{ bill.payment_mode.value if bill.payment_mode else 'free' }}">
+          {{ bill.payment_mode.value.title() if bill.payment_mode else 'Free' }}
+        </span>
+      </div>
+    </div>
+    <div class="bill-history-center">
+      <div class="bill-history-items">
+        {% if bill.items %}
+          {% for item in bill.items[:3] %}
+          <span class="bill-history-item-chip">{{ item.description }}{% if item.quantity > 1 %} ×{{ item.quantity }}{% endif %}</span>
+          {% endfor %}
+          {% if bill.items | length > 3 %}
+          <span class="bill-history-item-chip bill-history-item-chip--more">+{{ bill.items | length - 3 }} more</span>
           {% endif %}
-          <!-- Edit + Delete action buttons -->
-          <div class="note-entry-actions">
-            <button type="button" class="note-entry-action-btn"
-                    onclick="enterEditMode({{ note.id }})" title="Edit note">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-            </button>
-            <button type="button" class="note-entry-action-btn note-entry-action-btn--danger"
-                    onclick="deleteNote({{ note.id }}, this)" title="Delete note">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2.2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                <path d="M10 11v6M14 11v6"/>
-                <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-              </svg>
-            </button>
-          </div>
-        </div>
+        {% else %}
+          <span class="bill-history-item-chip">Consultation</span>
+        {% endif %}
       </div>
-      {% endfor %}
-    {% else %}
-      <div class="note-empty-state" id="noteEmptyState">
-        No notes yet — add your first note below.
+      {% if bill.discount and bill.discount > 0 %}
+      <div class="bill-history-discount">Discount ₹{{ "{:,.0f}".format(bill.discount) }}</div>
+      {% endif %}
+      {% if bill.notes %}
+      <div class="bill-history-notes">{{ bill.notes }}</div>
+      {% endif %}
+    </div>
+    <div class="bill-history-right">
+      <div class="bill-history-amount">₹{{ "{:,.0f}".format(bill.total) }}</div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <a href="/bills/{{ bill.id }}/edit" class="bill-history-link">Edit</a>
+        <span style="color:var(--border);">·</span>
+        <a href="/bills/{{ bill.id }}" class="bill-history-link">View</a>
       </div>
-    {% endif %}
-
-  </div><!-- /note-timeline -->
-
-  <!-- Compose new note -->
-  <div class="note-compose">
-    <textarea id="noteTextarea"
-              placeholder="Allergies, chronic conditions, medication, personal notes…"
-              rows="3"></textarea>
-
-    <!-- Queued files preview strip -->
-    <div class="note-file-queue" id="noteFileQueue" style="display:none;"></div>
-
-    <div class="note-compose-actions">
-      <span class="note-save-error" id="noteSaveError"></span>
-      <button type="button" class="btn btn-secondary btn-sm" onclick="openFileModal()">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2"
-             stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-1px;">
-          <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19
-                   a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
-        </svg>Attach Files
-      </button>
-      <button type="button" class="btn btn-primary btn-sm" id="saveNoteBtn" onclick="saveNote()">
-        Save Note
-      </button>
     </div>
   </div>
+  {% endfor %}
+</div>
+<div class="bill-history-summary">
+  <span style="color:var(--muted);font-size:13px;">Total collected</span>
+  <span style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;">
+    ₹{{ "{:,.0f}".format(bills | sum(attribute='total')) }}
+  </span>
+</div>
+{% endif %}
+
+<!-- Remove Patient -->
+<div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+  <form method="post" action="/patients/{{ patient.id }}/delete" id="deletePatientForm">
+    <button type="button" class="btn btn-sm"
+            style="background:rgba(220,38,38,0.12);color:#ef4444;border:1px solid rgba(220,38,38,0.3);"
+            onclick="confirmDelete()">Remove Patient</button>
+  </form>
 </div>
 
 <!-- ── File Upload Modal ───────────────────────────────────────────────── -->
@@ -213,106 +431,6 @@
   </div>
 </div>
 
-<!-- Appointment History -->
-<div class="section-header" style="margin-top:8px;">
-  <h2 class="section-title">Appointment History</h2>
-  <span class="section-link">{{ appointments | length }} total</span>
-</div>
-
-{% if appointments %}
-<div class="appt-list">
-  {% for appt in appointments %}
-  <div class="appt-row {% if appt.status.value == 'completed' %}appt-row--done{% elif appt.status.value == 'no_show' %}appt-row--noshow{% endif %}">
-    <div class="appt-time">
-      {{ appt.appointment_date.strftime("%d %b") }}<br>
-      <span style="font-weight:400;font-size:11px;">{{ appt.appointment_time.strftime("%I:%M %p").lstrip("0") }}</span>
-    </div>
-    <div class="appt-info">
-      <div class="appt-name">{{ appt.appointment_type.value.replace("_", " ").title() }}</div>
-      <div class="appt-meta">
-        {{ appt.duration_mins }} min
-        {% if appt.doctor_notes %} · {{ appt.doctor_notes | truncate(60, true, '…') }}{% endif %}
-      </div>
-    </div>
-    <div class="appt-status">
-      <span class="badge badge--{{ appt.status.value }}">
-        {{ appt.status.value.replace("_", " ").title() }}
-      </span>
-    </div>
-    <div class="appt-actions">
-      <button type="button" class="btn btn-secondary btn-xs" onclick="openApptCard({{ appt.id }})">View</button>
-    </div>
-  </div>
-  {% endfor %}
-</div>
-{% else %}
-<div class="empty-state" style="padding:40px 24px;">
-  <div class="empty-title">No appointments yet</div>
-  <div class="empty-sub">Book the first appointment for this patient.</div>
-</div>
-{% endif %}
-
-<!-- ── Billing History ── -->
-{% if bills %}
-<div class="section-header" style="margin-top:28px;">
-  <h2 class="section-title">Billing History</h2>
-  <span class="section-link">{{ bills | length }} bill{{ 's' if bills|length != 1 else '' }}</span>
-</div>
-<div class="bill-history-list">
-  {% for bill in bills %}
-  <div class="bill-history-row">
-    <div class="bill-history-left">
-      <div class="bill-history-date">{{ bill.paid_at.strftime("%d %b %Y") if bill.paid_at else bill.created_at.strftime("%d %b %Y") }}</div>
-      <div class="bill-history-mode">
-        <span class="badge-channel badge-channel--{{ bill.payment_mode.value if bill.payment_mode else 'free' }}">
-          {{ bill.payment_mode.value.title() if bill.payment_mode else 'Free' }}
-        </span>
-      </div>
-    </div>
-    <div class="bill-history-center">
-      <!-- Item names -->
-      <div class="bill-history-items">
-        {% if bill.items %}
-          {% for item in bill.items[:3] %}
-          <span class="bill-history-item-chip">{{ item.description }}{% if item.quantity > 1 %} ×{{ item.quantity }}{% endif %}</span>
-          {% endfor %}
-          {% if bill.items | length > 3 %}
-          <span class="bill-history-item-chip bill-history-item-chip--more">+{{ bill.items | length - 3 }} more</span>
-          {% endif %}
-        {% else %}
-          <span class="bill-history-item-chip">Consultation</span>
-        {% endif %}
-      </div>
-      {% if bill.discount and bill.discount > 0 %}
-      <div class="bill-history-discount">Discount ₹{{ "{:,.0f}".format(bill.discount) }}</div>
-      {% endif %}
-      {% if bill.notes %}
-      <div class="bill-history-notes">{{ bill.notes }}</div>
-      {% endif %}
-    </div>
-    <div class="bill-history-right">
-      <div class="bill-history-amount">₹{{ "{:,.0f}".format(bill.total) }}</div>
-      <a href="/bills/{{ bill.id }}" class="bill-history-link">View</a>
-    </div>
-  </div>
-  {% endfor %}
-</div>
-<div class="bill-history-summary">
-  <span style="color:var(--muted);font-size:13px;">Total collected</span>
-  <span style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;">
-    ₹{{ "{:,.0f}".format(bills | sum(attribute='total')) }}
-  </span>
-</div>
-{% endif %}
-
-<!-- Remove Patient -->
-<div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
-  <form method="post" action="/patients/{{ patient.id }}/delete" id="deletePatientForm">
-    <button type="button" class="btn btn-sm"
-            style="background:rgba(220,38,38,0.12);color:#ef4444;border:1px solid rgba(220,38,38,0.3);"
-            onclick="confirmDelete()">Remove Patient</button>
-  </form>
-</div>
 
 {% endblock %}
 
