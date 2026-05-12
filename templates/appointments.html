@@ -671,12 +671,27 @@ function toggleEmergency() {
 }
 
 function toggleMenu(id) {
-  document.querySelectorAll('.visit-menu').forEach(m => { if (m.id !== id) m.classList.remove('open'); });
-  document.getElementById(id)?.classList.toggle('open');
+  document.querySelectorAll('.visit-menu').forEach(m => {
+    if (m.id !== id) {
+      m.classList.remove('open');
+      const row = m.closest('.visit-row, .visit-serving-card');
+      if (row) row.style.zIndex = '';
+    }
+  });
+  const menu = document.getElementById(id);
+  if (!menu) return;
+  menu.classList.toggle('open');
+  const row = menu.closest('.visit-row, .visit-serving-card');
+  if (row) row.style.zIndex = menu.classList.contains('open') ? '20' : '';
 }
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('.visit-more-btn') && !e.target.closest('.visit-menu'))
-    document.querySelectorAll('.visit-menu').forEach(m => m.classList.remove('open'));
+  if (!e.target.closest('.visit-more-btn') && !e.target.closest('.visit-menu')) {
+    document.querySelectorAll('.visit-menu').forEach(m => {
+      m.classList.remove('open');
+      const row = m.closest('.visit-row, .visit-serving-card');
+      if (row) row.style.zIndex = '';
+    });
+  }
 });
 
 {% if request.query_params.get('walkin_error') %}

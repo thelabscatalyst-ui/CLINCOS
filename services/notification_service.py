@@ -1,12 +1,13 @@
 """
-Notification service — YCloud WhatsApp sending.
+Notification service — Twilio WhatsApp sending (sandbox for testing).
 
-SETUP (add to .env):
-  YCLOUD_API_KEY=your_ycloud_api_key
-  YCLOUD_WHATSAPP_NUMBER=+919XXXXXXXXXX   # your registered WhatsApp Business number
+For production, switch to YCloud by setting YCLOUD_API_KEY + YCLOUD_WHATSAPP_NUMBER in .env.
+
+Twilio sandbox setup:
+  1. Patient sends "join <keyword>" to whatsapp:+14155238886 once to opt in
+  2. All messages then go through fine for testing
 """
 import logging
-import requests
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -24,60 +25,48 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------ #
 
 def _e164(phone: str) -> str:
-    """Convert various Indian phone formats to E.164 (+91XXXXXXXXXX)."""
     phone = phone.strip().replace(" ", "").replace("-", "")
     if phone.startswith("+"):
-        return phone                      # already E.164
+        return phone
     if phone.startswith("91") and len(phone) == 12:
-        return f"+{phone}"               # 919876543210 → +919876543210
+        return f"+{phone}"
     if len(phone) == 10:
-        return f"+91{phone}"             # 9876543210  → +919876543210
-    return f"+{phone}"                   # best-effort for unusual formats
+        return f"+91{phone}"
+    return f"+{phone}"
 
 
 # ------------------------------------------------------------------ #
-#  Low-level sender (YCloud)                                           #
+#  Low-level sender (Twilio sandbox)                                   #
 # ------------------------------------------------------------------ #
+
+def _twilio_client():
+    from twilio.rest import Client
+    return Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+
 
 def send_whatsapp(to_phone: str, message: str) -> tuple[bool, str]:
-    """Send a WhatsApp message via YCloud REST API.
-
-    Returns (success: bool, id_or_error: str).
-    Never raises — failures are returned as (False, reason).
-    """
-    if not settings.YCLOUD_API_KEY or not settings.YCLOUD_WHATSAPP_NUMBER:
-        return False, "YCloud not configured"
+    if not settings.TWILIO_ACCOUNT_SID or not settings.TWILIO_AUTH_TOKEN:
+        return False, "Twilio not configured"
     try:
-        resp = requests.post(
-            "https://api.ycloud.com/v2/whatsapp/messages",
-            headers={
-                "X-API-Key": settings.YCLOUD_API_KEY,
-                "Content-Type": "application/json",
-            },
-            json={
-                "from": settings.YCLOUD_WHATSAPP_NUMBER,
-                "to": _e164(to_phone),
-                "type": "text",
-                "text": {"body": message},
-            },
-            timeout=10,
+        client = _twilio_client()
+        msg = client.messages.create(
+            from_=settings.TWILIO_WHATSAPP_FROM,
+            to=f"whatsapp:{_e164(to_phone)}",
+            body=message,
         )
-        if resp.status_code in (200, 201):
-            return True, resp.json().get("id", "sent")
-        return False, f"HTTP {resp.status_code}: {resp.text[:200]}"
+        return True, msg.sid
     except Exception as e:
-        logger.error(f"YCloud WhatsApp error: {e}")
+        logger.error(f"Twilio WhatsApp error: {e}")
         return False, str(e)
 
 
 # ------------------------------------------------------------------ #
-#  Send with fallback (single channel — WhatsApp only)                #
+#  Send with fallback (WhatsApp only for now)                          #
 # ------------------------------------------------------------------ #
 
 def _send_with_fallback(
     phone: str, message: str
 ) -> tuple[bool, NotificationChannel, str]:
-    """Send via WhatsApp (YCloud). Returns (success, channel, id_or_error)."""
     ok, sid = send_whatsapp(phone, message)
     return ok, NotificationChannel.whatsapp, sid
 
@@ -250,7 +239,7 @@ def notify_walkin_queued(visit, doctor, db: Session):
         f"We will call you shortly."
     )
     ok, channel, sid = _send_with_fallback(patient.phone, message)
-    _log(None, NotificationType.walkin_queue, channel, message, "sent" if ok else "failed", db)
+    _log(visit.appointment_id, NotificationType.walkin_queue, channel, message, "sent" if ok else "failed", db)
 
 
 def notify_bill_receipt(bill, doctor, db: Session):
@@ -261,12 +250,8 @@ def notify_bill_receipt(bill, doctor, db: Session):
         return
     clinic_name = doctor.clinic_name or f"Dr. {doctor.name}'s clinic"
 
-    # Build items list (top 3)
-    items = list(bill.items)[:3] if bill.items else []
-    if items:
-        items_text = "\n".join(f"• {i.description}: ₹{i.total:.0f}" for i in items)
-    else:
-        items_text = f"• Consultation: ₹{bill.total:.0f}"
+    # All line items
+    items = list(bill.items) if bill.items else []
 
     # Payment mode label
     mode_labels = {
@@ -281,13 +266,45 @@ def notify_bill_receipt(bill, doctor, db: Session):
         bill.payment_mode.value if bill.payment_mode else "cash", "Cash"
     )
 
-    message = (
-        f"Hello {patient.name},\n\n"
-        f"Your bill at *{clinic_name}* has been recorded.\n\n"
-        f"{items_text}\n"
-        f"Total: *₹{bill.total:.0f}*\n"
-        f"Paid via: {mode_label}\n\n"
-        f"Thank you for visiting *{clinic_name}*."
-    )
+    # Build itemised block
+    if items:
+        item_lines = []
+        for i in items:
+            qty_str = f" x{int(i.quantity)}" if i.quantity and int(i.quantity) > 1 else ""
+            item_lines.append(f"• {i.description}{qty_str}: ₹{i.total:.0f}")
+        items_block = "\n".join(item_lines)
+    else:
+        items_block = f"• Consultation: ₹{bill.subtotal:.0f}"
+
+    # Totals — only show discount/GST lines if non-zero
+    totals_lines = []
+    if bill.discount and float(bill.discount) > 0:
+        totals_lines.append(f"• Subtotal: ₹{bill.subtotal:.0f}")
+        totals_lines.append(f"• Discount: -₹{bill.discount:.0f}")
+    if bill.gst_amount and float(bill.gst_amount) > 0:
+        totals_lines.append(f"• GST: ₹{bill.gst_amount:.0f}")
+    totals_block = "\n".join(totals_lines)
+
+    visit_date = bill.visit.visit_date.strftime("%-d %b %Y") if bill.visit else datetime.now().strftime("%-d %b %Y")
+
+    # Merge items + subtotal/discount/GST into one bullet block
+    full_bullets = [items_block]
+    if totals_block:
+        full_bullets.append(totals_block)
+
+    message_parts = [
+        f"*Bill Receipt — {clinic_name}*",
+        f"Date: {visit_date}",
+        f"Patient: {patient.name}",
+        "",
+        "\n".join(full_bullets),
+        "",
+        f"*Total: ₹{bill.total:.0f}*",
+        f"Paid via: {mode_label}",
+        "",
+        f"Thank you for visiting {clinic_name}.",
+    ]
+    message = "\n".join(message_parts)
+    appt_id = bill.visit.appointment_id if bill.visit else None
     ok, channel, sid = _send_with_fallback(patient.phone, message)
-    _log(None, NotificationType.bill_receipt, channel, message, "sent" if ok else "failed", db)
+    _log(appt_id, NotificationType.bill_receipt, channel, message, "sent" if ok else "failed", db)

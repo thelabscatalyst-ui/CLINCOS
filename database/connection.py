@@ -314,3 +314,27 @@ def _run_migrations():
 
         # ── YCloud notification system: avg consult time per doctor ──────────
         _add_column(conn, "ALTER TABLE doctors ADD COLUMN avg_consult_mins INTEGER DEFAULT 10")
+
+        # ── Make notifications_log.appointment_id nullable ───────────────────
+        # SQLite doesn't support ALTER COLUMN, so recreate the table.
+        has_nullable = conn.execute(text(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='notifications_log'"
+        )).scalar() or ""
+        if "appointment_id INTEGER NOT NULL" in has_nullable:
+            conn.execute(text("ALTER TABLE notifications_log RENAME TO notifications_log_old"))
+            conn.execute(text(
+                "CREATE TABLE notifications_log ("
+                "  id             INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "  appointment_id INTEGER REFERENCES appointments(id), "
+                "  type           VARCHAR(30), "
+                "  channel        VARCHAR(20), "
+                "  message_body   TEXT, "
+                "  status         VARCHAR(10), "
+                "  sent_at        TIMESTAMP"
+                ")"
+            ))
+            conn.execute(text(
+                "INSERT INTO notifications_log SELECT * FROM notifications_log_old"
+            ))
+            conn.execute(text("DROP TABLE notifications_log_old"))
+            conn.commit()

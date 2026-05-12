@@ -870,12 +870,6 @@ html.light .navbar-settings-link:hover {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 495px;   /* exactly 5 rows (5×90px + 4×10px gap) */
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 4px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
 }
 .appt-col-body::-webkit-scrollbar { width: 4px; }
 .appt-col-body::-webkit-scrollbar-track { background: transparent; }
@@ -913,6 +907,7 @@ html.light .navbar-settings-link:hover {
   justify-content: space-between;
   gap: 16px;
   padding: 15px 18px;
+  flex-shrink: 0;
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -4598,6 +4593,7 @@ html.light .appt-row--striped::before {
   padding: 20px 24px;
   box-shadow: var(--glow);
   position: relative;
+  z-index: 10;
   margin-bottom: 4px;
 }
 .visit-serving-card.visit-emergency {
@@ -4626,6 +4622,8 @@ html.light .appt-row--striped::before {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 12px 16px;
+  position: relative;
+  z-index: 1;
   transition: var(--transition-pop), background 0.15s ease;
 }
 .visit-row:hover {

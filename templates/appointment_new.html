@@ -25,8 +25,8 @@
     {% if clinic_doctors %}
     <!-- Doctor Selector (clinic owner with multiple doctors) -->
     <p class="form-section-label">Doctor</p>
-    <div class="form-row">
-      <div class="form-group" style="flex:1;width:100%;">
+    <div class="form-row" style="grid-template-columns:1fr;">
+      <div class="form-group">
         <label for="for_doctor_id">Booking for</label>
         <select id="for_doctor_id" name="for_doctor_id" onchange="onDoctorChange()">
           {% for doc in clinic_doctors %}
@@ -123,8 +123,8 @@
     </div>
     <input type="hidden" name="duration" value="15">
 
-    <div class="form-row">
-      <div class="form-group" style="flex:1;width:100%;">
+    <div class="form-row" style="grid-template-columns:1fr;">
+      <div class="form-group">
         <label for="patient_notes">Notes (optional)</label>
         <textarea id="patient_notes" name="patient_notes" rows="3"
                   placeholder="Chief complaint, reason for visit...">{{ form_data.get('patient_notes', '') }}</textarea>
