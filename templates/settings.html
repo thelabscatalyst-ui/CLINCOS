@@ -139,6 +139,16 @@
       </div>
       {% endfor %}
     </div>
+
+    <div class="form-group" style="margin-top: 16px;">
+      <label>Avg. consult time per patient</label>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <input type="number" name="avg_consult_mins"
+               value="{{ doctor.avg_consult_mins or 10 }}"
+               min="1" max="120" style="width:80px;">
+        <span class="form-hint" style="margin:0;">mins per patient (used for walk-in wait estimates)</span>
+      </div>
+    </div>
   </div>
 </form>
 

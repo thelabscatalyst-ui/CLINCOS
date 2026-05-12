@@ -41,9 +41,11 @@ class NotificationChannel(str, enum.Enum):
 class NotificationType(str, enum.Enum):
     confirmation = "confirmation"
     reminder_24h = "reminder_24h"
-    reminder_2h = "reminder_2h"
-    no_show = "no_show"
-    follow_up = "follow_up"
+    reminder_2h  = "reminder_2h"
+    no_show      = "no_show"
+    follow_up    = "follow_up"
+    walkin_queue = "walkin_queue"
+    bill_receipt = "bill_receipt"
 
 
 class BookedBy(str, enum.Enum):
@@ -164,8 +166,9 @@ class Doctor(Base):
     trial_ends_at = Column(DateTime, nullable=True)
     plan_expires_at = Column(DateTime, nullable=True)
     # v2 additions
-    doctor_mode   = Column(String(30), default="reception_driven")  # reception_driven|phone_only|cabin_terminal
-    walkin_policy = Column(String(20), default="booked_jumps")      # booked_jumps|fcfs|ask
+    doctor_mode      = Column(String(30), default="reception_driven")  # reception_driven|phone_only|cabin_terminal
+    walkin_policy    = Column(String(20), default="booked_jumps")      # booked_jumps|fcfs|ask
+    avg_consult_mins = Column(Integer, default=10)                     # used for walk-in wait estimates
     created_at = Column(DateTime, default=datetime.utcnow)
 
     appointments       = relationship("Appointment", back_populates="doctor", cascade="all, delete-orphan")
@@ -389,7 +392,7 @@ class NotificationLog(Base):
     __tablename__ = "notifications_log"
 
     id = Column(Integer, primary_key=True, index=True)
-    appointment_id = Column(Integer, ForeignKey("appointments.id"), nullable=False, index=True)
+    appointment_id = Column(Integer, ForeignKey("appointments.id"), nullable=True, index=True)
     type = Column(SAEnum(NotificationType), nullable=False)
     channel = Column(SAEnum(NotificationChannel), nullable=False)
     message_body = Column(Text, nullable=True)

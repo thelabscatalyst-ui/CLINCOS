@@ -116,10 +116,18 @@
         <div class="ac-row">
           <span class="ac-row-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Follow Up</span>
           <span class="ac-row-val">
-            <span id="fuDisplayText">{% if appt.follow_up_date %}{{ appt.follow_up_date.strftime("%d %b %Y") }}{% else %}<span style="color:var(--dim);">Not Scheduled</span>{% endif %}</span>
-            <button type="button" class="ac-inline-edit" onclick="toggleFollowUp({{ appt.id }})">{% if appt.follow_up_date %}Edit{% else %}Schedule{% endif %}</button>
+            {% if appt.follow_up_date %}
+            <span id="fuDisplayText">{{ appt.follow_up_date.strftime("%d %b %Y") }}</span>
+            {% else %}
+            <button type="button" class="ac-inline-edit" style="margin-left:0;" onclick="toggleFollowUp({{ appt.id }})">+ Schedule Follow-up</button>
+            {% endif %}
           </span>
         </div>
+        {% if appt.follow_up_date %}
+        <div style="padding:0 0 4px 0;">
+          <button type="button" class="ac-inline-edit" style="margin-left:0;" onclick="toggleFollowUp({{ appt.id }})">Reschedule</button>
+        </div>
+        {% endif %}
         <!-- Follow-up inline form — hidden by default -->
         <div id="followUpForm{{ appt.id }}" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0 4px 0;margin-top:4px;">
           <input type="date" id="followUpInput{{ appt.id }}"

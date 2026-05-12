@@ -50,11 +50,6 @@
     <div class="stat-sub">No more today</div>
     {% endif %}
   </div>
-  <div class="stat-card">
-    <div class="stat-label">Clinic</div>
-    <div class="stat-value stat-value--sm">{{ primary_clinic.name if primary_clinic else (doctor.clinic_name or "—") }}</div>
-    <div class="stat-sub">{{ primary_clinic.city if primary_clinic else (doctor.city or "") }}</div>
-  </div>
   <a href="/income" class="stat-card stat-card--dues" style="text-decoration:none;">
     <div class="stat-label">Pending Dues</div>
     {% if pending_dues_amount > 0 %}
@@ -65,6 +60,11 @@
     <div class="stat-sub">No outstanding dues</div>
     {% endif %}
   </a>
+  <div class="stat-card">
+    <div class="stat-label">Clinic</div>
+    <div class="stat-value stat-value--sm">{{ primary_clinic.name if primary_clinic else (doctor.clinic_name or "—") }}</div>
+    <div class="stat-sub">{{ primary_clinic.city if primary_clinic else (doctor.city or "") }}</div>
+  </div>
 </div>
 
 <!-- ── Two-Column Dashboard Body ─────────────────────────────────────────── -->
@@ -185,9 +185,9 @@
       </div>
 
       <!-- Last transaction -->
-      {% if last_bill %}
       <div class="dash-last-txn">
         <span class="dash-last-txn-label">Last transaction</span>
+        {% if last_bill %}
         <div style="display:flex;align-items:center;gap:8px;">
           <span class="badge-channel badge-channel--{{ last_bill.payment_mode.value if last_bill.payment_mode else 'walkin' }}" style="font-size:10px;">
             {{ last_bill.payment_mode.value.title() if last_bill.payment_mode else '—' }}
@@ -197,14 +197,16 @@
             {% else %}₹{{ "{:,.0f}".format(last_bill.total|float) }}{% endif %}
           </span>
         </div>
+        {% else %}
+        <span style="font-size:12px;color:var(--dim);">No payments today</span>
+        {% endif %}
       </div>
-      {% endif %}
 
       <!-- Divider -->
       <div style="height:1px;background:var(--border);margin:14px 0;"></div>
 
-      <!-- Recent 5 bills -->
-      <div class="dash-mini-subheader">Recent Patients</div>
+      <!-- Recent 5 bills — today only -->
+      <div class="dash-mini-subheader">Today's Transactions</div>
       {% if recent_bills_dash %}
         {% for b in recent_bills_dash %}
         <div class="dash-bill-row">
@@ -213,7 +215,7 @@
             <span class="dash-bill-name">{{ b.visit.patient.name if b.visit and b.visit.patient else '—' }}</span>
           </div>
           <div class="dash-bill-right">
-            <span class="dash-bill-date">{{ b.paid_at.strftime("%-d %b") if b.paid_at else b.created_at.strftime("%-d %b") if b.created_at else '' }}</span>
+            <span class="dash-bill-date">{{ b.paid_at.strftime("%I:%M %p").lstrip("0") if b.paid_at else '' }}</span>
             <span class="dash-bill-amount {% if b.payment_mode and b.payment_mode.value == 'free' %}dash-bill-free{% endif %}">
               {% if b.payment_mode and b.payment_mode.value == 'free' %}Free
               {% else %}₹{{ "{:,.0f}".format(b.total|float) }}{% endif %}
@@ -222,12 +224,12 @@
         </div>
         {% endfor %}
       {% else %}
-        <div style="font-size:12px;color:var(--dim);padding:8px 0;">No billing records yet</div>
+        <div style="font-size:12px;color:var(--dim);padding:8px 0;">No transactions today</div>
       {% endif %}
     </div>
 
     <!-- Quick Expense Card -->
-    <div class="dash-mini-card">
+    <div class="dash-mini-card dash-expense-card">
       <div class="dash-mini-header">
         <div class="dash-mini-title">Quick Expense</div>
         <a href="/expenses" class="dash-mini-link">All expenses →</a>

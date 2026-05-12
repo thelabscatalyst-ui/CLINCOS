@@ -136,19 +136,27 @@ def dashboard(
     )
     today_income = float(today_income_row or 0)
 
-    # Last transaction
+    # Last transaction — TODAY only
     last_bill = (
         db.query(Bill)
-        .filter(Bill.doctor_id == doctor.id, Bill.paid_at != None)
+        .filter(
+            Bill.doctor_id == doctor.id,
+            Bill.paid_at   >= _today_start,
+            Bill.paid_at   <= _today_end,
+        )
         .order_by(Bill.paid_at.desc())
         .first()
     )
 
-    # Recent 5 bills with patient name
+    # Recent 5 bills — TODAY only
     recent_bills_dash = (
         db.query(Bill)
-        .filter(Bill.doctor_id == doctor.id)
-        .order_by(Bill.paid_at.desc().nullslast(), Bill.created_at.desc())
+        .filter(
+            Bill.doctor_id == doctor.id,
+            Bill.paid_at   >= _today_start,
+            Bill.paid_at   <= _today_end,
+        )
+        .order_by(Bill.paid_at.desc())
         .limit(5)
         .all()
     )
@@ -364,6 +372,7 @@ def settings_page(
 @router.post("/doctors/settings/schedule", response_class=HTMLResponse)
 async def save_schedule(
     request: Request,
+    avg_consult_mins: int = Form(10),
     doctor: Doctor = Depends(require_pin),
     db: Session = Depends(get_db),
 ):
@@ -408,6 +417,7 @@ async def save_schedule(
             ))
             prev_end = et
 
+    doctor.avg_consult_mins = max(1, min(120, avg_consult_mins))
     db.commit()
     return RedirectResponse(url="/doctors/settings?saved=1", status_code=303)
 

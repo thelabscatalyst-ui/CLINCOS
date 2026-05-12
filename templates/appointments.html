@@ -41,7 +41,7 @@
     <a href="/appointments?doctor_id={{ doc.id }}&filter_date={{ view_date.isoformat() }}"
        class="btn btn-sm {% if doc.id == vd.id %}btn-primary{% else %}btn-secondary{% endif %} doc-selector-btn"
        {% if doc.specialization %}data-spec="{{ doc.specialization }}"{% endif %}>
-      Dr. {{ doc.name.split()[0] }}
+      Dr. {{ doc.name | title }}
       {% if doc.specialization %}<span class="doc-spec-tip">( {{ doc.specialization }} )</span>{% endif %}
     </a>
     {% endfor %}
@@ -97,6 +97,63 @@
 <!--  LIVE QUEUE  (today only)                                       -->
 <!-- ═══════════════════════════════════════════════════════════════ -->
 {% if is_today %}
+
+<!-- ── Today's Flow card (full-width strip) ── -->
+{% if flow_stats %}
+<div class="flow-card">
+  <div class="flow-bar-track" style="margin-bottom:14px;">
+    {% set total = flow_stats.total if flow_stats.total > 0 else 1 %}
+    <div class="flow-bar-seg flow-bar-seg--waiting"  style="width:{{ (flow_stats.waiting  / total * 100)|round|int }}%"></div>
+    <div class="flow-bar-seg flow-bar-seg--serving"  style="width:{{ (flow_stats.serving  / total * 100)|round|int }}%"></div>
+    <div class="flow-bar-seg flow-bar-seg--billing"  style="width:{{ (flow_stats.billing  / total * 100)|round|int }}%"></div>
+    <div class="flow-bar-seg flow-bar-seg--done"     style="width:{{ (flow_stats.done     / total * 100)|round|int }}%"></div>
+  </div>
+  <div class="flow-card-body">
+    <div class="flow-card-title" style="margin:0;">Today's Flow</div>
+    <div class="flow-vdivider"></div>
+    <div class="flow-counts-row">
+      <div class="flow-count-item">
+        <span class="flow-count-label-row"><span class="flow-count-dot flow-count-dot--waiting"></span><span class="flow-count-label">Waiting</span></span>
+        <span class="flow-count-val">{{ flow_stats.waiting }}</span>
+      </div>
+      <div class="flow-count-item">
+        <span class="flow-count-label-row"><span class="flow-count-dot flow-count-dot--serving"></span><span class="flow-count-label">Serving</span></span>
+        <span class="flow-count-val">{{ flow_stats.serving }}</span>
+      </div>
+      <div class="flow-count-item">
+        <span class="flow-count-label-row"><span class="flow-count-dot flow-count-dot--billing"></span><span class="flow-count-label">Billing</span></span>
+        <span class="flow-count-val">{{ flow_stats.billing }}</span>
+      </div>
+      <div class="flow-count-item">
+        <span class="flow-count-label-row"><span class="flow-count-dot flow-count-dot--done"></span><span class="flow-count-label">Done</span></span>
+        <span class="flow-count-val">{{ flow_stats.done }}</span>
+      </div>
+    </div>
+    <div class="flow-vdivider"></div>
+    <div class="flow-kpis-row">
+      <div class="flow-kpi">
+        <span class="flow-kpi-label">Avg Wait</span>
+        {% if flow_stats.avg_wait is not none %}
+        <span class="flow-kpi-val">{{ flow_stats.avg_wait }}<span class="flow-kpi-unit">min</span></span>
+        {% else %}<span class="flow-kpi-val" style="color:var(--dim);font-size:1rem;">—</span>{% endif %}
+      </div>
+      <div class="flow-kpi">
+        <span class="flow-kpi-label">Avg Consult</span>
+        {% if flow_stats.avg_consult is not none %}
+        <span class="flow-kpi-val">{{ flow_stats.avg_consult }}<span class="flow-kpi-unit">min</span></span>
+        {% else %}<span class="flow-kpi-val" style="color:var(--dim);font-size:1rem;">—</span>{% endif %}
+      </div>
+      <div class="flow-kpi">
+        <span class="flow-kpi-label">On Time</span>
+        {% if flow_stats.on_time_pct is not none %}
+        <span class="flow-kpi-val">{{ flow_stats.on_time_pct }}<span class="flow-kpi-unit">%</span></span>
+        {% else %}<span class="flow-kpi-val" style="color:var(--dim);font-size:1rem;">—</span>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <div class="queue-section">
 
   <!-- Now Serving -->

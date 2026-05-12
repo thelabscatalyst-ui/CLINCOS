@@ -205,6 +205,18 @@ async def create_bill(
 
     _auto_complete_appointment(db, visit)
     vs.close_visit(db, visit, bill.id)
+
+    try:
+        from services.bill_pdf_service import generate_and_store_bill_pdf
+        generate_and_store_bill_pdf(bill, db)
+    except Exception:
+        pass
+    try:
+        from services.notification_service import notify_bill_receipt
+        notify_bill_receipt(bill, doctor, db)
+    except Exception:
+        pass
+
     return RedirectResponse("/appointments", status_code=303)
 
 
@@ -317,6 +329,11 @@ async def mark_bill_paid(
         bill.payment_mode = bill.payment_mode or PaymentMode.cash
         bill.paid_at      = datetime.now()
         db.commit()
+        try:
+            from services.notification_service import notify_bill_receipt
+            notify_bill_receipt(bill, doctor, db)
+        except Exception:
+            pass
     return RedirectResponse("/income", status_code=303)
 
 

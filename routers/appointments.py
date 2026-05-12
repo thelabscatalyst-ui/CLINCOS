@@ -15,7 +15,6 @@ from services.appointment_service import (
     get_available_slots, is_slot_available, is_slot_available_for_edit,
     get_or_create_patient, has_open_appointment_on_date,
 )
-from services.notification_service import notify_appointment_confirmed
 import services.visit_service as vs
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
@@ -128,6 +127,7 @@ def appointments_list(
     serving = None
     waiting = []
     billing_pending = []
+    flow_stats = None   # Today's Flow widget data
 
     if view_date == today:
         day_visits = (
@@ -147,6 +147,60 @@ def appointments_list(
             elif v.status == VisitStatus.billing_pending:
                 billing_pending.append(v)
 
+        # ── Today's Flow stats ───────────────────────────────────────
+        from datetime import datetime as _dt
+        _done_v   = [v for v in day_visits if v.status.value == "done"]
+        _served_v = [v for v in day_visits if v.status.value in ("done", "billing_pending", "serving")]
+
+        # Avg wait time (check_in → call)
+        wait_mins = []
+        for v in day_visits:
+            if v.check_in_time and v.call_time:
+                delta = (v.call_time - v.check_in_time).total_seconds() / 60
+                if 0 <= delta <= 300:   # sanity: ignore absurd values
+                    wait_mins.append(delta)
+        avg_wait = round(sum(wait_mins) / len(wait_mins)) if wait_mins else None
+
+        # Avg consult time (call → complete)
+        consult_mins = []
+        for v in _done_v:
+            if v.call_time and v.complete_time:
+                delta = (v.complete_time - v.call_time).total_seconds() / 60
+                if 0 <= delta <= 300:
+                    consult_mins.append(delta)
+        avg_consult = round(sum(consult_mins) / len(consult_mins)) if consult_mins else None
+
+        # On-time % — appt visits called within 20 min of scheduled time
+        appt_visits = [v for v in _served_v if v.source.value == "appointment" and v.appointment_id]
+        on_time_count = 0
+        on_time_total = 0
+        for v in appt_visits:
+            appt_obj = v.appointment  # use the ORM relationship → returns Appointment, not Visit
+            if appt_obj and v.call_time:
+                sched_dt = _dt.combine(today, appt_obj.appointment_time)
+                late_mins = (v.call_time - sched_dt).total_seconds() / 60
+                on_time_total += 1
+                if late_mins <= 20:
+                    on_time_count += 1
+        on_time_pct = round((on_time_count / on_time_total) * 100) if on_time_total else None
+
+        waiting_count = len(waiting)
+        serving_count = 1 if serving else 0
+        billing_count = len(billing_pending)
+        done_count    = len(_done_v)
+        total_flow    = waiting_count + serving_count + billing_count + done_count
+
+        flow_stats = {
+            "waiting":      waiting_count,
+            "serving":      serving_count,
+            "billing":      billing_count,
+            "done":         done_count,
+            "total":        total_flow,
+            "avg_wait":     avg_wait,
+            "avg_consult":  avg_consult,
+            "on_time_pct":  on_time_pct,
+        }
+
     return templates.TemplateResponse(request, "appointments.html", {
         "doctor": doctor,
         "viewing_doctor": viewing_doctor,
@@ -165,6 +219,7 @@ def appointments_list(
         "billing_pending":  billing_pending,
         "is_today":         view_date == today,
         "walkin_available": walkin_available,
+        "flow_stats":       flow_stats,
     })
 
 
@@ -370,7 +425,12 @@ async def create_appointment(
 
     # Send WhatsApp confirmation (non-blocking — failure won't break booking)
     try:
-        notify_appointment_confirmed(appt, doctor, db)
+        from services.notification_service import notify_appointment_confirmed, notify_followup_confirmed
+        from database.models import AppointmentType as _AppointmentType
+        if appt.appointment_type == _AppointmentType.follow_up:
+            notify_followup_confirmed(appt, doctor, db)
+        else:
+            notify_appointment_confirmed(appt, doctor, db)
     except Exception:
         pass
 
@@ -456,7 +516,20 @@ async def create_walkin(
         created_by     = doctor.id,
     )
 
-    # Walk-ins / emergencies skip WhatsApp — patient is on-site
+    # Notify walk-in patient of queue position (non-blocking)
+    try:
+        from services.notification_service import notify_walkin_queued
+        from database.models import Visit as VisitModel
+        today_visit = db.query(VisitModel).filter(
+            VisitModel.doctor_id == target.id,
+            VisitModel.patient_id == patient.id,
+            VisitModel.visit_date == datetime.now().date(),
+        ).order_by(VisitModel.id.desc()).first()
+        if today_visit and patient.phone:
+            notify_walkin_queued(today_visit, target, db)
+    except Exception:
+        pass
+
     return RedirectResponse(url=f"/appointments?filter_date={appt_date.isoformat()}", status_code=303)
 
 

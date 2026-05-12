@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------ */
 /*  Google Fonts                                                        */
 /* ------------------------------------------------------------------ */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap');
 
 /* ------------------------------------------------------------------ */
 /*  CSS Variables — Dark Theme                                          */
@@ -29,9 +29,10 @@
   --danger:       #f87171;
   --warning:      #fbbf24;
 
-  --radius-sm:    10px;
-  --radius:       20px;
-  --radius-lg:    28px;
+  --radius-xs:    6px;
+  --radius-sm:    8px;
+  --radius:       16px;
+  --radius-lg:    24px;
 
   --shadow:       0 2px 8px rgba(0,0,0,0.55);
   --shadow-md:    0 8px 32px rgba(0,0,0,0.65);
@@ -48,11 +49,11 @@
 /*  CSS Variables — Light Theme (warm beige)                           */
 /* ------------------------------------------------------------------ */
 html.light {
-  /* ── Light theme — warm beige/cream ── */
-  --bg:           #ede7de;
-  --bg-2:         #e4ddd4;
-  --bg-3:         #dbd3ca;
-  --bg-input:     #d2cabf;
+  /* ── Light theme — off-white with warm tint ── */
+  --bg:           #e6e0d7;
+  --bg-2:         #f5f2ec;
+  --bg-3:         #eae5de;
+  --bg-input:     #dfd9d0;
   --border:       #c2a98a;
   --border-light: #a8906e;
 
@@ -428,7 +429,7 @@ a:hover { color: var(--text); }
 }
 
 .navbar-brand {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Playfair Display', Georgia, serif;
   font-size: 20px;
   font-weight: 700;
   color: #f0e6d4;
@@ -685,7 +686,7 @@ html.light .navbar-settings-link:hover {
 }
 
 .page-title {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Playfair Display', Georgia, serif;
   font-size: 26px;
   font-weight: 700;
   color: var(--text);
@@ -736,7 +737,7 @@ html.light .navbar-settings-link:hover {
 .btn-xs {
   padding: 5px 12px;
   font-size: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 /* ------------------------------------------------------------------ */
@@ -779,7 +780,7 @@ html.light .navbar-settings-link:hover {
   color: var(--text);
   line-height: 1;
   margin-bottom: 6px;
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .stat-value--sm {
@@ -861,7 +862,7 @@ html.light .navbar-settings-link:hover {
   color: var(--dim);
   background: var(--bg-3);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius);
   padding: 1px 8px;
 }
 
@@ -869,7 +870,16 @@ html.light .navbar-settings-link:hover {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 495px;   /* exactly 5 rows (5×90px + 4×10px gap) */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
+.appt-col-body::-webkit-scrollbar { width: 4px; }
+.appt-col-body::-webkit-scrollbar-track { background: transparent; }
+.appt-col-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
 .appt-col-empty {
   font-size: 13px;
@@ -916,8 +926,8 @@ html.light .navbar-settings-link:hover {
   border-color: var(--border-light);
 }
 
-.appt-row--done   { opacity: 1; }
-.appt-row--noshow { opacity: 1; }
+.appt-row--done   { opacity: 0.5; }
+.appt-row--noshow { opacity: 0.5; }
 
 /* Left cluster: token · time · action buttons */
 .appt-left {
@@ -929,7 +939,7 @@ html.light .navbar-settings-link:hover {
 
 /* Token number (#1, #2 …) */
 .appt-token-num {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--text);
@@ -960,7 +970,7 @@ html.light .navbar-settings-link:hover {
   color: var(--text);
   white-space: nowrap;
   padding: 5px 11px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 1.5px solid var(--border);
   background: transparent;
   letter-spacing: 0.02em;
@@ -1176,7 +1186,7 @@ html.light .cal-day--today .cal-day-num {
   padding: 14px 8px;
   background: #2e1e0c;
   border: 1px solid rgba(200, 170, 130, 0.18);
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 0 0.5px rgba(200,170,130,0.08);
   transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
               opacity 0.25s ease;
@@ -1202,7 +1212,7 @@ html.light .dash-dock {
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: 14px;
+  border-radius: var(--radius);
   background: rgba(200, 170, 130, 0.08);
   border: 1px solid rgba(200, 170, 130, 0.14);
   color: #a0886a;
@@ -1253,7 +1263,7 @@ html.light .dock-item:hover {
   transform: translateY(-50%) translateX(-6px);
   background: #2e1e0c;
   border: 1px solid rgba(200, 170, 130, 0.22);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 5px 11px;
   font-size: 12px;
   font-weight: 600;
@@ -1494,7 +1504,7 @@ html.light .toggle input:checked + .toggle-track::after { background: #fff; }
   padding: 8px 10px;
   background: var(--bg);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   font-family: inherit;
   color: var(--text);
@@ -1537,7 +1547,7 @@ select.input-sm {
   justify-content: space-between;
   padding: 10px 14px;
   background: var(--bg-3);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
   transition: border-color 0.15s;
 }
@@ -1567,7 +1577,7 @@ select.input-sm {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 7px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text-dim);
@@ -1603,7 +1613,7 @@ select.input-sm {
   color: var(--text-muted);
   background: var(--bg-3);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 12px 16px;
   letter-spacing: 0.3px;
   display: block;
@@ -1985,14 +1995,15 @@ select.input-sm {
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 48px 36px;
+  padding: 36px 36px;
   text-align: center;
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: 48px;
 }
 
 .appt-brand-panel::before {
@@ -2268,6 +2279,21 @@ select.input-sm {
   box-shadow: var(--glow);
   transition: var(--transition-pop);
   overflow: hidden;
+  position: relative;
+}
+.patient-row-wrap::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #6b4a28;
+  border-radius: 4px 0 0 4px;
+  z-index: 1;
+}
+html.light .patient-row-wrap::before {
+  background: #7a5230;
 }
 
 .patient-row-wrap:hover {
@@ -2317,7 +2343,7 @@ select.input-sm {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   transition: color 0.15s, background 0.15s;
   line-height: 1;
 }
@@ -2391,7 +2417,7 @@ select.input-sm {
   color: var(--text-muted);
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   text-decoration: none;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -2450,7 +2476,7 @@ html.light .pt-btn--active {
 }
 
 .pub-brand {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 15px;
   font-weight: 700;
   color: var(--text-dim);
@@ -2466,7 +2492,7 @@ html.light .pt-btn--active {
 }
 
 .pub-clinic-name {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Playfair Display', Georgia, serif;
   font-size: 28px;
   font-weight: 700;
   color: var(--text);
@@ -2940,7 +2966,7 @@ html.light .billing-plan-card--pro {
 }
 
 .plan-name {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 28px;
   color: var(--text);
   margin-bottom: 8px;
@@ -3046,7 +3072,7 @@ html.light .billing-plan-card--pro {
   font-size: 11px;
   font-weight: 600;
   padding: 5px 14px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   border: 1px solid;
   text-transform: capitalize;
   white-space: nowrap;
@@ -3144,7 +3170,7 @@ html.light .sub-plan-divider {
   color: var(--text);
   background: rgba(255,255,255,0.1);
   border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 2px 8px;
   letter-spacing: 0.04em;
 }
@@ -3255,7 +3281,7 @@ html.light .sub-pro-tag {
 .pin-dialog {
   background: rgba(14, 14, 14, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
+  border-radius: var(--radius);
   padding: 28px 24px 24px;
   width: 220px;
   display: flex;
@@ -3290,7 +3316,7 @@ html.light .sub-pro-tag {
   width: 100%;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   font-size: 20px;
   letter-spacing: 8px;
@@ -3308,7 +3334,7 @@ html.light .sub-pro-tag {
   width: 100%;
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   color: rgba(255,255,255,0.8);
   font-size: 13px;
   font-weight: 500;
@@ -3339,7 +3365,7 @@ html.light .sub-pro-tag {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   color: rgba(255,255,255,0.3);
   text-decoration: none;
   transition: color 0.15s, background 0.15s;
@@ -3508,7 +3534,7 @@ html.light .badge--emergency {
 /* ─── Phase 2: info card layout (clinic admin) ──────────────────────── */
 
 .info-section-title {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 22px;
   font-weight: 700;
   color: var(--text);
@@ -3703,7 +3729,7 @@ html.light .data-table tbody tr:hover td {
   font-size: 11px;
   font-weight: 500;
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
@@ -4166,7 +4192,7 @@ html.light .data-table tbody tr:hover td {
   border-bottom: 1px solid var(--border);
 }
 .file-modal-title {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 18px;
   font-weight: 700;
   color: var(--text);
@@ -4179,7 +4205,7 @@ html.light .data-table tbody tr:hover td {
   cursor: pointer;
   line-height: 1;
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   transition: color 0.15s, background 0.15s;
 }
 .file-modal-close:hover {
@@ -4326,16 +4352,144 @@ html.light .data-table tbody tr:hover td {
 /* ------------------------------------------------------------------ */
 
 /* Live queue section container */
+/* Queue + Today's Flow two-column wrapper */
 .queue-section {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-bottom: 12px;
   padding: 20px 24px;
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--glow);
+  margin-bottom: 12px;
+}
+
+/* Today's Flow card — full-width horizontal strip above queue */
+.flow-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 24px;
+  box-shadow: var(--glow);
+  margin-bottom: 12px;
+}
+.flow-card-body {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.flow-vdivider {
+  width: 1px;
+  height: 40px;
+  background: var(--border);
+  margin: 0 20px;
+  flex-shrink: 0;
+}
+.flow-counts-row {
+  display: flex;
+  gap: 24px;
+}
+.flow-kpis-row {
+  display: flex;
+  gap: 28px;
+}
+@media (max-width: 900px) {
+  .flow-card-body { flex-wrap: wrap; gap: 12px; }
+  .flow-vdivider { display: none; }
+}
+.flow-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+/* Progress bar */
+.flow-bar-track {
+  height: 8px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-3);
+  display: flex;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.flow-bar-seg {
+  height: 100%;
+  transition: width .4s ease;
+}
+.flow-bar-seg--waiting  { background: #6b4a28; }
+.flow-bar-seg--serving  { background: #9e7048; }
+.flow-bar-seg--billing  { background: #c49a6c; }
+.flow-bar-seg--done     { background: #dfc5a0; }
+/* Status counts row */
+.flow-counts-row {
+  display: flex;
+  gap: 20px;
+}
+.flow-count-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.flow-count-label-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.flow-count-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.flow-count-dot--waiting  { background: #6b4a28; }
+.flow-count-dot--serving  { background: #9e7048; }
+.flow-count-dot--billing  { background: #c49a6c; }
+.flow-count-dot--done     { background: #dfc5a0; }
+.flow-count-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.flow-count-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+/* KPI row */
+.flow-divider { height: 1px; background: var(--border); margin: 0 0 14px; }
+.flow-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.flow-kpi { text-align: center; }
+.flow-kpi-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--dim);
+  display: block;
+  margin-bottom: 4px;
+}
+.flow-kpi-val {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.flow-kpi-unit {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 2px;
 }
 
 .queue-block { display: flex; flex-direction: column; gap: 8px; }
@@ -4452,7 +4606,7 @@ html.light .appt-row--striped::before {
 }
 
 .visit-token {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 2.4rem;
   font-weight: 700;
   line-height: 1;
@@ -4488,7 +4642,7 @@ html.light .appt-row--striped::before {
 .visit-row--closed:hover { opacity: 0.9; }
 
 .visit-token-sm {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1.1rem;
   font-weight: 700;
   min-width: 38px;
@@ -4523,7 +4677,7 @@ html.light .appt-row--striped::before {
 .visit-more-btn {
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4617,7 +4771,7 @@ html.light .dock-item--active {
   gap: 12px;
 }
 .modal-title {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1.15rem;
   font-weight: 700;
   color: var(--text);
@@ -4633,7 +4787,7 @@ html.light .dock-item--active {
   cursor: pointer;
   color: var(--muted);
   padding: 4px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4702,7 +4856,7 @@ html.light .dock-item--active {
   letter-spacing: 0.05em;
 }
 .bill-total-amount {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1.4rem;
   font-weight: 700;
   color: var(--text);
@@ -4749,14 +4903,22 @@ html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0
 
 /* Collect payment button */
 .btn-collect {
-  background: rgba(74,222,128,0.1);
-  border: 1px solid rgba(74,222,128,0.35);
-  color: var(--success);
+  background: rgba(175,142,100,0.15);
+  border: 1px solid rgba(175,142,100,0.5);
+  color: #1a1410;
   font-weight: 600;
 }
+html.light .btn-collect {
+  background: rgba(107,74,40,0.1);
+  border: 1px solid rgba(107,74,40,0.4);
+  color: #1a1410;
+}
 .btn-collect:hover {
-  background: rgba(74,222,128,0.18);
+  background: rgba(175,142,100,0.25);
   transform: translateY(-1px);
+}
+html.light .btn-collect:hover {
+  background: rgba(107,74,40,0.18);
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -4795,11 +4957,11 @@ html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0
   text-transform: uppercase;
   color: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius);
   padding: 1px 8px;
 }
 .catalog-price {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--text);
@@ -4884,7 +5046,7 @@ html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0
   gap: 5px;
 }
 .bill-history-amount {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--text);
@@ -4975,7 +5137,7 @@ html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0
 .bill-item-remove {
   background: none;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   color: var(--muted);
   cursor: pointer;
   padding: 6px;
@@ -5137,7 +5299,7 @@ html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0
   padding: 2px 8px;
   background: var(--bg-3);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius);
   color: var(--text);
   white-space: nowrap;
 }
@@ -5178,7 +5340,7 @@ html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0
   color: var(--muted);
 }
 .income-kpi-amount {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1.75rem;
   font-weight: 700;
   color: var(--text);
@@ -5352,7 +5514,7 @@ html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0
 .pending-name { font-size: 13px; font-weight: 500; color: var(--text); }
 .pending-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .pending-amount {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 700;
   font-size: 1rem;
   color: #f87171;
@@ -5381,7 +5543,7 @@ html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0
 }
 .txn-row:last-child { border-bottom: none; }
 .txn-token {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--muted);
@@ -5393,7 +5555,7 @@ html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0
 .txn-date { color: var(--muted); font-size: 12px; min-width: 60px; text-align: right; flex-shrink: 0; }
 .txn-mode { flex-shrink: 0; }
 .txn-amount {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 700;
   font-size: 1rem;
   min-width: 70px;
@@ -5408,7 +5570,7 @@ html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0
   color: var(--muted);
   text-decoration: none;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 7px 18px;
   display: inline-block;
   transition: color 0.15s, border-color 0.15s;
@@ -5426,7 +5588,7 @@ html.light .form-input:focus { border-color: rgba(0,0,0,0.35); box-shadow: 0 0 0
   font-size: 12px;
   font-weight: 500;
   padding: 6px 14px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   color: var(--muted);
   text-decoration: none;
@@ -5472,7 +5634,7 @@ html.light .txn-month-chip--active { background: #6b4a28; color: #f5ead8; }
   gap: 10px;
 }
 .expense-month-label {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1.05rem;
   font-weight: 700;
   min-width: 150px;
@@ -5501,7 +5663,7 @@ html.light .txn-month-chip--active { background: #6b4a28; color: #f5ead8; }
   margin-bottom: 6px;
 }
 .expense-kpi-val {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text);
@@ -5563,7 +5725,7 @@ html.light .txn-month-chip--active { background: #6b4a28; color: #f5ead8; }
   text-transform: uppercase;
   letter-spacing: .05em;
   padding: 3px 8px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: rgba(200, 175, 145, 0.14);
   border: 1px solid rgba(200, 175, 145, 0.22);
   color: #c4b09a;
@@ -5583,7 +5745,7 @@ html.light .expense-cat-badge {
 }
 .expense-date { color: var(--muted); font-size: 12px; min-width: 52px; text-align: right; flex-shrink: 0; }
 .expense-amount {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 700;
   font-size: 1rem;
   min-width: 70px;
@@ -5627,14 +5789,14 @@ html.light .expense-cat-badge {
   align-items: center;
   gap: 12px;
   padding: 11px 0;
-  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
   font-size: 13px;
 }
-.recurring-row:last-child { border-bottom: none; }
+.recurring-row:first-child { border-top: none; }
 .recurring-label { font-weight: 500; color: var(--text); }
 .recurring-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .recurring-amount {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 700;
   min-width: 60px;
   text-align: right;
@@ -5666,7 +5828,7 @@ html.light .expense-cat-badge {
   display: grid;
   grid-template-columns: 3fr 2fr;
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
   min-height: calc(100vh - 180px);
 }
 
@@ -5681,13 +5843,17 @@ html.light .expense-cat-badge {
   min-height: 0;
 }
 
-/* Right column — stacked cards */
+/* Right column — stacked cards, fills full grid row height */
 .dash-right {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  position: sticky;
-  top: 24px;
+  align-self: stretch;
+}
+
+/* Quick Expense card grows to fill leftover space */
+.dash-expense-card {
+  flex: 1;
 }
 
 /* Mini card (income + expense) */
@@ -5724,7 +5890,7 @@ html.light .expense-cat-badge {
   margin-bottom: 12px;
 }
 .dash-income-amount {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 2rem;
   font-weight: 700;
   line-height: 1.1;
@@ -5783,7 +5949,7 @@ html.light .expense-cat-badge {
   flex: 1;
 }
 .dash-bill-token {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 11px;
   font-weight: 700;
   color: var(--muted);
@@ -5862,7 +6028,7 @@ html.light .expense-cat-badge {
   padding: 0 6px;
   background: var(--bg-3);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 600;
   color: var(--muted);
@@ -5910,7 +6076,7 @@ html.light .expense-cat-badge {
 .appt-card-container {
   background: var(--bg-2);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius);
   width: 100%;
   max-width: 920px;
   max-height: calc(100vh - 48px);
@@ -5940,7 +6106,7 @@ html.light .expense-cat-badge {
 }
 .ac-identity { flex: 1; min-width: 0; }
 .ac-name {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 22px;
   font-weight: 700;
   color: var(--text);
@@ -5989,7 +6155,7 @@ html.light .expense-cat-badge {
   font-size: 12px;
   font-weight: 700;
   padding: 6px 14px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   letter-spacing: .03em;
 }
 .ac-status--scheduled,
@@ -6024,7 +6190,7 @@ html.light .ac-status--done {
   font-size: 13px;
   font-weight: 600;
   padding: 6px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-3);
   color: var(--muted);
@@ -6041,7 +6207,7 @@ html.light .ac-status--done {
   display: grid;
   grid-template-columns: 1fr 1px 1fr 1px 1fr;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   overflow: hidden;
   margin-bottom: 20px;
 }
@@ -6101,7 +6267,7 @@ html.light .ac-status--done {
   font-size: 11px;
   font-weight: 600;
   padding: 4px 11px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-3);
   color: var(--muted);
@@ -6120,7 +6286,7 @@ html.light .ac-status--done {
   font-size: 11px;
   font-weight: 600;
   padding: 3px 10px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   background: rgba(200, 175, 145, 0.14);
   color: #c4b09a;
   border: 1px solid rgba(200, 175, 145, 0.25);
@@ -6135,7 +6301,7 @@ html.light .ac-type-pill {
   font-size: 12px;
   font-weight: 700;
   padding: 2px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: rgba(200, 175, 145, 0.14);
   color: #c4b09a;
   border: 1px solid rgba(200, 175, 145, 0.25);
@@ -6150,7 +6316,7 @@ html.light .ac-blood-badge {
   font-size: 11px;
   font-weight: 700;
   padding: 3px 10px;
-  border-radius: 20px;
+  border-radius: var(--radius);
 }
 .ac-pay-status--paid,
 .ac-pay-status--dues,
@@ -6176,7 +6342,7 @@ html.light .ac-pay-status--free {
 .ac-bottom-card {
   background: var(--bg-3);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 18px 20px;
 }
 .ac-bottom-title {
@@ -6232,7 +6398,7 @@ html.light .ac-bill-discount-row { color: #6b4a28; }
   font-size: 11px;
   font-weight: 700;
   padding: 3px 8px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   background: var(--bg-input);
   color: var(--dim);
   border: 1px solid var(--border);
@@ -6349,7 +6515,7 @@ html.light .ac-mode-badge--free {
 .ac-bill-modal-box {
   background: var(--bg-2);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius);
   width: 100%;
   max-width: 480px;
   max-height: 85vh;
@@ -6376,7 +6542,7 @@ html.light .ac-mode-badge--free {
   margin-bottom: 20px;
 }
 .acm-title {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 18px;
   font-weight: 700;
   color: var(--text);
@@ -6427,7 +6593,7 @@ html.light .ac-mode-badge--free {
   font-size: 12px;
   font-weight: 500;
   padding: 5px 11px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--bg-2);
   color: var(--text);
@@ -6522,7 +6688,7 @@ html.light .ac-mode-badge--free {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-3);
   color: var(--dim);
@@ -6612,7 +6778,7 @@ html.light .ac-mode-badge--free {
 }
 .acm-total-left svg { color: var(--dim); }
 .acm-total-amount {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 22px;
   font-weight: 700;
   color: var(--text);
