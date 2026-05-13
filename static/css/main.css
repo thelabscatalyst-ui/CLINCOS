@@ -1972,18 +1972,207 @@ select.input-sm {
   align-items: stretch;
 }
 
-.appt-new-split > div:first-child {
+/* ── New Appointment form card ────────────────────────────────── */
+.appt-form-outer {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--glow);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-.appt-new-split > div:first-child .appt-form-card {
-  flex: 1;
+.apn-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 28px;
+  border-bottom: 1px solid var(--border);
+}
+.apn-header-icon {
+  width: 44px; height: 44px;
+  border-radius: var(--radius-sm);
+  background: rgba(175,142,100,0.12);
+  border: 1px solid rgba(175,142,100,0.25);
+  display: flex; align-items: center; justify-content: center;
+  color: #af8e64;
+  flex-shrink: 0;
+}
+.apn-card-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.apn-card-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
 }
 
+/* Section wrapper */
+.apn-section {
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--border);
+}
+.apn-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.apn-section-icon {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: rgba(175,142,100,0.12);
+  border: 1px solid rgba(175,142,100,0.22);
+  display: flex; align-items: center; justify-content: center;
+  color: #af8e64;
+  flex-shrink: 0;
+}
 
-.appt-form-card {
+/* Input with icon */
+.apn-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.apn-input-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  z-index: 1;
+}
+.apn-input-icon-field {
+  padding-left: 36px !important;
   width: 100%;
+}
+
+/* Actions row */
+.apn-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 20px 28px;
+}
+
+/* Footer */
+.apn-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+  background: var(--bg-3);
+  border-top: 1px solid var(--border);
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.apn-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.apn-footer-shield {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  background: rgba(175,142,100,0.1);
+  border: 1px solid rgba(175,142,100,0.2);
+  display: flex; align-items: center; justify-content: center;
+  color: #af8e64;
+  flex-shrink: 0;
+}
+.apn-footer-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.apn-footer-sub {
+  font-size: 11px;
+  color: var(--dim);
+  margin-top: 1px;
+}
+.apn-footer-right { text-align: right; }
+.apn-footer-phone {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+/* Brand panel illustration */
+.apn-brand-illustration {
+  position: relative;
+  width: 130px; height: 130px;
+  margin: 0 auto 28px;
+  display: flex; align-items: center; justify-content: center;
+}
+.apn-cal-icon { position: relative; z-index: 1; }
+.apn-brand-deco {
+  position: absolute;
+  color: rgba(175,142,100,0.35);
+  font-size: 18px;
+  font-weight: 300;
+  line-height: 1;
+  user-select: none;
+}
+.apn-brand-deco--tl { top: 8px; left: 4px; }
+.apn-brand-deco--tr { top: 6px; right: 6px; font-size: 22px; }
+.apn-brand-deco--ml { top: 50%; left: -6px; }
+.apn-brand-deco--br { bottom: 8px; right: 4px; }
+
+/* Feature list */
+.apn-features {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  position: relative;
+}
+.apn-feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.apn-feature-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  background: rgba(175,142,100,0.12);
+  border: 1px solid rgba(175,142,100,0.22);
+  display: flex; align-items: center; justify-content: center;
+  color: #af8e64;
+  flex-shrink: 0;
+}
+.apn-feature-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+.apn-feature-sub {
+  font-size: 11px;
+  color: var(--dim);
+  margin-top: 2px;
+}
+.apn-desk-illustration {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 24px;
+  opacity: 0.7;
 }
 
 .appt-brand-panel {
@@ -1997,8 +2186,8 @@ select.input-sm {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  padding-top: 48px;
+  justify-content: center;
+  padding-top: 36px;
 }
 
 .appt-brand-panel::before {

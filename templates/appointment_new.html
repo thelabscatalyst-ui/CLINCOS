@@ -3,157 +3,372 @@
 
 {% block content %}
 
-<div class="page-header">
-  <div>
-    <h1 class="page-title">New Appointment</h1>
-    <div class="page-sub">Fill in the details below to book a slot</div>
-  </div>
-  <a href="/appointments" class="btn btn-secondary btn-sm">← Back</a>
-</div>
-
 {% if error %}
-<div class="alert alert-error">{{ error }}</div>
+<div class="alert alert-error" style="margin-bottom:16px;">{{ error }}</div>
 {% endif %}
 
 <div class="appt-new-split">
 
-  <!-- LEFT: form -->
-  <div>
-  <div class="settings-card appt-form-card">
-  <form method="post" action="/appointments">
+  <!-- LEFT: form card -->
+  <div class="appt-form-outer">
 
-    {% if clinic_doctors %}
-    <!-- Doctor Selector (clinic owner with multiple doctors) -->
-    <p class="form-section-label">Doctor</p>
-    <div class="form-row" style="grid-template-columns:1fr;">
-      <div class="form-group">
-        <label for="for_doctor_id">Booking for</label>
-        <select id="for_doctor_id" name="for_doctor_id" onchange="onDoctorChange()">
-          {% for doc in clinic_doctors %}
-          <option value="{{ doc.id }}" {% if doc.id == (form_data.get('for_doctor_id', doctor.id) | int) %}selected{% endif %}>
-            Dr. {{ doc.name }} {% if doc.specialization %}— {{ doc.specialization }}{% endif %}
-          </option>
-          {% endfor %}
-        </select>
+    <!-- Card header -->
+    <div class="apn-card-header">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div class="apn-header-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+          </svg>
+        </div>
+        <div>
+          <div class="apn-card-title">New Appointment</div>
+          <div class="apn-card-sub">Fill in the details below to book a slot</div>
+        </div>
       </div>
-    </div>
-    {% endif %}
-
-    <!-- Patient Details -->
-    <p class="form-section-label">Patient Details</p>
-    <div class="form-row">
-      <div class="form-group">
-        <label for="patient_name">Full Name</label>
-        <input type="text" id="patient_name" name="patient_name"
-               placeholder="e.g. Ramesh Kumar"
-               value="{{ form_data.get('patient_name', '') }}" required>
-      </div>
-      <div class="form-group">
-        <label for="patient_phone">Phone Number</label>
-        <input type="tel" id="patient_phone" name="patient_phone"
-               placeholder="e.g. 9876543210"
-               pattern="[0-9]{10}" minlength="10" maxlength="10"
-               title="Enter a 10-digit phone number"
-               value="{{ form_data.get('patient_phone', '') }}" required>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label for="patient_age">Age</label>
-        <input type="number" id="patient_age" name="patient_age"
-               placeholder="e.g. 35" min="0" max="120"
-               value="{{ form_data.get('patient_age', '') }}">
-      </div>
-      <div class="form-group">
-        <label for="patient_gender">Gender</label>
-        <select id="patient_gender" name="patient_gender">
-          <option value="">— Select —</option>
-          <option value="male"   {% if form_data.get('patient_gender') == 'male'   %}selected{% endif %}>Male</option>
-          <option value="female" {% if form_data.get('patient_gender') == 'female' %}selected{% endif %}>Female</option>
-          <option value="other"  {% if form_data.get('patient_gender') == 'other'  %}selected{% endif %}>Other</option>
-        </select>
-      </div>
+      <a href="/appointments" class="btn btn-secondary btn-sm">← Back</a>
     </div>
 
-    <!-- Appointment Details -->
-    <p class="form-section-label" style="margin-top: 8px;">Appointment Details</p>
-    <div class="form-row">
-      <div class="form-group">
-        <label for="appt_date">Date</label>
-        <input type="date" id="appt_date" name="appt_date"
-               value="{{ form_data.get('appt_date', initial_date) }}"
-               required>
+    <form method="post" action="/appointments">
+
+      {% if clinic_doctors %}
+      <!-- ── DOCTOR ─────────────────────────────────────────────── -->
+      <div class="apn-section">
+        <div class="apn-section-head">
+          <span class="apn-section-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/>
+            </svg>
+          </span>
+          Doctor
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label for="for_doctor_id">Booking For</label>
+          <div class="apn-input-wrap">
+            <span class="apn-input-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+              </svg>
+            </span>
+            <select id="for_doctor_id" name="for_doctor_id" class="apn-input-icon-field" onchange="onDoctorChange()">
+              {% for doc in clinic_doctors %}
+              <option value="{{ doc.id }}" {% if doc.id == (form_data.get('for_doctor_id', doctor.id) | int) %}selected{% endif %}>
+                Dr. {{ doc.name }}{% if doc.specialization %} — {{ doc.specialization }}{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
       </div>
-      <div class="form-group">
-        <label for="appt_time">Time Slot</label>
-        <select id="appt_time" name="appt_time" required>
-          {% if slots %}
-            {% for slot in slots %}
-            <option value="{{ slot }}"
-              {% if form_data.get('appt_time') == slot %}selected{% endif %}>
-              {{ slot }}
-            </option>
-            {% endfor %}
-          {% else %}
-            <option value="">No slots — set working hours in Settings</option>
-          {% endif %}
-        </select>
+      {% endif %}
+
+      <!-- ── PATIENT DETAILS ───────────────────────────────────── -->
+      <div class="apn-section">
+        <div class="apn-section-head">
+          <span class="apn-section-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+            </svg>
+          </span>
+          Patient Details
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="patient_name">Full Name</label>
+            <div class="apn-input-wrap">
+              <span class="apn-input-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                </svg>
+              </span>
+              <input type="text" id="patient_name" name="patient_name" class="apn-input-icon-field"
+                     placeholder="e.g. Ramesh Kumar"
+                     value="{{ form_data.get('patient_name', '') }}" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="patient_phone">Phone Number</label>
+            <div class="apn-input-wrap">
+              <span class="apn-input-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 3.08 4.18 2 2 0 0 1 5.09 2h3a2 2 0 0 1 2 1.72 13 13 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L9.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 13 13 0 0 0 2.81.7A2 2 0 0 1 23 16.92z"/>
+                </svg>
+              </span>
+              <input type="tel" id="patient_phone" name="patient_phone" class="apn-input-icon-field"
+                     placeholder="e.g. 9876543210"
+                     pattern="[0-9]{10}" minlength="10" maxlength="10"
+                     title="Enter a 10-digit phone number"
+                     value="{{ form_data.get('patient_phone', '') }}" required>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="patient_age">Age</label>
+            <div class="apn-input-wrap">
+              <span class="apn-input-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                </svg>
+              </span>
+              <input type="number" id="patient_age" name="patient_age" class="apn-input-icon-field"
+                     placeholder="e.g. 35" min="0" max="120"
+                     value="{{ form_data.get('patient_age', '') }}">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="patient_gender">Gender</label>
+            <div class="apn-input-wrap">
+              <span class="apn-input-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2a5 5 0 0 1 5 5c0 2.4-1.6 4.4-3.8 4.9M12 2a5 5 0 0 0-5 5c0 2.4 1.6 4.4 3.8 4.9M12 12v10m-4-4h8"/>
+                </svg>
+              </span>
+              <select id="patient_gender" name="patient_gender" class="apn-input-icon-field">
+                <option value="">Select gender</option>
+                <option value="male"   {% if form_data.get('patient_gender') == 'male'   %}selected{% endif %}>Male</option>
+                <option value="female" {% if form_data.get('patient_gender') == 'female' %}selected{% endif %}>Female</option>
+                <option value="other"  {% if form_data.get('patient_gender') == 'other'  %}selected{% endif %}>Other</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── APPOINTMENT DETAILS ───────────────────────────────── -->
+      <div class="apn-section">
+        <div class="apn-section-head">
+          <span class="apn-section-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+            </svg>
+          </span>
+          Appointment Details
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="appt_date">Date</label>
+            <div class="apn-input-wrap">
+              <span class="apn-input-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                </svg>
+              </span>
+              <input type="date" id="appt_date" name="appt_date" class="apn-input-icon-field"
+                     value="{{ form_data.get('appt_date', initial_date) }}" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="appt_time">Time Slot</label>
+            <div class="apn-input-wrap">
+              <span class="apn-input-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+                </svg>
+              </span>
+              <select id="appt_time" name="appt_time" class="apn-input-icon-field" required>
+                {% if slots %}
+                  {% for slot in slots %}
+                  <option value="{{ slot }}" {% if form_data.get('appt_time') == slot %}selected{% endif %}>{{ slot }}</option>
+                  {% endfor %}
+                {% else %}
+                  <option value="">No slots — set working hours in Settings</option>
+                {% endif %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="appointment_type">Visit Type</label>
+            <div class="apn-input-wrap">
+              <span class="apn-input-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/>
+                </svg>
+              </span>
+              <select id="appointment_type" name="appointment_type" class="apn-input-icon-field">
+                {% for t in appointment_types %}
+                <option value="{{ t }}" {% if form_data.get('appointment_type', 'follow_up') == t %}selected{% endif %}>
+                  {{ t.replace('_', ' ').title() }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="booked_by_field">Booking Channel</label>
+            <div class="apn-input-wrap">
+              <span class="apn-input-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/>
+                </svg>
+              </span>
+              <select id="booked_by_field" name="booked_by_field" class="apn-input-icon-field">
+                <option value="doctor" selected>Doctor</option>
+                <option value="staff_shared">Receptionist (phone call)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" name="duration" value="15">
+      </div>
+
+      <!-- ── NOTES ─────────────────────────────────────────────── -->
+      <div class="apn-section" style="border-bottom:none;margin-bottom:0;">
+        <div class="apn-section-head">
+          <span class="apn-section-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+          </span>
+          Notes <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--dim);">(Optional)</span>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <div class="apn-input-wrap" style="align-items:flex-start;">
+            <span class="apn-input-icon" style="padding-top:13px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="21" y1="6" x2="3" y2="6"/><line x1="15" y1="12" x2="3" y2="12"/><line x1="17" y1="18" x2="3" y2="18"/>
+              </svg>
+            </span>
+            <textarea id="patient_notes" name="patient_notes" class="apn-input-icon-field" rows="3"
+                      placeholder="Chief complaint, reason for visit...">{{ form_data.get('patient_notes', '') }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="apn-actions">
+        <a href="/appointments" class="btn btn-secondary btn-sm">Cancel</a>
+        <button type="submit" class="btn btn-primary btn-sm">Book Appointment</button>
+      </div>
+
+    </form>
+
+    <!-- Footer -->
+    <div class="apn-footer">
+      <div class="apn-footer-left">
+        <div class="apn-footer-shield">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="apn-footer-title">Your data is safe with us</div>
+          <div class="apn-footer-sub">We follow industry-standard security to protect your information.</div>
+        </div>
+      </div>
+      <div class="apn-footer-right">
+        <div class="apn-footer-title">Need help?</div>
+        <div class="apn-footer-phone">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 3.08 4.18 2 2 0 0 1 5.09 2h3a2 2 0 0 1 2 1.72 13 13 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L9.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 13 13 0 0 0 2.81.7A2 2 0 0 1 23 16.92z"/>
+          </svg>
+          +91 9915446676
+        </div>
       </div>
     </div>
 
-    <div class="form-row">
-      <div class="form-group">
-        <label for="appointment_type">Visit Type</label>
-        <select id="appointment_type" name="appointment_type">
-          {% for t in appointment_types %}
-          <option value="{{ t }}"
-            {% if form_data.get('appointment_type', 'follow_up') == t %}selected{% endif %}>
-            {{ t.replace('_', ' ').title() }}
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="booked_by_field">Booking Channel</label>
-        <select id="booked_by_field" name="booked_by_field">
-          <option value="doctor" selected>Doctor</option>
-          <option value="staff_shared">Receptionist (phone call)</option>
-        </select>
-      </div>
-    </div>
-    <input type="hidden" name="duration" value="15">
-
-    <div class="form-row" style="grid-template-columns:1fr;">
-      <div class="form-group">
-        <label for="patient_notes">Notes (optional)</label>
-        <textarea id="patient_notes" name="patient_notes" rows="3"
-                  placeholder="Chief complaint, reason for visit...">{{ form_data.get('patient_notes', '') }}</textarea>
-      </div>
-    </div>
-
-    <div class="appt-form-actions">
-      <a href="/appointments" class="btn btn-secondary btn-sm">Cancel</a>
-      <button type="submit" class="btn btn-primary btn-sm">Book Appointment</button>
-    </div>
-  </form>
-  </div>
-  </div>
+  </div><!-- /.appt-form-outer -->
 
   <!-- RIGHT: brand panel -->
   <div class="appt-brand-panel">
-    <div class="appt-brand-eyebrow">ClinicOS</div>
+
+    <!-- Top illustration -->
+    <div class="apn-brand-illustration">
+      <div class="apn-brand-deco apn-brand-deco--tl">+</div>
+      <div class="apn-brand-deco apn-brand-deco--tr">·</div>
+      <div class="apn-brand-deco apn-brand-deco--ml">·</div>
+      <div class="apn-cal-icon">
+        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+          <circle cx="40" cy="40" r="38" fill="rgba(175,142,100,0.12)" stroke="rgba(175,142,100,0.3)" stroke-width="1"/>
+          <rect x="18" y="22" width="44" height="38" rx="6" fill="rgba(175,142,100,0.2)" stroke="rgba(175,142,100,0.5)" stroke-width="1.5"/>
+          <path d="M18 32h44" stroke="rgba(175,142,100,0.6)" stroke-width="1.5"/>
+          <path d="M30 18v8M50 18v8" stroke="rgba(175,142,100,0.7)" stroke-width="2" stroke-linecap="round"/>
+          <rect x="25" y="38" width="8" height="6" rx="1.5" fill="rgba(175,142,100,0.5)"/>
+          <rect x="36" y="38" width="8" height="6" rx="1.5" fill="rgba(175,142,100,0.5)"/>
+          <rect x="47" y="38" width="8" height="6" rx="1.5" fill="rgba(175,142,100,0.3)"/>
+          <rect x="25" y="48" width="8" height="6" rx="1.5" fill="rgba(175,142,100,0.3)"/>
+          <rect x="36" y="48" width="8" height="6" rx="1.5" fill="rgba(175,142,100,0.3)"/>
+          <circle cx="56" cy="54" r="12" fill="#6b4a28"/>
+          <path d="M51 54l3 3 6-6" stroke="#e8d5bc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="apn-brand-deco apn-brand-deco--br">+</div>
+    </div>
+
     <div class="appt-brand-title">Book an<br>Appointment</div>
     <div class="appt-brand-sub">
       Manage your clinic schedule with ease.<br>
       Every appointment, perfectly organised.
     </div>
+
     <div class="appt-brand-divider"></div>
-    <ul class="appt-brand-features">
-      <li>Instant slot availability</li>
-      <li>WhatsApp confirmations</li>
-      <li>Patient history at a glance</li>
-    </ul>
-  </div>
+
+    <!-- Feature list -->
+    <div class="apn-features">
+      <div class="apn-feature-item">
+        <div class="apn-feature-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="apn-feature-title">Instant slot availability</div>
+          <div class="apn-feature-sub">Real-time updates, zero wait.</div>
+        </div>
+      </div>
+      <div class="apn-feature-item">
+        <div class="apn-feature-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="apn-feature-title">WhatsApp confirmations</div>
+          <div class="apn-feature-sub">Automatic reminders &amp; updates.</div>
+        </div>
+      </div>
+      <div class="apn-feature-item">
+        <div class="apn-feature-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <div>
+          <div class="apn-feature-title">Patient history at a glance</div>
+          <div class="apn-feature-sub">All records, one place.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom desk illustration -->
+    <div class="apn-desk-illustration">
+      <svg width="100%" height="120" viewBox="0 0 320 120" fill="none">
+        <!-- desk surface -->
+        <rect x="20" y="80" width="280" height="6" rx="3" fill="rgba(175,142,100,0.25)"/>
+        <!-- monitor -->
+        <rect x="100" y="30" width="120" height="75" rx="6" fill="rgba(175,142,100,0.12)" stroke="rgba(175,142,100,0.3)" stroke-width="1.5"/>
+        <rect x="108" y="38" width="104" height="58" rx="3" fill="rgba(175,142,100,0.08)"/>
+        <line x1="145" y1="86" x2="175" y2="86" stroke="rgba(175,142,100,0.4)" stroke-width="8" stroke-linecap="round"/>
+        <line x1="160" y1="86" x2="160" y2="86" stroke="rgba(175,142,100,0.6)" stroke-width="2"/>
+        <!-- screen lines -->
+        <line x1="120" y1="52" x2="200" y2="52" stroke="rgba(175,142,100,0.3)" stroke-width="2" stroke-linecap="round"/>
+        <line x1="120" y1="62" x2="180" y2="62" stroke="rgba(175,142,100,0.2)" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="120" y1="71" x2="190" y2="71" stroke="rgba(175,142,100,0.2)" stroke-width="1.5" stroke-linecap="round"/>
+        <!-- keyboard -->
+        <rect x="115" y="90" width="90" height="14" rx="3" fill="rgba(175,142,100,0.15)" stroke="rgba(175,142,100,0.25)" stroke-width="1"/>
+        <!-- plant -->
+        <rect x="240" y="60" width="10" height="22" rx="2" fill="rgba(107,74,40,0.4)"/>
+        <ellipse cx="245" cy="55" rx="14" ry="12" fill="rgba(107,74,40,0.3)"/>
+        <ellipse cx="235" cy="58" rx="10" ry="9" fill="rgba(107,74,40,0.25)"/>
+        <!-- plus decorations -->
+        <text x="48" y="50" fill="rgba(175,142,100,0.3)" font-size="14" font-family="serif">+</text>
+        <text x="270" y="35" fill="rgba(175,142,100,0.2)" font-size="12" font-family="serif">+</text>
+      </svg>
+    </div>
+
+  </div><!-- /.appt-brand-panel -->
 
 </div><!-- /.appt-new-split -->
 

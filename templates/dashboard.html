@@ -62,8 +62,8 @@
   </a>
   <div class="stat-card">
     <div class="stat-label">Clinic</div>
-    <div class="stat-value stat-value--sm">{{ primary_clinic.name if primary_clinic else (doctor.clinic_name or "—") }}</div>
-    <div class="stat-sub">{{ primary_clinic.city if primary_clinic else (doctor.city or "") }}</div>
+    <div class="stat-value stat-value--sm">{{ doctor.clinic_name or (primary_clinic.name if primary_clinic else "—") }}</div>
+    <div class="stat-sub">{{ doctor.city or (primary_clinic.city if primary_clinic else "") }}</div>
   </div>
 </div>
 
