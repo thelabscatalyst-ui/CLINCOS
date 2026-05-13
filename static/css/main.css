@@ -37,10 +37,10 @@
   --shadow:       0 2px 8px rgba(0,0,0,0.55);
   --shadow-md:    0 8px 32px rgba(0,0,0,0.65);
 
-  --glow:         0 0 24px rgba(255,240,220,0.04), 0 4px 16px rgba(0,0,0,0.5);
-  --glow-hover:   0 0 40px rgba(255,240,220,0.07), 0 8px 28px rgba(0,0,0,0.6);
-  --glow-btn:     0 0 18px rgba(255,240,220,0.10);
-  --glow-btn-hover: 0 0 28px rgba(255,240,220,0.18);
+  --glow:         0 4px 20px rgba(0,0,0,0.50), 0 1px 4px rgba(0,0,0,0.35);
+  --glow-hover:   0 10px 36px rgba(0,0,0,0.65), 0 2px 8px rgba(0,0,0,0.40);
+  --glow-btn:     0 2px 8px rgba(0,0,0,0.40);
+  --glow-btn-hover: 0 4px 16px rgba(0,0,0,0.50);
 
   --transition-pop: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.22s ease;
 }
@@ -70,10 +70,10 @@ html.light {
   --shadow:       0 2px 8px rgba(60,40,20,0.08);
   --shadow-md:    0 8px 32px rgba(60,40,20,0.12);
 
-  --glow:         0 0 0 1px rgba(60,40,20,0.06), 0 2px 8px rgba(60,40,20,0.06);
-  --glow-hover:   0 0 0 1px rgba(60,40,20,0.10), 0 6px 20px rgba(60,40,20,0.10);
-  --glow-btn:     0 2px 8px rgba(60,40,20,0.12);
-  --glow-btn-hover: 0 4px 16px rgba(60,40,20,0.20);
+  --glow:         0 4px 16px rgba(60,40,20,0.14), 0 1px 4px rgba(60,40,20,0.10);
+  --glow-hover:   0 10px 32px rgba(60,40,20,0.20), 0 2px 8px rgba(60,40,20,0.14);
+  --glow-btn:     0 2px 8px rgba(60,40,20,0.16);
+  --glow-btn-hover: 0 4px 16px rgba(60,40,20,0.24);
 }
 
 /* ------------------------------------------------------------------ */
@@ -91,13 +91,6 @@ body {
   line-height: 1.6;
   color: var(--text);
   background-color: var(--bg);
-  /* Subtle paper grain texture */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch' result='noise'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.55 0 0 0 0 0.40 0 0 0 0 0.25 0 0 0 0.55 0' in='noise'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23paper)'/%3E%3C/svg%3E");
-}
-
-/* Paper texture — dark theme */
-html:not(.light) body {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch' result='noise'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.55 0 0 0 0 0.42 0 0 0 0 0.30 0 0 0 0.12 0' in='noise'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23paper)'/%3E%3C/svg%3E");
 }
 
 a { color: var(--text-muted); text-decoration: none; transition: color 0.15s; }

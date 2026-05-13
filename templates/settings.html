@@ -323,247 +323,52 @@
 <!--  4. Subscription                                       -->
 <!-- ───────────────────────────────────────────────────── -->
 <div class="settings-card">
-  <div class="settings-card-header" style="margin-bottom:20px;">
+  <div class="settings-card-header" style="margin-bottom:0;">
     <div>
       <div class="settings-card-title">Subscription</div>
       <div class="settings-card-sub">
         {% if is_clinic_associate %}
-          Access covered by clinic
-        {% elif is_clinic_account and latest_clinic_sub %}
-          Clinic Plan — renews on {{ latest_clinic_sub.end_date.strftime("%d %b %Y") }}
+          Access covered by your clinic
         {% elif plan_status == 'trial' %}
           Free Trial — {{ plan_days }} day{{ 's' if plan_days != 1 }} remaining
-        {% elif plan_status == 'solo' %}
-          Solo Plan — renews in {{ plan_days }} day{{ 's' if plan_days != 1 }}
-        {% elif plan_status == 'basic' %}
-          Basic Plan — renews in {{ plan_days }} day{{ 's' if plan_days != 1 }}
-        {% elif plan_status == 'pro' %}
-          Pro Plan — renews in {{ plan_days }} day{{ 's' if plan_days != 1 }}
+        {% elif plan_status in ['solo','duo','clinic','hospital','enterprise'] %}
+          {{ plan_status.title() }} Plan — {{ plan_days }} day{{ 's' if plan_days != 1 }} remaining
+        {% elif plan_status in ['basic','pro'] %}
+          {{ plan_status.title() }} Plan (legacy) — {{ plan_days }} day{{ 's' if plan_days != 1 }} remaining
         {% else %}
-          Your plan has expired — upgrade to continue
+          Your plan has expired
         {% endif %}
       </div>
     </div>
-    <span class="sub-status-badge sub-status-badge--{{ 'solo' if is_clinic_associate else plan_status }}">
-      {% if is_clinic_associate %}Clinic
-      {% elif plan_status == 'trial' %}Free Trial
-      {% elif plan_status == 'solo' %}Solo
-      {% elif plan_status == 'basic' %}Basic
-      {% elif plan_status == 'pro' %}Pro
-      {% else %}Expired{% endif %}
-    </span>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="sub-status-badge sub-status-badge--{{ 'solo' if is_clinic_associate else plan_status }}">
+        {% if is_clinic_associate %}Clinic
+        {% elif plan_status == 'trial' %}Trial
+        {% elif plan_status == 'expired' %}Expired
+        {% else %}{{ plan_status.title() }}{% endif %}
+      </span>
+      {% if not is_clinic_associate %}
+      <a href="/pricing" class="btn btn-primary btn-sm">
+        {% if plan_status == 'expired' %}Choose Plan{% else %}Upgrade{% endif %}
+        &nbsp;→
+      </a>
+      {% endif %}
+    </div>
   </div>
 
   {% if is_clinic_associate %}
-    <!-- ── ASSOCIATE DOCTOR — no billing, covered by clinic ─────────── -->
-    <div style="display:flex;align-items:flex-start;gap:14px;padding:18px 20px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-           stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);flex-shrink:0;margin-top:1px;">
-        <circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/>
-      </svg>
-      <div>
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">
-          Your access is managed by the clinic
-        </div>
-        <div style="font-size:12px;color:var(--muted);line-height:1.6;">
-          {% if assoc_clinic_name %}
-            You are a member of <strong style="color:var(--text);">{{ assoc_clinic_name }}</strong>.
-          {% endif %}
-          Subscription payments and billing are handled by the clinic owner — there's nothing you need to do here.
-        </div>
-      </div>
+  <div style="display:flex;align-items:flex-start;gap:14px;padding:16px 18px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-top:16px;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);flex-shrink:0;margin-top:2px;">
+      <circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/>
+    </svg>
+    <div style="font-size:12px;color:var(--muted);line-height:1.6;">
+      {% if assoc_clinic_name %}
+        You are a member of <strong style="color:var(--text);">{{ assoc_clinic_name }}</strong>.
+      {% endif %}
+      Billing is handled by the clinic owner.
     </div>
-
-  {% elif is_clinic_account %}
-    <!-- ── CLINIC PLAN SECTION ──────────────────────────────────────── -->
-    {% if plan_status == 'solo' or plan_status == 'basic' or plan_status == 'pro' %}
-    <!-- Clinic owner on a legacy personal plan — nudge to clinic billing -->
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-      You're managing a clinic. Renew the Clinic plan to keep all doctors active.
-    </p>
-    {% if razorpay_configured %}
-    <button type="button" class="btn btn-secondary btn-sm"
-            onclick="settingsPayment('clinic', 149900)">
-      Renew Clinic Plan — ₹1,499/mo
-    </button>
-    {% else %}
-    <a href="/billing" class="btn btn-secondary btn-sm">Manage Plan</a>
-    {% endif %}
-
-    {% elif plan_status == 'expired' %}
-    <p style="font-size:13px;color:#f87171;margin-bottom:16px;">
-      Your Clinic plan has expired. Renew to restore access for all doctors.
-    </p>
-    {% if razorpay_configured %}
-    <button type="button" class="btn btn-primary btn-sm"
-            onclick="settingsPayment('clinic', 149900)">
-      Renew Clinic Plan — ₹1,499/mo
-    </button>
-    {% else %}
-    <a href="/billing" class="btn btn-primary btn-sm">Manage Plan</a>
-    {% endif %}
-
-    {% else %}
-    <!-- Trial or active clinic plan -->
-    {% if plan_status == 'trial' %}
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-      Subscribe to keep your clinic and all doctors running after the trial ends.
-    </p>
-    {% endif %}
-
-    {% if latest_clinic_sub %}
-    <!-- ── Active paid clinic plan — show billing details ─── -->
-    <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:20px;">
-      <!-- Left: plan info -->
-      <div style="padding:20px 24px;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-          <span style="font-size:15px;font-weight:700;color:var(--text);font-family:'Playfair Display',serif;">Clinic Plan</span>
-          <span class="badge badge--scheduled" style="font-size:11px;padding:3px 9px;">Active</span>
-        </div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">Multi-doctor clinic management</div>
-        <div style="font-size:26px;font-weight:700;color:var(--text);font-family:'Playfair Display',serif;margin-bottom:4px;">
-          ₹1,499 <span style="font-size:13px;font-weight:400;color:var(--muted);">/month</span>
-        </div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">
-          Paid ₹{{ "{:,.0f}".format(latest_clinic_sub.amount / 100) }} on {{ latest_clinic_sub.start_date.strftime("%d %b %Y") }}
-        </div>
-        {% if razorpay_configured %}
-        <button type="button" class="btn btn-secondary btn-sm"
-                onclick="settingsPayment('clinic', 149900)">Renew Early</button>
-        {% endif %}
-      </div>
-      <!-- Divider -->
-      <div style="background:var(--border);"></div>
-      <!-- Right: billing details -->
-      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
-        <div>
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Next billing date</div>
-          <div style="font-size:14px;font-weight:600;color:var(--text);">{{ latest_clinic_sub.end_date.strftime("%d %b %Y") }}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">{{ plan_days }} day{{ 's' if plan_days != 1 }} remaining</div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Payment ID</div>
-          <div style="font-size:12px;color:var(--muted);font-family:monospace;word-break:break-all;">{{ latest_clinic_sub.payment_id or '—' }}</div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Subscription period</div>
-          <div style="font-size:12px;color:var(--text);">
-            {{ latest_clinic_sub.start_date.strftime("%d %b %Y") }} → {{ latest_clinic_sub.end_date.strftime("%d %b %Y") }}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {% else %}
-    <div class="sub-plan-horizontal">
-      <div class="sub-left">
-        <div class="sub-plan-name">Clinic <span class="sub-pro-tag">Your Plan</span></div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:18px;">Multi-doctor clinic management</div>
-        <div class="sub-plan-price">₹1,499 <span>/month</span></div>
-        {% if razorpay_configured %}
-        <button type="button" class="btn btn-primary btn-sm"
-                onclick="settingsPayment('clinic', 149900)">Subscribe</button>
-        {% else %}
-        <a href="/billing" class="btn btn-primary btn-sm">Subscribe</a>
-        {% endif %}
-      </div>
-      <div class="sub-divider"></div>
-      <div class="sub-right">
-        <ul class="sub-features-grid">
-          <li>Up to 5 doctors in one clinic</li>
-          <li>Unified clinic public booking page</li>
-          <li>Clinic admin dashboard</li>
-          <li>All Solo features for every doctor</li>
-          <li>Shared patient records &amp; queue</li>
-          <li>Token &amp; walk-in queue per doctor</li>
-        </ul>
-      </div>
-    </div>
-    {% endif %}
-    {% endif %}
-
-  {% else %}
-    <!-- ── SOLO PLAN SECTION ─────────────────────────────────────────── -->
-    {% if plan_status == 'solo' %}
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-      Solo plan is active. All features included.
-    </p>
-    {% if razorpay_configured %}
-    <button type="button" class="btn btn-secondary btn-sm"
-            onclick="settingsPayment('solo', 39900)">
-      Renew Solo — ₹399/mo
-    </button>
-    {% endif %}
-
-    {% elif plan_status == 'pro' %}
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-      You're on the legacy Pro plan. Your features are fully active.
-    </p>
-    {% if razorpay_configured %}
-    <button type="button" class="btn btn-secondary btn-sm"
-            onclick="settingsPayment('solo', 39900)">
-      Renew as Solo — ₹399/mo
-    </button>
-    {% endif %}
-
-    {% elif plan_status == 'basic' %}
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-      Upgrade to Solo for unlimited appointments, PIN protection, and walk-in booking.
-    </p>
-    {% if razorpay_configured %}
-    <button type="button" class="btn btn-primary btn-sm"
-            onclick="settingsPayment('solo', 39900)">
-      Upgrade to Solo — ₹399/mo
-    </button>
-    {% else %}
-    <a href="/billing" class="btn btn-secondary btn-sm">Manage Plan</a>
-    {% endif %}
-
-    {% else %}
-    <!-- Trial or Expired — solo doctor sees Solo plan + upgrade hint -->
-    {% if plan_status == 'expired' %}
-    <p style="font-size:13px;color:#f87171;margin-bottom:16px;">
-      Your access is paused. Subscribe to resume.
-    </p>
-    {% else %}
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-      Subscribe to keep your clinic running after the trial ends.
-    </p>
-    {% endif %}
-
-    <div class="sub-plan-horizontal">
-      <div class="sub-left">
-        <div class="sub-plan-name">Solo <span class="sub-pro-tag">Recommended</span></div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:18px;">Everything you need as an independent doctor</div>
-        <div class="sub-plan-price">₹399 <span>/month</span></div>
-        {% if razorpay_configured %}
-        <button type="button" class="btn btn-primary btn-sm"
-                onclick="settingsPayment('solo', 39900)">Subscribe</button>
-        {% else %}
-        <a href="/billing" class="btn btn-primary btn-sm">Subscribe</a>
-        {% endif %}
-      </div>
-      <div class="sub-divider"></div>
-      <div class="sub-right">
-        <ul class="sub-features-grid">
-          <li>Unlimited appointments</li>
-          <li>WhatsApp &amp; SMS reminders</li>
-          <li>Public booking link</li>
-          <li>Patient records &amp; history</li>
-          <li>Reports &amp; analytics</li>
-          <li>PIN protection</li>
-          <li>Walk-in quick booking</li>
-          <li>Token queue system</li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Upgrade hint for solo doctors who want multi-doctor -->
-    <div style="margin-top:20px;padding:14px 16px;background:var(--bg-3,var(--bg-2));border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--muted);">
-      <strong style="color:var(--text);font-size:13px;">Running a clinic with multiple doctors?</strong><br>
-      Contact us to upgrade to the Clinic Plan (₹1,499/mo) — manage up to 5 doctors under one roof with a shared booking page and admin dashboard.
-    </div>
-    {% endif %}
+  </div>
   {% endif %}
 </div>
 
@@ -704,66 +509,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
-async function settingsPayment(plan, amount) {
-  const btn = event.target;
-  const origText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Creating order…';
-
-  try {
-    const res  = await fetch(`/billing/create-order?plan=${plan}`, { method: 'POST' });
-    const data = await res.json();
-
-    if (data.error) {
-      alert('Error: ' + data.error);
-      btn.disabled = false; btn.textContent = origText; return;
-    }
-
-    const options = {
-      key:         data.key_id,
-      amount:      data.amount,
-      currency:    data.currency,
-      order_id:    data.order_id,
-      name:        'ClinicOS',
-      description: plan.charAt(0).toUpperCase() + plan.slice(1) + ' Plan — 1 Month',
-      prefill: {
-        name:    '{{ doctor.name }}',
-        email:   '{{ doctor.email }}',
-        contact: '{{ doctor.phone }}',
-      },
-      theme: { color: '#ffffff' },
-      modal: {
-        ondismiss: function() {
-          btn.disabled = false; btn.textContent = origText;
-        }
-      },
-      handler: function(response) {
-        const form = document.createElement('form');
-        form.method = 'POST'; form.action = '/billing/verify';
-        const fields = {
-          razorpay_payment_id: response.razorpay_payment_id,
-          razorpay_order_id:   response.razorpay_order_id,
-          razorpay_signature:  response.razorpay_signature,
-          plan:                plan,
-        };
-        for (const [k, v] of Object.entries(fields)) {
-          const inp = document.createElement('input');
-          inp.type = 'hidden'; inp.name = k; inp.value = v;
-          form.appendChild(inp);
-        }
-        document.body.appendChild(form);
-        form.submit();
-      },
-    };
-    new Razorpay(options).open();
-  } catch(err) {
-    alert('Something went wrong. Please try again.');
-    btn.disabled = false; btn.textContent = origText;
-  }
-}
-
 function toggleRow(index, isActive) {
   document.getElementById('row-' + index)
           .classList.toggle('schedule-row--off', !isActive);

@@ -315,6 +315,9 @@ def _run_migrations():
         # ── YCloud notification system: avg consult time per doctor ──────────
         _add_column(conn, "ALTER TABLE doctors ADD COLUMN avg_consult_mins INTEGER DEFAULT 10")
 
+        # ── Seat-based billing: max doctors per plan ──────────────────────────
+        _add_column(conn, "ALTER TABLE doctors ADD COLUMN plan_seats INTEGER")
+
         # ── Make notifications_log.appointment_id nullable ───────────────────
         # SQLite doesn't support ALTER COLUMN, so recreate the table.
         has_nullable = conn.execute(text(

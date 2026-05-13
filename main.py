@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, HTMLResponse
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -103,6 +103,6 @@ async def pin_required_handler(request: Request, exc: PinRequired):
     return RedirectResponse(url=exc.return_url, status_code=303)
 
 
-@app.get("/")
-def root():
-    return RedirectResponse(url="/login")
+@app.get("/", response_class=HTMLResponse)
+def landing(request: Request):
+    return templates.TemplateResponse(request, "landing.html", {})

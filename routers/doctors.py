@@ -833,40 +833,100 @@ def reports_page(
 #  Billing                                                             #
 # ------------------------------------------------------------------ #
 
+# ── Public pricing page (no auth required) ────────────────────────────────
+
+@router.get("/pricing", response_class=HTMLResponse)
+def pricing_page(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    from services.payment_service import PLAN_CONFIG
+    from config import settings as cfg
+    from database.models import ClinicDoctor
+    doctor = None
+    try:
+        from services.auth_service import get_current_doctor
+        doctor = get_current_doctor(request, db)
+    except Exception:
+        pass
+
+    # Show Enterprise card only when the doctor's clinic has > 6 members
+    show_enterprise = False
+    if doctor:
+        membership = (
+            db.query(ClinicDoctor)
+            .filter(ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.is_active == True)
+            .first()
+        )
+        if membership:
+            doctor_count = (
+                db.query(ClinicDoctor)
+                .filter(ClinicDoctor.clinic_id == membership.clinic_id, ClinicDoctor.is_active == True)
+                .count()
+            )
+            show_enterprise = doctor_count > 6
+
+    return templates.TemplateResponse(request, "pricing.html", {
+        "plans":               PLAN_CONFIG,
+        "razorpay_configured": bool(cfg.RAZORPAY_KEY_ID),
+        "doctor":              doctor,
+        "show_enterprise":     show_enterprise,
+        "active":              "",
+    })
+
+
 @router.get("/billing", response_class=HTMLResponse)
 def billing_page(
     request: Request,
     success: str = Query(default=""),
-    doctor: Doctor = Depends(require_pin_auth),   # PIN-gated but not plan-gated — must stay accessible
+    doctor: Doctor = Depends(require_pin_auth),
     db: Session = Depends(get_db),
 ):
     from datetime import datetime as dt
     from config import settings as cfg
+    from services.payment_service import PLAN_CONFIG
 
     now = dt.utcnow()
-    trial_ok  = doctor.trial_ends_at  and doctor.trial_ends_at  > now
-    plan_ok   = doctor.plan_expires_at and doctor.plan_expires_at > now
+    trial_ok   = doctor.trial_ends_at  and doctor.trial_ends_at  > now
+    plan_ok    = doctor.plan_expires_at and doctor.plan_expires_at > now
     is_expired = not trial_ok and not plan_ok
 
     def days_left(dt_obj):
         if not dt_obj:
             return 0
-        delta = dt_obj - now
-        return max(0, delta.days)
+        return max(0, (dt_obj - now).days)
 
-    # Clinic plan context
-    from database.models import ClinicDoctor, Clinic
-    membership = db.query(ClinicDoctor).filter(
-        ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.role == "owner"
-    ).first()
-    clinic = db.query(Clinic).filter(Clinic.id == membership.clinic_id).first() if membership else None
-    clinic_doctor_count = 0
-    clinic_plan_ok = False
-    if clinic:
-        clinic_doctor_count = db.query(ClinicDoctor).filter(
-            ClinicDoctor.clinic_id == clinic.id, ClinicDoctor.is_active == True
-        ).count()
-        clinic_plan_ok = bool(clinic.plan_expires_at and clinic.plan_expires_at > now)
+    # Active plan label + seat info
+    current_plan_key  = doctor.plan_type.value if doctor.plan_type else "trial"
+    current_plan_cfg  = PLAN_CONFIG.get(current_plan_key)
+    current_plan_label = (
+        current_plan_cfg["label"] if current_plan_cfg
+        else current_plan_key.title()
+    )
+
+    # Latest subscription row for receipt details
+    from database.models import Subscription, ClinicDoctor
+    latest_sub = (
+        db.query(Subscription)
+        .filter(Subscription.doctor_id == doctor.id, Subscription.status == "active")
+        .order_by(Subscription.id.desc())
+        .first()
+    )
+
+    # Show Enterprise card only when the doctor's clinic has > 6 members
+    show_enterprise = False
+    membership = (
+        db.query(ClinicDoctor)
+        .filter(ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.is_active == True)
+        .first()
+    )
+    if membership:
+        doctor_count = (
+            db.query(ClinicDoctor)
+            .filter(ClinicDoctor.clinic_id == membership.clinic_id, ClinicDoctor.is_active == True)
+            .count()
+        )
+        show_enterprise = doctor_count > 6
 
     return templates.TemplateResponse(request, "billing.html", {
         "doctor":              doctor,
@@ -879,10 +939,12 @@ def billing_page(
         "success":             success,
         "active":              "billing",
         "pin_required":        getattr(request.state, "pin_required", False),
-        "clinic":              clinic,
-        "clinic_doctor_count": clinic_doctor_count,
-        "clinic_plan_ok":      clinic_plan_ok,
-        "clinic_plan_days_left": days_left(clinic.plan_expires_at) if clinic else 0,
+        "current_plan_key":    current_plan_key,
+        "current_plan_label":  current_plan_label,
+        "current_plan_cfg":    current_plan_cfg,
+        "latest_sub":          latest_sub,
+        "plan_config":         PLAN_CONFIG,
+        "show_enterprise":     show_enterprise,
     })
 
 
@@ -907,7 +969,7 @@ def billing_verify(
     db: Session    = Depends(get_db),
 ):
     from datetime import datetime as dt, timedelta
-    from services.payment_service import verify_signature, PLAN_AMOUNTS
+    from services.payment_service import verify_signature, PLAN_AMOUNTS, PLAN_CONFIG
     from database.models import Subscription, PlanType
 
     if not verify_signature(razorpay_payment_id, razorpay_order_id, razorpay_signature):
@@ -916,39 +978,34 @@ def billing_verify(
     now      = dt.utcnow()
     end_date = now + timedelta(days=30)
 
-    if plan == "clinic":
-        # Clinic plan — activate the clinic, also extend doctor's own access
-        from database.models import ClinicDoctor, Clinic
-        membership = db.query(ClinicDoctor).filter(
-            ClinicDoctor.doctor_id == doctor.id, ClinicDoctor.role == "owner"
-        ).first()
-        if membership:
-            clinic = db.query(Clinic).filter(Clinic.id == membership.clinic_id).first()
-            if clinic:
-                clinic.plan_type       = "clinic"
-                clinic.plan_expires_at = end_date
-                sub = Subscription(
-                    doctor_id=doctor.id, clinic_id=clinic.id,
-                    plan_name=plan, amount=PLAN_AMOUNTS.get(plan, 0),
-                    payment_id=razorpay_payment_id,
-                    start_date=now.date(), end_date=end_date.date(), status="active",
-                )
-                db.add(sub)
-        # Also extend doctor's individual plan so they can still log in
-        doctor.plan_expires_at = end_date
-        doctor.plan_type = PlanType.solo
-    else:
-        # Solo / legacy plans
-        sub = Subscription(
-            doctor_id=doctor.id,
-            plan_name=plan, amount=PLAN_AMOUNTS.get(plan, 0),
-            payment_id=razorpay_payment_id,
-            start_date=now.date(), end_date=end_date.date(), status="active",
-        )
-        db.add(sub)
-        plan_map = {"solo": PlanType.solo, "basic": PlanType.basic, "pro": PlanType.pro}
-        doctor.plan_expires_at = end_date
-        doctor.plan_type = plan_map.get(plan, PlanType.solo)
+    cfg = PLAN_CONFIG.get(plan, {})
+    seats = cfg.get("seats")  # None = unlimited
+
+    # Map plan string → PlanType enum (fall back to solo for unknown/legacy)
+    plan_type_map = {
+        "solo":       PlanType.solo,
+        "duo":        PlanType.duo,
+        "clinic":     PlanType.clinic,
+        "hospital":   PlanType.hospital,
+        "enterprise": PlanType.enterprise,
+        "basic":      PlanType.basic,
+        "pro":        PlanType.pro,
+    }
+
+    sub = Subscription(
+        doctor_id  = doctor.id,
+        plan_name  = plan,
+        amount     = PLAN_AMOUNTS.get(plan, 0),
+        payment_id = razorpay_payment_id,
+        start_date = now.date(),
+        end_date   = end_date.date(),
+        status     = "active",
+    )
+    db.add(sub)
+
+    doctor.plan_expires_at = end_date
+    doctor.plan_type       = plan_type_map.get(plan, PlanType.solo)
+    doctor.plan_seats      = seats  # None = unlimited
 
     db.commit()
     return RedirectResponse(url="/billing?success=1", status_code=303)

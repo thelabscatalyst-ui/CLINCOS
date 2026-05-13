@@ -120,7 +120,7 @@ async def check_in_walkin(
     db: Session       = Depends(get_db),
     doctor: Doctor    = Depends(get_paying_doctor),
 ):
-    patient = get_or_create_patient(db, doctor_id=doctor.id, name=name.strip(), phone=phone.strip())
+    patient = get_or_create_patient(doctor.id, name.strip(), phone.strip(), db)
     primary_clinic = _get_primary_clinic(doctor, db)
 
     vs.check_in(

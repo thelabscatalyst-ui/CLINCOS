@@ -27,10 +27,15 @@ class AppointmentType(str, enum.Enum):
 
 
 class PlanType(str, enum.Enum):
-    trial = "trial"
-    solo  = "solo"    # ₹399 — Tier 1 Solo plan
-    basic = "basic"   # legacy ₹299 (existing subscribers)
-    pro   = "pro"     # legacy ₹499 (existing subscribers)
+    trial      = "trial"
+    solo       = "solo"       # 1 doctor   ₹399/mo
+    duo        = "duo"        # 2 doctors  ₹699/mo
+    clinic     = "clinic"     # 5 doctors  ₹1,299/mo
+    hospital   = "hospital"   # 15 doctors ₹2,499/mo
+    enterprise = "enterprise" # unlimited  ₹3,999/mo
+    # legacy plans kept for existing subscribers
+    basic = "basic"
+    pro   = "pro"
 
 
 class NotificationChannel(str, enum.Enum):
@@ -169,6 +174,7 @@ class Doctor(Base):
     doctor_mode      = Column(String(30), default="reception_driven")  # reception_driven|phone_only|cabin_terminal
     walkin_policy    = Column(String(20), default="booked_jumps")      # booked_jumps|fcfs|ask
     avg_consult_mins = Column(Integer, default=10)                     # used for walk-in wait estimates
+    plan_seats       = Column(Integer, nullable=True)                   # max doctors allowed under this plan (None = unlimited)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     appointments       = relationship("Appointment", back_populates="doctor", cascade="all, delete-orphan")

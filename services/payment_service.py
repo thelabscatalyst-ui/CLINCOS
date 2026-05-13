@@ -1,13 +1,7 @@
 """
 Payment service — Razorpay order creation and signature verification.
 
-SETUP:
-  1. Create account at razorpay.com (free)
-  2. Dashboard → Settings → API Keys → Generate Test Key
-  3. Add to .env:
-       RAZORPAY_KEY_ID=rzp_test_XXXXXXXXXXXXXXXX
-       RAZORPAY_KEY_SECRET=XXXXXXXXXXXXXXXXXXXXXXXX
-  4. For production, generate Live Key and swap the values.
+Plans are seat-based: same features for everyone, price scales with doctor count.
 """
 import hmac
 import hashlib
@@ -17,16 +11,48 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-PLAN_AMOUNTS = {
-    "solo":   39900,   # ₹399 in paise — Tier 1 Solo plan
-    "clinic": 149900,  # ₹1,499 in paise — Tier 2 Clinic (up to 5 doctors)
-    "basic":  29900,   # ₹299 in paise — legacy (existing subscribers)
-    "pro":    49900,   # ₹499 in paise — legacy (existing subscribers)
+# Single source of truth for all plan metadata
+PLAN_CONFIG = {
+    "solo": {
+        "amount":    39900,   # paise  → ₹399
+        "seats":     1,
+        "label":     "Solo",
+        "per_doctor": 399,
+    },
+    "duo": {
+        "amount":    69900,   # paise  → ₹699
+        "seats":     2,
+        "label":     "Duo",
+        "per_doctor": 350,
+    },
+    "clinic": {
+        "amount":    129900,  # paise  → ₹1,299
+        "seats":     5,
+        "label":     "Clinic",
+        "per_doctor": 260,
+    },
+    "hospital": {
+        "amount":    249900,  # paise  → ₹2,499
+        "seats":     15,
+        "label":     "Hospital",
+        "per_doctor": 167,
+    },
+    "enterprise": {
+        "amount":    399900,  # paise  → ₹3,999
+        "seats":     None,    # unlimited
+        "label":     "Enterprise",
+        "per_doctor": None,
+    },
 }
+
+# Keep legacy amounts accessible for old subscription records
+PLAN_AMOUNTS = {k: v["amount"] for k, v in PLAN_CONFIG.items()}
+# legacy plans
+PLAN_AMOUNTS["basic"] = 29900
+PLAN_AMOUNTS["pro"]   = 49900
 
 
 def _razorpay_client():
-    """Return a Razorpay client, or None if credentials are missing."""
     if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
         return None
     try:
@@ -40,11 +66,6 @@ def _razorpay_client():
 
 
 def create_order(plan: str) -> dict:
-    """Create a Razorpay order for the given plan.
-
-    Returns dict with keys: order_id, amount, currency, key_id.
-    Returns {"error": "..."} on failure.
-    """
     if plan not in PLAN_AMOUNTS:
         return {"error": f"Unknown plan: {plan}"}
 
@@ -71,11 +92,6 @@ def create_order(plan: str) -> dict:
 
 
 def verify_signature(payment_id: str, order_id: str, signature: str) -> bool:
-    """Verify Razorpay payment signature using HMAC-SHA256.
-
-    Razorpay signs: "{order_id}|{payment_id}" with the key secret.
-    Returns True only if signature matches — NEVER activate plan without this check.
-    """
     if not settings.RAZORPAY_KEY_SECRET:
         return False
     try:
