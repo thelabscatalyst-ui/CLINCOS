@@ -7,3 +7,5 @@ __pycache__/
 *.sqlite3
 .DS_Store
 CLAUDE.md
+.claude/
+uploads/

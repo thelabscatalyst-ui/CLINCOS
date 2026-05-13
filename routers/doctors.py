@@ -12,6 +12,7 @@ from database.models import (
     Doctor, Appointment, Patient, AppointmentStatus, BookedBy,
     DoctorSchedule, BlockedDate, BlockedTime, PriceCatalog,
     Bill, Expense, ExpenseCategory, PaymentMode,
+    Visit, VisitStatus,
 )
 from services.auth_service import (
     get_current_doctor, get_paying_doctor,
