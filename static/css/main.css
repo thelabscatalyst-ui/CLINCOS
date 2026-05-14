@@ -6971,8 +6971,10 @@ html.light .ac-mode-badge--free {
   gap: 8px;
 }
 
-/* ── Pending Dues stat card ── */
+/* ── Pending Billing stat card ── */
 .stat-card--dues { cursor: pointer; }
+.stat-value--warn { color: #c49a6c; }
+html.light .stat-value--warn { color: #7a5020; }
 
 /* Responsive — 5 cols → 3+2 on tablet */
 @media (max-width: 1100px) {

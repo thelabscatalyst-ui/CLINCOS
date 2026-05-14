@@ -50,14 +50,22 @@
     <div class="stat-sub">No more today</div>
     {% endif %}
   </div>
-  <a href="/income" class="stat-card stat-card--dues" style="text-decoration:none;">
-    <div class="stat-label">Pending Dues</div>
-    {% if pending_dues_amount > 0 %}
-    <div class="stat-value stat-value--sm">₹{{ "{:,.0f}".format(pending_dues_amount) }}</div>
-    <div class="stat-sub">{{ pending_dues_count }} unpaid bill{{ "s" if pending_dues_count != 1 else "" }}</div>
+  <a href="/appointments" class="stat-card stat-card--dues" style="text-decoration:none;">
+    <div class="stat-label">Pending Billing</div>
+    {% if pending_visits_count > 0 or pending_dues_count > 0 %}
+      {% if pending_visits_count > 0 %}
+      <div class="stat-value stat-value--sm stat-value--warn">{{ pending_visits_count }} patient{{ "s" if pending_visits_count != 1 else "" }}</div>
+      <div class="stat-sub">
+        waiting to be billed
+        {%- if pending_dues_count > 0 %} · {{ pending_dues_count }} unpaid bill{{ "s" if pending_dues_count != 1 else "" }}{% endif %}
+      </div>
+      {% else %}
+      <div class="stat-value stat-value--sm stat-value--warn">{{ pending_dues_count }} unpaid</div>
+      <div class="stat-sub">bill{{ "s" if pending_dues_count != 1 else "" }} not yet settled</div>
+      {% endif %}
     {% else %}
     <div class="stat-value stat-value--sm">—</div>
-    <div class="stat-sub">No outstanding dues</div>
+    <div class="stat-sub">All billing clear</div>
     {% endif %}
   </a>
   <div class="stat-card">

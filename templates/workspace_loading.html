@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Starting Workspace — ClinicOS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:    #1a1612;
+      --text:  #ede8e2;
+      --muted: #9a8f85;
+      --dim:   #5e5650;
+      --border:#3d3630;
+      --track: #2e2820;
+      --arc:   #c9b99a;
+    }
+    html.light {
+      --bg:    #e6e0d7;
+      --text:  #1a1410;
+      --muted: #6b5f55;
+      --dim:   #a89e94;
+      --border:#c2a98a;
+      --track: #d4cec6;
+      --arc:   #7a5c3a;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .ws-wrap {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      user-select: none;
+    }
+
+    /* ── Brand ── */
+    .ws-brand {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+      margin-bottom: 48px;
+      opacity: 0;
+      animation: fadeUp 0.5s ease 0.1s forwards;
+    }
+
+    /* ── Circular spinner ── */
+    .ws-spinner-wrap {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      margin-bottom: 36px;
+      opacity: 0;
+      animation: fadeUp 0.5s ease 0.25s forwards;
+    }
+
+    .ws-spinner-svg {
+      width: 80px;
+      height: 80px;
+      transform: rotate(-90deg);
+    }
+
+    /* track circle */
+    .ws-track {
+      fill: none;
+      stroke: var(--track);
+      stroke-width: 3.5;
+    }
+
+    /* animated arc */
+    .ws-arc {
+      fill: none;
+      stroke: var(--arc);
+      stroke-width: 3.5;
+      stroke-linecap: round;
+      stroke-dasharray: 220;
+      stroke-dashoffset: 220;
+      animation: arcSpin 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    @keyframes arcSpin {
+      0%   { stroke-dashoffset: 220; opacity: 1; }
+      50%  { stroke-dashoffset: 55;  opacity: 1; }
+      100% { stroke-dashoffset: 220; opacity: 1; }
+    }
+
+    /* outer rotation */
+    .ws-spinner-svg {
+      animation: rotate 1.4s linear infinite;
+    }
+
+    @keyframes rotate {
+      to { transform: rotate(270deg); }
+    }
+
+    /* ── Status text ── */
+    .ws-status {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+      opacity: 0;
+      animation: fadeUp 0.5s ease 0.4s forwards;
+    }
+
+    .ws-sub {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--dim);
+      opacity: 0;
+      animation: fadeUp 0.5s ease 0.55s forwards;
+    }
+
+    /* ── Fade-out when ready ── */
+    .ws-wrap.leaving {
+      animation: fadeOut 0.35s ease forwards;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0);   }
+    }
+
+    @keyframes fadeOut {
+      to { opacity: 0; transform: scale(0.98); }
+    }
+  </style>
+</head>
+<body>
+  <div class="ws-wrap" id="wsWrap">
+
+    <div class="ws-brand">ClinicOS</div>
+
+    <div class="ws-spinner-wrap">
+      <svg class="ws-spinner-svg" viewBox="0 0 80 80">
+        <circle class="ws-track" cx="40" cy="40" r="34"/>
+        <circle class="ws-arc"   cx="40" cy="40" r="34"/>
+      </svg>
+    </div>
+
+    <div class="ws-status" id="wsStatus">Starting your workspace…</div>
+    <div class="ws-sub"    id="wsSub">Preparing {{ doctor.clinic_name or "your clinic" }}</div>
+
+  </div>
+
+  <script>
+  (function () {
+    var MIN_MS  = 2000;   // always show for at least 2 s
+    var started = Date.now();
+
+    // Ping the dashboard to confirm the server is ready
+    var serverReady = fetch('/dashboard', {
+      method: 'GET',
+      credentials: 'same-origin',
+      // We only need headers back — abort early once we get a response
+    }).then(function (r) {
+      // Any response (even redirect) means the server answered
+      return r;
+    }).catch(function () {
+      // Network error — proceed anyway
+      return null;
+    });
+
+    Promise.all([
+      serverReady,
+      new Promise(function (resolve) {
+        var elapsed = Date.now() - started;
+        var wait    = Math.max(0, MIN_MS - elapsed);
+        setTimeout(resolve, wait);
+      }),
+    ]).then(function () {
+      // Fade out, then navigate
+      var wrap = document.getElementById('wsWrap');
+      wrap.classList.add('leaving');
+      setTimeout(function () {
+        window.location.replace('/dashboard');
+      }, 340);
+    });
+
+    // After 1.2 s update the sub-label to something reassuring
+    setTimeout(function () {
+      var sub = document.getElementById('wsSub');
+      if (sub) sub.textContent = 'Loading appointments & queue…';
+    }, 1200);
+  })();
+  </script>
+</body>
+</html>

@@ -28,6 +28,20 @@ DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sun
 
 
 # ------------------------------------------------------------------ #
+#  Workspace Loading Screen                                            #
+# ------------------------------------------------------------------ #
+
+@router.get("/workspace-loading", response_class=HTMLResponse)
+def workspace_loading(
+    request: Request,
+    doctor: Doctor = Depends(get_current_doctor),
+):
+    return templates.TemplateResponse(request, "workspace_loading.html", {
+        "doctor": doctor,
+    })
+
+
+# ------------------------------------------------------------------ #
 #  Dashboard                                                           #
 # ------------------------------------------------------------------ #
 
@@ -167,7 +181,22 @@ def dashboard(
             _ = b.visit.patient
 
     # ── Pending dues ───────────────────────────────────────────────── #
-    _due_bills = (
+    # 1) Visits that are BILLING_PENDING — seen but no bill collected yet
+    _pending_visits = (
+        db.query(Visit)
+        .filter(
+            Visit.doctor_id == doctor.id,
+            Visit.visit_date == today,
+            Visit.status     == VisitStatus.billing_pending,
+        )
+        .all()
+    )
+    # Eager-load patient names
+    for v in _pending_visits:
+        _ = v.patient
+
+    # 2) Bills saved but payment not yet recorded (paid_at is None)
+    _unpaid_bills = (
         db.query(Bill)
         .filter(
             Bill.doctor_id    == doctor.id,
@@ -177,8 +206,10 @@ def dashboard(
         )
         .all()
     )
-    pending_dues_amount = float(sum(b.total or 0 for b in _due_bills))
-    pending_dues_count  = len(_due_bills)
+
+    pending_visits_count  = len(_pending_visits)
+    pending_dues_amount   = float(sum(b.total or 0 for b in _unpaid_bills))
+    pending_dues_count    = len(_unpaid_bills)
 
     return templates.TemplateResponse(request, "dashboard.html", {
         "doctor": doctor,
@@ -204,8 +235,10 @@ def dashboard(
         "recent_bills_dash":   recent_bills_dash,
         "ExpenseCategory":     ExpenseCategory,
         # pending dues
-        "pending_dues_amount": pending_dues_amount,
-        "pending_dues_count":  pending_dues_count,
+        "pending_visits_count":  pending_visits_count,
+        "pending_visits":        _pending_visits,
+        "pending_dues_amount":   pending_dues_amount,
+        "pending_dues_count":    pending_dues_count,
     })
 
 
