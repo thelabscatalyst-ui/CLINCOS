@@ -134,9 +134,12 @@
 /* ── Plan grid ─────────────────────────────────────────── */
 .billing-plan-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   margin-bottom: 32px;
+}
+.billing-plan-grid--3col {
+  grid-template-columns: repeat(3, 1fr);
 }
 
 /* ── Note ──────────────────────────────────────────────── */
@@ -217,10 +220,9 @@
     </div>
     {% endif %}
   </div>
-</div>
 
-<!-- ── Plan cards ──────────────────────────────────────── -->
-<div class="billing-plan-grid">
+  <!-- ── Plan cards ──────────────────────────────────────── -->
+  <div class="billing-plan-grid {% if show_enterprise %}billing-plan-grid--3col{% endif %}">
 
   <!-- Solo -->
   <div class="pc">
@@ -274,7 +276,8 @@
     {% endif %}
   </div>
 
-  <!-- Enterprise / Contact Us -->
+  <!-- Enterprise / Contact Us — shown only for large clinics (6+ doctors) -->
+  {% if show_enterprise %}
   <div class="pc">
     <div class="pc-seats">6+ Doctors</div>
     <div class="pc-name">Enterprise</div>
@@ -292,12 +295,15 @@
     </ul>
     <a href="mailto:support@clinicos.in" class="pc-btn">Contact us</a>
   </div>
+  {% endif %}
 
-</div>
+  </div>{# /billing-plan-grid #}
 
-<div class="billing-note">
-  Secure payments via Razorpay &nbsp;·&nbsp; UPI, Cards, Net Banking &nbsp;·&nbsp; Cancel anytime
-</div>
+  <div class="billing-note">
+    Secure payments via Razorpay &nbsp;·&nbsp; UPI, Cards, Net Banking &nbsp;·&nbsp; Cancel anytime
+  </div>
+
+</div>{# /billing-wrap #}
 
 {% endblock %}
 
