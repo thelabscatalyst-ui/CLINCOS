@@ -4,9 +4,86 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Create Account — ClinicOS</title>
-  <link rel="stylesheet" href="/static/css/main.css?v=110" />
+  <link rel="stylesheet" href="/static/css/main.css?v=141" />
+  <style>
+    .auth-page-wrap {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    .auth-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: #2e1e0c;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      height: 52px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      flex-shrink: 0;
+    }
+    .auth-nav-brand {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: #ede8e2;
+      text-decoration: none;
+      letter-spacing: -0.3px;
+    }
+    .auth-nav-back {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #c9b99a;
+      text-decoration: none;
+      padding: 6px 12px;
+      border: 1px solid rgba(201, 185, 154, 0.25);
+      border-radius: 8px;
+      transition: opacity 0.15s, border-color 0.15s;
+    }
+    .auth-nav-back:hover { opacity: 0.85; border-color: rgba(201,185,154,0.5); }
+    .auth-nav-right { display: flex; align-items: center; gap: 12px; }
+    .auth-nav-link {
+      font-size: 13px;
+      color: #9a8f85;
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 8px;
+      transition: color 0.15s;
+    }
+    .auth-nav-link:hover { color: #c9b99a; }
+    .auth-page { flex: 1; min-height: 0; }
+    @media (max-width: 900px) {
+      .auth-nav { padding: 0 20px; }
+    }
+  </style>
+  <script>
+    if (localStorage.getItem('theme') !== 'dark') {
+      document.documentElement.classList.add('light');
+    }
+  </script>
 </head>
 <body>
+
+<div class="auth-page-wrap">
+
+  <!-- ── Auth Navbar ── -->
+  <nav class="auth-nav">
+    <a href="/" class="auth-nav-brand">ClinicOS</a>
+    <div class="auth-nav-right">
+      <a href="/login" class="auth-nav-link">Log in</a>
+      <a href="/" class="auth-nav-back">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Back to site
+      </a>
+    </div>
+  </nav>
 
 <div class="auth-page">
 
@@ -168,8 +245,8 @@
           />
         </div>
 
-        <button type="submit" class="btn btn-primary">
-          {% if joining_clinic %}Create account &amp; join{% else %}Start free trial{% endif %}
+        <button type="submit" class="btn btn-primary" id="registerSubmit">
+          <span class="btn-text">{% if joining_clinic %}Create account &amp; join{% else %}Start free trial{% endif %}</span>
         </button>
       </form>
 
@@ -180,18 +257,21 @@
     </div>
   </div>
 
-</div>
+</div><!-- /.auth-page -->
+</div><!-- /.auth-page-wrap -->
+
 <script>
 function setMode(mode) {
-  document.getElementById('account_type').value = mode;
+  var accountType = document.getElementById('account_type');
+  if (accountType) accountType.value = mode;
 
-  const btnSolo   = document.getElementById('btnSolo');
-  const btnClinic = document.getElementById('btnClinic');
-  const clinicGrp = document.getElementById('clinicNameGroup');
+  var btnSolo   = document.getElementById('btnSolo');
+  var btnClinic = document.getElementById('btnClinic');
+  var clinicGrp = document.getElementById('clinicNameGroup');
   if (!btnSolo) return;
 
-  const activeStyle = 'border-color:var(--text);background:var(--bg-2);';
-  const idleStyle   = 'border-color:var(--border);background:var(--bg-3);';
+  var activeStyle = 'border-color:var(--text);background:var(--bg-2);';
+  var idleStyle   = 'border-color:var(--border);background:var(--bg-3);';
 
   if (mode === 'clinic') {
     btnClinic.setAttribute('style', btnClinic.getAttribute('style').replace(/border-color:[^;]+;background:[^;]+;/, '') + activeStyle);
@@ -203,8 +283,20 @@ function setMode(mode) {
     if (clinicGrp) { clinicGrp.style.display = 'none'; }
   }
 }
-// Init default
-setMode('solo');
+// Init with plan hint from server
+setMode('{{ plan_hint if plan_hint in ["solo","clinic"] else "solo" }}');
+
+// Loading state on submit
+document.addEventListener('DOMContentLoaded', function () {
+  var form = document.querySelector('form[action="/register"]');
+  var btn  = document.getElementById('registerSubmit');
+  if (form && btn) {
+    form.addEventListener('submit', function () {
+      btn.classList.add('btn--loading');
+      btn.disabled = true;
+    });
+  }
+});
 </script>
 </body>
 </html>

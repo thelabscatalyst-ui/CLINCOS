@@ -2,14 +2,22 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import quote
+import time
+import collections
 
 from database.connection import create_tables
 from routers import auth, appointments, doctors, patients, public, admin, clinic, visits, billing_ops, income
 from services.scheduler_service import start_scheduler, stop_scheduler
 from services.auth_service import PlanExpired, PinRequired, decode_token
+
+# ── Login rate limiter — max 10 attempts per IP per 15 minutes ──────────────
+_LOGIN_WINDOW  = 15 * 60   # 15 minutes in seconds
+_LOGIN_MAX     = 10        # max attempts per window
+_login_attempts: dict[str, list[float]] = collections.defaultdict(list)
 
 
 @asynccontextmanager
@@ -25,6 +33,54 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="ClinicOS", version="1.0.0", lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+_PUBLIC_PREFIXES = (
+    "/login", "/register", "/pricing", "/book/", "/queue/",
+    "/static/", "/doctor-invite/", "/plan-lapsed", "/auth/",
+)
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Add security headers to every response."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"]  = "nosniff"
+    response.headers["X-Frame-Options"]          = "DENY"
+    response.headers["X-XSS-Protection"]         = "1; mode=block"
+    response.headers["Referrer-Policy"]           = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"]        = "geolocation=(), microphone=(), camera=()"
+
+    path = request.url.path
+    is_public = path == "/" or any(path.startswith(p) for p in _PUBLIC_PREFIXES)
+    if not is_public:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+        response.headers["Pragma"]        = "no-cache"
+        response.headers["Expires"]       = "0"
+    return response
+
+
+@app.middleware("http")
+async def login_rate_limit(request: Request, call_next):
+    """Block brute-force login attempts — max 10 per IP per 15 minutes."""
+    if request.method == "POST" and request.url.path == "/login":
+        ip  = request.client.host if request.client else "unknown"
+        now = time.time()
+        # Purge old timestamps outside the window
+        _login_attempts[ip] = [t for t in _login_attempts[ip] if now - t < _LOGIN_WINDOW]
+        if len(_login_attempts[ip]) >= _LOGIN_MAX:
+            from fastapi.responses import HTMLResponse as _HTML
+            from fastapi.templating import Jinja2Templates as _Tmpl
+            _t = _Tmpl(directory="templates")
+            retry_secs = int(_LOGIN_WINDOW - (now - _login_attempts[ip][0]))
+            retry_mins = max(1, retry_secs // 60)
+            return _HTML(
+                f'<meta http-equiv="refresh" content="5;url=/login">'
+                f'<p style="font-family:sans-serif;padding:40px;color:#9a8f85;">'
+                f'Too many login attempts. Try again in {retry_mins} minute(s).</p>',
+                status_code=429,
+            )
+        _login_attempts[ip].append(now)
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -75,7 +131,22 @@ app.include_router(income.router)
 
 @app.exception_handler(401)
 async def unauthorized_handler(request: Request, exc: HTTPException):
-    return RedirectResponse(url="/login", status_code=303)
+    path = request.url.path
+    # JSON consumers and /auth/* endpoints get a plain 401, not a redirect
+    accept = request.headers.get("accept", "")
+    if path.startswith("/auth/") or "application/json" in accept:
+        return JSONResponse({"detail": "Not authenticated"}, status_code=401)
+    next_url = quote(path, safe="/")
+    return RedirectResponse(url=f"/login?next={next_url}", status_code=303)
+
+
+@app.get("/auth/check")
+async def auth_check(request: Request):
+    """Lightweight session validity check — JWT decode only, no DB lookup."""
+    token = request.cookies.get("access_token")
+    if not token or not decode_token(token):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return JSONResponse({"ok": True})
 
 
 @app.exception_handler(403)
@@ -105,4 +176,7 @@ async def pin_required_handler(request: Request, exc: PinRequired):
 
 @app.get("/", response_class=HTMLResponse)
 def landing(request: Request):
+    token = request.cookies.get("access_token")
+    if token and decode_token(token):
+        return RedirectResponse(url="/dashboard", status_code=303)
     return templates.TemplateResponse(request, "landing.html", {})

@@ -305,21 +305,73 @@
 {% if razorpay_configured %}
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
+/* ── Self-contained toast — no CSS vars, no class toggling ── */
+var _toastEl = null, _toastTimer = null;
+
+function showPayToast(msg, isError) {
+  clearTimeout(_toastTimer);
+
+  // Remove old toast if any
+  if (_toastEl && _toastEl.parentNode) _toastEl.parentNode.removeChild(_toastEl);
+
+  var isDark = !document.documentElement.classList.contains('light');
+
+  _toastEl = document.createElement('div');
+  _toastEl.textContent = msg;
+
+  Object.assign(_toastEl.style, {
+    position:      'fixed',
+    bottom:        '36px',
+    left:          '50%',
+    transform:     'translateX(-50%)',
+    background:    isDark ? '#2a2520' : '#f5f2ec',
+    border:        '1px solid ' + (isError ? 'rgba(248,113,113,0.5)' : (isDark ? '#3d3630' : '#c2a98a')),
+    borderRadius:  '8px',
+    padding:       '11px 22px',
+    fontSize:      '13px',
+    fontWeight:    '500',
+    fontFamily:    'Inter, -apple-system, sans-serif',
+    color:         isError ? '#f87171' : (isDark ? '#9a8f85' : '#6b5f55'),
+    boxShadow:     '0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25)',
+    whiteSpace:    'nowrap',
+    zIndex:        '2147483647',
+    opacity:       '0',
+    transition:    'opacity 0.25s ease',
+    pointerEvents: 'none',
+  });
+
+  document.body.appendChild(_toastEl);
+
+  // Force reflow then fade in
+  void _toastEl.offsetWidth;
+  _toastEl.style.opacity = '1';
+
+  _toastTimer = setTimeout(function() {
+    if (_toastEl) _toastEl.style.opacity = '0';
+    setTimeout(function() {
+      if (_toastEl && _toastEl.parentNode) _toastEl.parentNode.removeChild(_toastEl);
+      _toastEl = null;
+    }, 300);
+  }, 4000);
+}
+
 async function startPayment(plan, amount, btn) {
-  const origText  = btn.textContent;
+  var origText = btn.textContent;
   btn.disabled    = true;
   btn.textContent = 'Creating order…';
 
+  var paid = false; // track whether handler fired
+
   try {
-    const res  = await fetch(`/billing/create-order?plan=${plan}`, { method: 'POST' });
-    const data = await res.json();
+    var res  = await fetch('/billing/create-order?plan=' + plan, { method: 'POST' });
+    var data = await res.json();
 
     if (data.error) {
-      alert('Error: ' + data.error);
+      showPayToast('Could not start payment — ' + data.error, true);
       btn.disabled = false; btn.textContent = origText; return;
     }
 
-    const options = {
+    var options = {
       key:         data.key_id,
       amount:      data.amount,
       currency:    data.currency,
@@ -329,29 +381,38 @@ async function startPayment(plan, amount, btn) {
       prefill:     { name: '{{ doctor.name }}', email: '{{ doctor.email }}', contact: '{{ doctor.phone }}' },
       theme:       { color: '#b48230' },
       modal: {
-        ondismiss: function() { btn.disabled = false; btn.textContent = origText; }
+        ondismiss: function() {
+          if (paid) return; // payment succeeded — don't show cancel toast
+          btn.disabled    = false;
+          btn.textContent = origText;
+          showPayToast('Payment cancelled — no charge was made.');
+        }
       },
       handler: function(response) {
-        const form = document.createElement('form');
+        paid = true;
+        btn.textContent = 'Verifying…';
+        var form = document.createElement('form');
         form.method = 'POST'; form.action = '/billing/verify';
-        const fields = {
+        var fields = {
           razorpay_payment_id: response.razorpay_payment_id,
           razorpay_order_id:   response.razorpay_order_id,
           razorpay_signature:  response.razorpay_signature,
-          plan,
+          plan: plan,
         };
-        for (const [k, v] of Object.entries(fields)) {
-          const inp = document.createElement('input');
-          inp.type = 'hidden'; inp.name = k; inp.value = v;
+        Object.entries(fields).forEach(function(entry) {
+          var inp = document.createElement('input');
+          inp.type = 'hidden'; inp.name = entry[0]; inp.value = entry[1];
           form.appendChild(inp);
-        }
+        });
         document.body.appendChild(form);
         form.submit();
       },
     };
+
     new Razorpay(options).open();
+
   } catch(err) {
-    alert('Something went wrong. Please try again.');
+    showPayToast('Something went wrong. Please try again.', true);
     btn.disabled = false; btn.textContent = origText;
   }
 }

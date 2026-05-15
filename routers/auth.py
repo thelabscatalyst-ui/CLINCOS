@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from database.connection import get_db
 from database.models import Doctor, PlanType, Clinic, ClinicDoctor, ClinicDoctorInvite
-from services.auth_service import hash_password, verify_password, create_access_token
+from services.auth_service import hash_password, verify_password, create_access_token, decode_token
 
 router = APIRouter(tags=["auth"])
 templates = Jinja2Templates(directory="templates")
@@ -37,8 +37,14 @@ def _unique_slug(base: str, db: Session) -> str:
 def register_page(
     request: Request,
     clinic_invite: str = Query(default=""),
+    plan: str = Query(default=""),
     db: Session = Depends(get_db),
 ):
+    # Redirect already-logged-in users away from register
+    token = request.cookies.get("access_token")
+    if token and decode_token(token):
+        return RedirectResponse(url="/dashboard", status_code=303)
+
     joining_clinic = None
     if clinic_invite:
         invite = db.query(ClinicDoctorInvite).filter(
@@ -48,10 +54,13 @@ def register_page(
         ).first()
         if invite:
             joining_clinic = db.query(Clinic).filter(Clinic.id == invite.clinic_id).first()
+
+    plan_hint = plan if plan in ("solo", "clinic") else "solo"
     return templates.TemplateResponse(request, "register.html", {
         "error": None,
         "clinic_invite": clinic_invite,
         "joining_clinic": joining_clinic,
+        "plan_hint": plan_hint,
     })
 
 
@@ -74,13 +83,15 @@ def register(
     if db.query(Doctor).filter(Doctor.email == email).first():
         return templates.TemplateResponse(
             request, "register.html",
-            {"error": "Email already registered. Please login.", "clinic_invite": invite_token, "joining_clinic": None},
+            {"error": "Email already registered. Please login.", "clinic_invite": invite_token,
+             "joining_clinic": None, "plan_hint": "solo"},
             status_code=400,
         )
     if db.query(Doctor).filter(Doctor.phone == phone).first():
         return templates.TemplateResponse(
             request, "register.html",
-            {"error": "Phone number already registered.", "clinic_invite": invite_token, "joining_clinic": None},
+            {"error": "Phone number already registered.", "clinic_invite": invite_token,
+             "joining_clinic": None, "plan_hint": "solo"},
             status_code=400,
         )
 
@@ -177,9 +188,15 @@ def register(
 # ------------------------------------------------------------------ #
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page(request: Request, registered: str = ""):
+def login_page(request: Request, registered: str = "", next: str = ""):
+    # Redirect already-logged-in users away from login
+    token = request.cookies.get("access_token")
+    if token and decode_token(token):
+        return RedirectResponse(url="/dashboard", status_code=303)
     success = "Account created! Please log in." if registered == "1" else None
-    return templates.TemplateResponse(request, "login.html", {"error": None, "success": success})
+    return templates.TemplateResponse(request, "login.html", {
+        "error": None, "success": success, "next": next,
+    })
 
 
 @router.post("/login", response_class=HTMLResponse)
@@ -187,6 +204,7 @@ def login(
     request: Request,
     email: str = Form(...),
     password: str = Form(...),
+    next: str = Form(default=""),
     db: Session = Depends(get_db),
 ):
     normalized_email = email.lower().strip()
@@ -197,17 +215,23 @@ def login(
         if not verify_password(password, doctor.password_hash):
             return templates.TemplateResponse(
                 request, "login.html",
-                {"error": "Invalid email or password.", "success": None},
+                {"error": "Invalid email or password.", "success": None, "next": next},
                 status_code=401,
             )
         if not doctor.is_active:
             return templates.TemplateResponse(
                 request, "login.html",
-                {"error": "Your account has been deactivated.", "success": None},
+                {"error": "Your account has been deactivated.", "success": None, "next": next},
                 status_code=403,
             )
         token = create_access_token({"doctor_id": doctor.id})
-        response = RedirectResponse(url="/workspace-loading", status_code=303)
+        # Honor the `next` param — only relative paths, no open redirect
+        safe_next = next.strip() if (
+            next and next.startswith("/") and not next.startswith("//")
+            and not next.startswith("/login") and not next.startswith("/register")
+        ) else ""
+        redirect_url = safe_next if safe_next else "/workspace-loading"
+        response = RedirectResponse(url=redirect_url, status_code=303)
         response.set_cookie(
             key="access_token", value=token,
             httponly=True, max_age=60 * 60 * 24, samesite="lax",
@@ -216,7 +240,7 @@ def login(
 
     return templates.TemplateResponse(
         request, "login.html",
-        {"error": "Invalid email or password.", "success": None},
+        {"error": "Invalid email or password.", "success": None, "next": next},
         status_code=401,
     )
 

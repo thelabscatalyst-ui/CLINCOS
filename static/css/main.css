@@ -7076,3 +7076,192 @@ html.light .stat-value--warn { color: #7a5020; }
   .patient-info-row { border-right: none; }
   .patient-info-row:nth-child(even) { border-right: none; }
 }
+
+
+/* ================================================================== */
+/*  v141 — Animations, Loading States, Security UX                    */
+/* ================================================================== */
+
+/* ── Page Enter Animation (fixes the broken .page-enter class) ────── */
+.main-content.page-enter {
+  animation: pageEnterFade 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes pageEnterFade {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ── NProgress-style Top Loading Bar ──────────────────────────────── */
+#nprogress-bar {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  width: 0%;
+  background: linear-gradient(90deg, #c9b99a, #e8d5b0);
+  z-index: 10000;
+  transition: width 0.25s ease, opacity 0.4s ease;
+  border-radius: 0 2px 2px 0;
+  pointer-events: none;
+}
+html.light #nprogress-bar {
+  background: linear-gradient(90deg, #8a6520, #b48230);
+}
+#nprogress-bar.done {
+  width: 100% !important;
+  opacity: 0;
+}
+
+/* ── Card Stagger Entrance ────────────────────────────────────────── */
+@keyframes cardFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+.stat-card,
+.queue-row,
+.appt-row,
+.patient-row-wrap {
+  animation: cardFadeUp 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stat-card:nth-child(1), .queue-row:nth-child(1),
+.appt-row:nth-child(1),  .patient-row-wrap:nth-child(1) { animation-delay: 0ms;   }
+.stat-card:nth-child(2), .queue-row:nth-child(2),
+.appt-row:nth-child(2),  .patient-row-wrap:nth-child(2) { animation-delay: 55ms;  }
+.stat-card:nth-child(3), .queue-row:nth-child(3),
+.appt-row:nth-child(3),  .patient-row-wrap:nth-child(3) { animation-delay: 110ms; }
+.stat-card:nth-child(4), .queue-row:nth-child(4),
+.appt-row:nth-child(4),  .patient-row-wrap:nth-child(4) { animation-delay: 165ms; }
+.stat-card:nth-child(5), .queue-row:nth-child(5),
+.appt-row:nth-child(5),  .patient-row-wrap:nth-child(5) { animation-delay: 220ms; }
+.stat-card:nth-child(6), .queue-row:nth-child(6),
+.appt-row:nth-child(6),  .patient-row-wrap:nth-child(6) { animation-delay: 275ms; }
+.stat-card:nth-child(7), .queue-row:nth-child(7),
+.appt-row:nth-child(7),  .patient-row-wrap:nth-child(7) { animation-delay: 320ms; }
+.stat-card:nth-child(8), .queue-row:nth-child(8),
+.appt-row:nth-child(8),  .patient-row-wrap:nth-child(8) { animation-delay: 360ms; }
+
+/* ── Button Loading State ─────────────────────────────────────────── */
+.btn--loading {
+  pointer-events: none;
+  opacity: 0.7;
+  position: relative;
+}
+.btn--loading .btn-text {
+  visibility: hidden;
+}
+.btn--loading::after {
+  content: '';
+  position: absolute;
+  width: 16px; height: 16px;
+  top: 50%; left: 50%;
+  margin-top: -8px; margin-left: -8px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: btnSpinRing 0.7s linear infinite;
+}
+@keyframes btnSpinRing {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Enhanced Input Focus Glow ────────────────────────────────────── */
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--border-light, #6b5f55);
+  box-shadow: 0 0 0 3px rgba(194, 169, 138, 0.15);
+  transition: border-color 0.15s ease, box-shadow 0.2s ease;
+}
+html.light .form-group input:focus,
+html.light .form-group select:focus,
+html.light .form-group textarea:focus {
+  border-color: var(--border-light, #c2a98a);
+  box-shadow: 0 0 0 3px rgba(100, 70, 20, 0.12);
+}
+
+/* ── Toast Notifications ──────────────────────────────────────────── */
+#toast-container {
+  position: fixed;
+  top: 20px; right: 20px;
+  z-index: 9998;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text);
+  box-shadow: var(--glow);
+  max-width: 320px;
+  pointer-events: auto;
+  animation: toastIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  line-height: 1.45;
+}
+.toast.out {
+  animation: toastOut 0.22s ease forwards;
+}
+.toast--success { border-left: 3px solid #4ade80; }
+.toast--error   { border-left: 3px solid var(--danger, #f87171); }
+.toast--info    { border-left: 3px solid var(--border); }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0);    }
+  to   { opacity: 0; transform: translateX(16px); }
+}
+
+/* ── Skeleton Shimmer ─────────────────────────────────────────────── */
+.skeleton {
+  background: var(--bg-3);
+  border-radius: var(--radius-sm);
+  position: relative;
+  overflow: hidden;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerSweep 1.4s ease infinite;
+}
+html.light .skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.04) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+}
+@keyframes shimmerSweep {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
+}
+.skeleton-row    { height: 48px; margin-bottom: 8px; }
+.skeleton-row--sm { height: 32px; }
+.skeleton-row--lg { height: 64px; }
+
+/* ── Auth page layout when inside .auth-page-wrap (with navbar) ───── */
+.auth-page-wrap .auth-page {
+  min-height: 0;
+  flex: 1;
+}
+.auth-page-wrap {
+  min-height: 100vh;
+}

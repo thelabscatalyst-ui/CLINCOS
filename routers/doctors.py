@@ -900,11 +900,22 @@ def pricing_page(
             )
             show_enterprise = doctor_count > 6
 
+    plan_status = None
+    if doctor:
+        now = datetime.utcnow()
+        if doctor.trial_ends_at and doctor.trial_ends_at > now:
+            plan_status = "trial"
+        elif doctor.plan_expires_at and doctor.plan_expires_at > now:
+            plan_status = "active"
+        else:
+            plan_status = "expired"
+
     return templates.TemplateResponse(request, "pricing.html", {
         "plans":               PLAN_CONFIG,
         "razorpay_configured": bool(cfg.RAZORPAY_KEY_ID),
         "doctor":              doctor,
         "show_enterprise":     show_enterprise,
+        "plan_status":         plan_status,
         "active":              "",
     })
 
